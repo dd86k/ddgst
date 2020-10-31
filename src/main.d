@@ -153,11 +153,13 @@ private int main(string[] args)
 	InputStrategy strat;	// Defaults to File
 	uint seed;
 	
-	//TODO: -- argument for passing stdin/text input
-	//TODO: -utf16,-utf32 for translating text input (with --)
+	//TODO: -: argument for passing stdin/text input
+	//TODO: -utf16/-utf32: Used to transform CLI utf-8 text into other encodings
 	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
-	//      So the translate would provide an aid for these encodings
-	//TODO: Consider adding -P/-progress for adding a progress bar
+	//      So the translate would provide an aid for these encodings, even
+	//      when raw, the data is processed as-is.
+	//TODO: -P/--progress: Consider adding progress bar
+	//TODO: -c/--check: Check against file
 	
 	for (size_t i = 3; i < argc; ++i)
 	{
@@ -188,10 +190,14 @@ private int main(string[] args)
 	final switch (strat)
 	{
 	case StdFile:
-		File f = void;
+		File f;	// Must never be void, see BUG
+		ulong flen = void;
 		try
 		{
-			f = File(args[2]);
+			// BUG: LDC2 has an issue with opAssign, crashing
+			//      the whole thing
+			f.open(args[2]);
+			flen = f.size();
 		}
 		catch (Exception ex)
 		{
@@ -199,7 +205,7 @@ private int main(string[] args)
 			return 1;
 		}
 		
-		if (f.size)
+		if (flen)
 		foreach (ubyte[] chunk; f.byChunk(CHUNK_SIZE))
 		{
 			ddh_compute(ddh, chunk);
@@ -218,8 +224,6 @@ private int main(string[] args)
 		}
 		
 		const ulong flen = f.length;
-		
-		debug writefln("flen=%u", flen);
 		
 		//TODO: Consider using [] instead of memory chunks
 		//      Perhaps with a -mmfull setting?
