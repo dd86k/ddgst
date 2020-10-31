@@ -14,3 +14,10 @@ ddh-test-*
 *.obj
 *.lst
 dub.selections.json
+
+# Archives
+*.zip
+*.xz
+*.gz
+*.bzip2
+*.tar
