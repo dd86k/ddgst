@@ -13,7 +13,7 @@ private extern(C) __gshared string[] rt_options = [ "gcopt=disable:1" ];
 debug private enum BUILD_TYPE = "debug";
 else  private enum BUILD_TYPE = "release";
 
-private enum PROJECT_VERSION = "0.0.0";
+private enum PROJECT_VERSION = "0.1.0";
 
 private immutable string FMT_VERSION =
 `ddh v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
