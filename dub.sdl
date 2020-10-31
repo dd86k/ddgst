@@ -1,0 +1,4 @@
+name "ddh"
+description "Generic hasher and binary encoder/decoder"
+authors "dd86k"
+license "Unlicense"
