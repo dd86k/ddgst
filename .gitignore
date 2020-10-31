@@ -21,3 +21,6 @@ dub.selections.json
 *.gz
 *.bzip2
 *.tar
+
+# GDC probes
+*.s
