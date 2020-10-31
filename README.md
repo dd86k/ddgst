@@ -33,7 +33,7 @@ ddh {hash|checksum} file [option...]
 
 Examples:
 - View the help page: `ddh help`, `ddh --help`
-- Hash a file with SHA-256 as memory-mapped: `ddh sha256 os.iso -mfile`
+- Hash a file with SHA-256 as memory-mapped: `ddh sha256 os.iso -mmfile`
 
 # Compiling
 
