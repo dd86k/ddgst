@@ -153,6 +153,12 @@ private int main(string[] args)
 	InputStrategy strat;	// Defaults to File
 	uint seed;
 	
+	//TODO: -- argument for passing stdin/text input
+	//TODO: -utf16,-utf32 for translating text input (with --)
+	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
+	//      So the translate would provide an aid for these encodings
+	//TODO: Consider adding -P/-progress for adding a progress bar
+	
 	for (size_t i = 3; i < argc; ++i)
 	{
 		const string arg = args[i];
