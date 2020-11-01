@@ -122,6 +122,38 @@ bool ddh_init(ref DDH_T ddh, DDHAction action, uint seed = 0)
 	return false;
 }
 
+void ddh_reinit(ref DDH_T ddh)
+{
+	with (DDHAction)
+	final switch (ddh.action)
+	{
+	case SumCRC32:
+		ddh.inptr.crc32.start();
+		break;
+	case SumCRC64ISO:
+		ddh.inptr.crc64iso.start();
+		break;
+	case SumCRC64ECMA:
+		ddh.inptr.crc64ecma.start();
+		break;
+	case HashMD5:
+		ddh.inptr.md5.start();
+		break;
+	case HashRIPEMD160:
+		ddh.inptr.ripemd160.start();
+		break;
+	case HashSHA1:
+		ddh.inptr.sha1.start();
+		break;
+	case HashSHA256:
+		ddh.inptr.sha256.start();
+		break;
+	case HashSHA512:
+		ddh.inptr.sha512.start();
+		break;
+	}
+}
+
 void ddh_compute(ref DDH_T ddh, ubyte[] data)
 {
 	ddh.compute(ddh.inptr, data);
@@ -145,7 +177,7 @@ char[] ddh_string(ref DDH_T ddh)
 		return sformat(ddh.inptr.result, "%016x", ddh.inptr.bufferu64);
 	case SumCRC32:	// 32 bits
 		return sformat(ddh.inptr.result, "%08x", ddh.inptr.bufferu32);
-	default:
+	default:	// Of any length
 		const size_t len = ddh.inptr.bufferlen;
 		ubyte *tbuf = ddh.inptr.buffer.ptr;
 		char  *rbuf = ddh.inptr.result.ptr;
