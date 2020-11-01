@@ -148,10 +148,12 @@ bool process_mmfile(ref UserInput user, ref DDH_T ddh)
 	if (flen)
 	{
 		ulong start;
-		const ulong climit = flen - CHUNK_SIZE;
-		for (; start < climit; start += CHUNK_SIZE)
-			ddh_compute(ddh, cast(ubyte[])f[start..start + CHUNK_SIZE]);
-	writeln("mmfile");
+		if (flen > CHUNK_SIZE)
+		{
+			const ulong climit = flen - CHUNK_SIZE;
+			for (; start < climit; start += CHUNK_SIZE)
+				ddh_compute(ddh, cast(ubyte[])f[start..start + CHUNK_SIZE]);
+		}
 		
 		// Compute remaining
 		ddh_compute(ddh, cast(ubyte[])f[start..flen]);
