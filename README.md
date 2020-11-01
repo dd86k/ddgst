@@ -39,10 +39,7 @@ ddh {hash|checksum} [options...] [{file|-}]
 
 ## Examples
 
-View the help page:
-```
-ddh help`, `ddh --help
-```
+View the help page: `ddh help` or `ddh --help`
 
 Hash a file using memory-mapping with SHA-256:
 ```
