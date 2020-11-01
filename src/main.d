@@ -45,7 +45,7 @@ Compiler: `~__VENDOR__~" for v%u.%03u";
 //        ddh {hash|checksum|encoding} [--options..] -- input
 immutable string TEXT_HELP =
 `Usage: ddh page
-       ddh {hash|checksum} file [options...]
+       ddh {checksum|hash} [options...] [{file|-}...]
 
 Pages
 help ......... Show this help screen and exit
@@ -53,20 +53,22 @@ version ...... Show application version screen and exit
 ver .......... Only show version and exit
 license ...... Show license screen and exit
 
-Hashes
-ripemd160 .... RIPEMD-160
-sha1 ......... SHA-1-160
-sha256 ....... SHA-2-256
-sha512 ....... SHA-2-512
-
 Checksums
 crc32 ........ CRC-32
 crc64iso ..... CRC-64-ISO
 crc64ecma .... CRC-64-ECMA
 
+Hashes
+md5 .......... MD5-128
+ripemd160 .... RIPEMD-160
+sha1 ......... SHA-1-160
+sha256 ....... SHA-2-256
+sha512 ....... SHA-2-512
+
 Options
--mmfile ...... Input mode: Memory-map file (MmFile)
-- ............ Input mode: Standard Input (stdin)`;
+-mmfile ...... Input mode: Memory-map file (std.mmfile)
+-file ........ Input mode: Regular file (std.stdio)
+- ............ Input mode: Standard input (stdin)`;
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.

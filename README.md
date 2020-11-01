@@ -27,13 +27,27 @@ Supported hashes and checksums
 
 The utility use a straightforward approach for its commandline:
 ```
-ddh {action}
-ddh {hash|checksum} file [option...]
+ddh {page}
+ddh {hash|checksum} [options...] [{file|-}]
 ```
 
-Examples:
-- View the help page: `ddh help`, `ddh --help`
-- Hash a memory-mapped file with SHA-256: `ddh sha256 -mmfile os.iso`
+| Option | Description |
+|---|---|
+| `-mmfile` | Switch input mode to mmfile for the following files |
+| `-file` | Switch input mode to file for the following files |
+| `-` | Switch input mode to stdin for this input entry |
+
+## Examples
+
+View the help page:
+```
+ddh help`, `ddh --help
+```
+
+Hash a file using memory-mapping with SHA-256:
+```
+ddh sha256 -mmfile os.iso
+```
 
 ## Standard Input (stdin)
 
