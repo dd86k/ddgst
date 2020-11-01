@@ -33,7 +33,24 @@ ddh {hash|checksum} file [option...]
 
 Examples:
 - View the help page: `ddh help`, `ddh --help`
-- Hash a file with SHA-256 as memory-mapped: `ddh sha256 os.iso -mmfile`
+- Hash a memory-mapped file with SHA-256: `ddh sha256 os.iso -mmfile`
+
+## Standard Input (stdin)
+
+The program, if lacking a third parameter or if a `-` parameter has been
+detected, will enter into the stdin input mode. Please note that the `-mmfile`
+option has no effect on this operating mode.
+
+Standard pipe operations are supported.
+
+If the keyboard input method is used, to send a EOF signal:
+- UNIX-like:
+  - `CTRL+D` must be pressed twice on the same line or;
+  - `CTRL+D` must be pressed once on a new line.
+- Windows-like:
+  - `CTRL+Z` on a new line followed with `RETURN` (Enter key).
+    - This unfortunately sends a newline.
+    - BUG: Must be done twice due to cmd internal mechanics. Piping recommended.
 
 # Compiling
 

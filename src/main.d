@@ -1,19 +1,36 @@
-import std.stdio, std.mmfile, std.outbuffer, std.compiler;
+import std.stdio, std.mmfile;
+import std.compiler : version_major, version_minor;
+import std.path : baseName;
 import ddh.ddh;
 
-debug private extern(C) __gshared bool rt_cmdline_enabled = true;
-else  private extern(C) __gshared bool rt_cmdline_enabled = false;
+extern (C) __gshared {
+	debug private bool rt_cmdline_enabled = true;
+	else  private bool rt_cmdline_enabled = false;
 
-private extern(C) __gshared bool rt_envvars_enabled = false;
+	private bool rt_envvars_enabled = false;
 
-// This starts with the GC disabled, with -vgc we can see that the GC will
-// re-enable the GC to allocate MmFile into the heap, but that's pretty much it
-private extern(C) __gshared string[] rt_options = [ "gcopt=disable:1" ];
+	// This starts with the GC disabled, with -vgc we can see that the GC
+	// will be re-enabled to allocate MmFile into the heap, but that's
+	// pretty much it
+	private string[] rt_options = [ "gcopt=disable:1" ];
+}
 
 debug private enum BUILD_TYPE = "debug";
 else  private enum BUILD_TYPE = "release";
 
 private enum PROJECT_VERSION = "0.1.0";
+
+private enum CHUNK_SIZE = 64 * 1024;
+
+private enum InputStrategy
+{
+	/// std.file
+	StdFile,
+	/// std.mmfile
+	StdMmFile,
+	/// Use standard input
+	Stdin,
+}
 
 private immutable string FMT_VERSION =
 `ddh v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
@@ -21,10 +38,10 @@ Compiler: `~__VENDOR__~" for v%u.%03u";
 
 //        ddh {hash|checksum|encoding} [--options..] -- input
 private immutable string TEXT_HELP =
-`Usage: ddh action
+`Usage: ddh page
        ddh {hash|checksum} file [options...]
 
-Actions
+Pages
 help ......... Show this help screen and exit
 version ...... Show application version screen and exit
 ver .......... Only show version and exit
@@ -42,7 +59,8 @@ crc64iso ..... CRC-64-ISO
 crc64ecma .... CRC-64-ECMA
 
 Options
--mmfile ...... Memory-map file`;
+-mmfile ...... Input mode: Memory-map file (MmFile)
+- ............ Input mode: Standard Input (stdin)`;
 
 private immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -70,15 +88,6 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>`;
 
-
-private enum InputStrategy
-{
-	/// std.file
-	StdFile,
-	/// std.mmfile
-	StdMmFile,
-}
-
 private int main(string[] args)
 {
 	const size_t argc = args.length;
@@ -91,7 +100,6 @@ private int main(string[] args)
 	
 	DDHAction action = void;
 	
-	//TODO: sha2,ripemd160,md5,murmurhash,xxhash
 	switch (args[1])
 	{
 	//
@@ -144,15 +152,6 @@ private int main(string[] args)
 		return 1;
 	}
 	
-	if (argc <= 2)
-	{
-		stderr.writeln("main: missing file");
-		return 1;
-	}
-	
-	InputStrategy strat;	// Defaults to File
-	uint seed;
-	
 	//TODO: -: argument for passing stdin/text input
 	//TODO: -utf16/-utf32: Used to transform CLI utf-8 text into other encodings
 	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
@@ -160,25 +159,51 @@ private int main(string[] args)
 	//      when raw, the data is processed as-is.
 	//TODO: -P/--progress: Consider adding progress bar
 	//TODO: -c/--check: Check against file
+	InputStrategy strat;	// Defaults to File
+//	size_t cli_fileslen;	/// File index/length
+//	string[32] cli_files = void;	/// Files to process
+	uint cli_seed;	/// Defaults to 0
 	
-	for (size_t i = 3; i < argc; ++i)
+	if (argc <= 2)
 	{
-		const string arg = args[i];
-		switch (arg)
-		{
-		case "-mmfile":
-			strat = InputStrategy.StdMmFile;
-			continue;
-		default:
-			stderr.writefln("unknown option: %s", arg);
-			return 1;
-		}
+		//stderr.writeln("main: missing file");
+		//return 1;
+		strat = InputStrategy.Stdin;
+		goto L_DDH_INIT;
 	}
-	
+
+	L_CLI: for (size_t argi = 3; argi < argc; ++argi)
+	{
+		const string arg = args[argi];
+		if (arg[0] == '-')
+		{
+			switch (arg)
+			{
+			case "-mmfile":
+				strat = InputStrategy.StdMmFile;
+				continue;
+			case "-":
+				strat = InputStrategy.Stdin;
+				++argi;
+				break L_CLI;
+			default:
+				stderr.writefln("unknown option: %s", arg);
+				return 1;
+			}
+		}
+		/+else
+		{
+			cli_files[cli_fileslen++] = arg;
+		}+/
+	}
+
+L_DDH_INIT:
 	DDH_T ddh = void;
-	ddh_init(ddh, action, seed);
-	
-	enum CHUNK_SIZE = 64 * 1024;
+	if (ddh_init(ddh, action, cli_seed))
+	{
+		perror(__FUNCTION__);
+		return 1;
+	}
 	
 	//TODO: Find a way to read and process data concurrently
 	//      Not to be confused with multi-threading, this would simply
@@ -213,9 +238,11 @@ private int main(string[] args)
 		break;
 	case StdMmFile:
 		MmFile f = void;
+		ulong flen = void;
 		try
 		{
 			f = new MmFile(args[2]);
+			flen = f.length;
 		}
 		catch (Exception ex)
 		{
@@ -223,10 +250,9 @@ private int main(string[] args)
 			return 1;
 		}
 		
-		const ulong flen = f.length;
-		
 		//TODO: Consider using [] instead of memory chunks
 		//      Perhaps with a -mmfull setting?
+		//      Let's do a benchmark as a unittest first.
 		if (flen)
 		{
 			ulong start;
@@ -236,6 +262,12 @@ private int main(string[] args)
 			
 			// Compute remaining
 			ddh_compute(ddh, cast(ubyte[])f[start..flen]);
+		}
+		break;
+	case Stdin:
+		foreach (ubyte[] chunk; stdin.byChunk(CHUNK_SIZE))
+		{
+			ddh_compute(ddh, chunk);
 		}
 		break;
 	}
