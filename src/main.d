@@ -48,16 +48,15 @@ Options
 - .............. Input mode: Standard input (stdin)
 -- ............. Stop processing options
 
-Type        Alias        Name
-Checksums   crc32        CRC-32
-            crc64iso     CRC-64-ISO
-	    crc64ecma    CRC-64-ECMA
-Hashes      md5          MD5
-            ripemd160    RIPEMD-160
-	    sha1         SHA-1-160
-	    sha256       SHA-2-256
-	    sha512       SHA-2-512
-`;
+Alias        Name
+crc32        CRC-32
+crc64iso     CRC-64-ISO
+crc64ecma    CRC-64-ECMA
+md5          MD5
+ripemd160    RIPEMD-160
+sha1         SHA-1-160
+sha256       SHA-2-256
+sha512       SHA-2-512`;
 //                                                         80 column marker -> |
 
 immutable string TEXT_LICENSE =
