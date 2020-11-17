@@ -1,6 +1,7 @@
 import std.stdio, std.mmfile;
 import std.compiler : version_major, version_minor;
 import std.path : baseName;
+import std.file : dirEntries, DirEntry, SpanMode;
 import ddh.ddh;
 
 private:
@@ -20,23 +21,15 @@ extern (C) __gshared {
 debug enum BUILD_TYPE = "debug";
 else  enum BUILD_TYPE = "release";
 
-enum PROJECT_VERSION = "0.1.0";
+enum PROJECT_VERSION = "0.2.0";
 enum PROJECT_NAME    = "ddh";
 
 /// Amount of data to process at once.
-/// Affects: File, MmFile, and stdin modes.
+/// Modes: File, MmFile, stdin
 enum CHUNK_SIZE = 64 * 1024;
 /// Number of maximum amount of files to process.
-/// Affects: File and MmFile modes
+/// Modes: File, MmFile
 enum CLI_MAX_FILES = 32;
-
-struct UserInput
-{
-	bool function(ref UserInput, ref DDH_T) func;
-	uint flags;
-	string path;
-	string basename;
-}
 
 immutable string FMT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
@@ -98,7 +91,7 @@ For more information, please refer to <http://unlicense.org/>`;
 
 immutable string STDIN_BASENAME = "-";
 
-bool process_file(ref UserInput user, ref DDH_T ddh)
+int process_file(ref string path, ref DDH_T ddh)
 {
 	//TODO: Find a way to read and process data concurrently for File
 	//      Not to be confused with multi-threading, this would simply
@@ -109,9 +102,8 @@ bool process_file(ref UserInput user, ref DDH_T ddh)
 	ulong flen = void;
 	try
 	{
-		// BUG: LDC2 has an issue with opAssign, crashing
-		//      the whole thing
-		f.open(user.path);
+		// BUG: Using LDC2 crashes as runtime with opAssign
+		f.open(path);
 		flen = f.size();
 	}
 	catch (Exception ex)
@@ -122,20 +114,18 @@ bool process_file(ref UserInput user, ref DDH_T ddh)
 
 	if (flen)
 	foreach (ubyte[] chunk; f.byChunk(CHUNK_SIZE))
-	{
 		ddh_compute(ddh, chunk);
-	}
 	
 	return false;
 }
 
-bool process_mmfile(ref UserInput user, ref DDH_T ddh)
+int process_mmfile(ref string path, ref DDH_T ddh)
 {
 	MmFile f = void;
 	ulong flen = void;
 	try
 	{
-		f = new MmFile(user.path);
+		f = new MmFile(path);
 		flen = f.length;
 	}
 	catch (Exception ex)
@@ -164,7 +154,7 @@ bool process_mmfile(ref UserInput user, ref DDH_T ddh)
 	return false;
 }
 
-bool process_stdin(ref UserInput, ref DDH_T ddh)
+int process_stdin(ref DDH_T ddh)
 {
 	foreach (ubyte[] chunk; stdin.byChunk(CHUNK_SIZE))
 	{
@@ -237,6 +227,13 @@ int main(string[] args)
 		return 1;
 	}
 	
+	DDH_T ddh = void;
+	if (ddh_init(ddh, action, 0))
+	{
+		perror(__FUNCTION__);
+		return 1;
+	}
+	
 	//TODO: -utf16/-utf32: Used to transform CLI utf-8 text into other encodings
 	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
 	//      So the translate would provide an aid for these encodings, even
@@ -245,19 +242,17 @@ int main(string[] args)
 	//TODO: -c/--check: Check against file
 	//TODO: -u/-upper: Upper case hash digests
 	//TODO: -C/--continue: Continue to next file on error
+	//TODO: --color: Errors with color
+	//TODO: -p/--parallel: parallel dirEntries
 	//TODO: glob pattern matching with std.file.dirEntries
 	
-	size_t inputlen;
-	UserInput[CLI_MAX_FILES] inputs = void;
-	uint cli_seed;	/// Defaults to 0
-	bool function(ref UserInput, ref DDH_T) defaultfunc = void;
+//	uint cli_seed;	/// Defaults to 0
+	int function(ref string, ref DDH_T) defaultfunc = void;
 	
 	if (argc <= 2)
 	{
-		UserInput *input = &inputs[inputlen++];
-		input.path = input.basename = STDIN_BASENAME;
-		input.func = &process_stdin;
-		goto L_DDH_INIT;
+		process_stdin(ddh);
+		writefln("%s  -", ddh_string(ddh));
 	}
 	else
 		defaultfunc = &process_file;
@@ -265,6 +260,7 @@ int main(string[] args)
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
 		const string arg = args[argi];
+		
 		if (arg[0] == '-')
 		{
 			switch (arg)
@@ -276,46 +272,25 @@ int main(string[] args)
 				defaultfunc = &process_file;
 				continue;
 			case "-":
-				if (inputlen < CLI_MAX_FILES)
-				{
-					UserInput *input = &inputs[inputlen++];
-					input.path = input.basename = STDIN_BASENAME;
-					input.func = &process_stdin;
-				}
+				process_stdin(ddh);
+				writefln("%s  -", ddh_string(ddh));
 				continue;
 			default:
 				stderr.writefln(PROJECT_NAME~": unknown option '%s'", arg);
 				return 1;
 			}
 		}
-		else
+		
+		foreach (DirEntry entry; dirEntries(null, arg, SpanMode.shallow))
 		{
-			if (inputlen < CLI_MAX_FILES)
-			{
-				UserInput *input = &inputs[inputlen++];
-				input.path = arg;
-				// This doesn't check if file exists
-				input.basename = baseName(arg);
-				input.func = defaultfunc;
-			}
+			if (entry.isFile == false)
+				continue;
+			string path = entry.name;
+			if (defaultfunc(path, ddh))
+				return 1;
+			writefln("%s  %s", ddh_string(ddh), baseName(path));
+			ddh_reinit(ddh);
 		}
-	}
-
-L_DDH_INIT:
-	DDH_T ddh = void;
-	if (ddh_init(ddh, action, cli_seed))
-	{
-		perror(__FUNCTION__);
-		return 1;
-	}
-	
-	for (size_t fi; fi < inputlen; ++fi)
-	{
-		UserInput input = inputs[fi];
-		if (input.func(input, ddh))
-			return 1;
-		writefln("%s  %s", ddh_string(ddh), input.basename);
-		ddh_reinit(ddh);
 	}
 	
 	return 0;
