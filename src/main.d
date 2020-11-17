@@ -1,6 +1,6 @@
 import std.stdio, std.mmfile;
 import std.compiler : version_major, version_minor;
-import std.path : baseName;
+import std.path : baseName, dirName;
 import std.file : dirEntries, DirEntry, SpanMode;
 import ddh.ddh;
 
@@ -27,15 +27,11 @@ enum PROJECT_NAME    = "ddh";
 /// Amount of data to process at once.
 /// Modes: File, MmFile, stdin
 enum CHUNK_SIZE = 64 * 1024;
-/// Number of maximum amount of files to process.
-/// Modes: File, MmFile
-enum CLI_MAX_FILES = 32;
 
 immutable string FMT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
 Compiler: `~__VENDOR__~" for v%u.%03u";
 
-//        ddh {hash|checksum|encoding} [--options..] -- input
 immutable string TEXT_HELP =
 `Usage: ddh page
        ddh {checksum|hash} [options...] [{file|-}...]
@@ -251,9 +247,10 @@ int main(string[] args)
 	//TODO: -u/-upper: Upper case hash digests
 	//TODO: -C/--continue: Continue to next file on error
 	//TODO: --color: Errors with color
-	//TODO: -p/--parallel: parallel dirEntries
+	//TODO: -p/--parallel: std.parallalism.parallel dirEntries
 	
-	int function(ref string, ref DDH_T) pfunc = &process_file;	/// process function
+	int function(ref const string, ref DDH_T) pfunc = &process_file;
+	int presult = void;	/// Process function result
 	bool cli_skip;	/// Skip CLI options, default=false
 //	uint cli_seed;	/// Defaults to 0
 	
@@ -262,7 +259,13 @@ int main(string[] args)
 		const string arg = args[argi];
 		
 		if (cli_skip)
-			goto L_CLI_SKIP;
+		{
+			presult = pfunc(arg, ddh);
+			if (presult) return presult;
+			writefln("%s  %s", ddh_string(ddh), baseName(arg));
+			ddh_reinit(ddh);
+			continue;
+		}
 		
 		if (arg[0] == '-')
 		{
@@ -284,7 +287,7 @@ int main(string[] args)
 					pfunc = &process_file;
 					continue;
 				case "--":
-					cli_skip = !cli_skip;
+					cli_skip = true;
 					continue;
 				default:
 					stderr.writefln(PROJECT_NAME~": unknown option '%s'", arg);
@@ -307,14 +310,15 @@ int main(string[] args)
 			}
 		}
 		
-L_CLI_SKIP:
-		foreach (DirEntry entry; dirEntries(null, arg, SpanMode.shallow))
+		string dir  = dirName(arg);
+		string name = baseName(arg); // Thankfully doesn't remove glob patterns
+		foreach (DirEntry entry; dirEntries(dir, name, SpanMode.shallow))
 		{
 			if (entry.isFile == false)
 				continue;
 			string path = entry.name;
-			if (pfunc(path, ddh))
-				return 1;
+			presult = pfunc(path, ddh);
+			if (presult) return presult;
 			writefln("%s  %s", ddh_string(ddh), baseName(path));
 			ddh_reinit(ddh);
 		}
