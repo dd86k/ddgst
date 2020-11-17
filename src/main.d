@@ -41,27 +41,28 @@ immutable string TEXT_HELP =
        ddh {checksum|hash} [options...] [{file|-}...]
 
 Pages
-help ......... Show this help screen and exit
-version ...... Show application version screen and exit
-ver .......... Only show version and exit
-license ...... Show license screen and exit
-
-Checksums
-crc32 ........ CRC-32
-crc64iso ..... CRC-64-ISO
-crc64ecma .... CRC-64-ECMA
-
-Hashes
-md5 .......... MD5-128
-ripemd160 .... RIPEMD-160
-sha1 ......... SHA-1-160
-sha256 ....... SHA-2-256
-sha512 ....... SHA-2-512
+help ........... Show this help screen and exit
+version ........ Show application version screen and exit
+ver ............ Only show version and exit
+license ........ Show license screen and exit
 
 Options
--mmfile ...... Input mode: Memory-map file (std.mmfile)
--file ........ Input mode: Regular file (std.stdio)
-- ............ Input mode: Standard input (stdin)`;
+-M, --mmfile ... Input mode: Memory-map file (std.mmfile)
+-F, --file ..... Input mode: Regular file (std.stdio)
+- .............. Input mode: Standard input (stdin)
+-- ............. Stop processing options
+
+Type        Alias        Name
+Checksums   crc32        CRC-32
+            crc64iso     CRC-64-ISO
+	    crc64ecma    CRC-64-ECMA
+Hashes      md5          MD5
+            ripemd160    RIPEMD-160
+	    sha1         SHA-1-160
+	    sha256       SHA-2-256
+	    sha512       SHA-2-512
+`;
+//                                                         80 column marker -> |
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -214,7 +215,7 @@ int main(string[] args)
 		writeln(PROJECT_VERSION);
 		return 0;
 	case "help", "--help":
-		writeln(TEXT_HELP);
+		write(TEXT_HELP);
 		return 0;
 	case "version", "--version":
 		writefln(FMT_VERSION, version_major, version_minor);
@@ -234,6 +235,13 @@ int main(string[] args)
 		return 1;
 	}
 	
+	if (argc <= 2)
+	{
+		process_stdin(ddh);
+		writefln("%s  -", ddh_string(ddh));
+		return 0;
+	}
+	
 	//TODO: -utf16/-utf32: Used to transform CLI utf-8 text into other encodings
 	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
 	//      So the translate would provide an aid for these encodings, even
@@ -244,49 +252,68 @@ int main(string[] args)
 	//TODO: -C/--continue: Continue to next file on error
 	//TODO: --color: Errors with color
 	//TODO: -p/--parallel: parallel dirEntries
-	//TODO: glob pattern matching with std.file.dirEntries
 	
+	int function(ref string, ref DDH_T) pfunc = &process_file;	/// process function
+	bool cli_skip;	/// Skip CLI options, default=false
 //	uint cli_seed;	/// Defaults to 0
-	int function(ref string, ref DDH_T) defaultfunc = void;
 	
-	if (argc <= 2)
-	{
-		process_stdin(ddh);
-		writefln("%s  -", ddh_string(ddh));
-	}
-	else
-		defaultfunc = &process_file;
-
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
 		const string arg = args[argi];
 		
+		if (cli_skip)
+			goto L_CLI_SKIP;
+		
 		if (arg[0] == '-')
 		{
-			switch (arg)
+			if (arg.length == 1) // '-' only: stdin
 			{
-			case "-mmfile":
-				defaultfunc = &process_mmfile;
-				continue;
-			case "-file":
-				defaultfunc = &process_file;
-				continue;
-			case "-":
 				process_stdin(ddh);
 				writefln("%s  -", ddh_string(ddh));
 				continue;
+			}
+			
+			if (arg[1] == '-') // long opts
+			{
+				switch (arg)
+				{
+				case "--mmfile":
+					pfunc = &process_mmfile;
+					continue;
+				case "--file":
+					pfunc = &process_file;
+					continue;
+				case "--":
+					cli_skip = !cli_skip;
+					continue;
+				default:
+					stderr.writefln(PROJECT_NAME~": unknown option '%s'", arg);
+					return 1;
+				}
+			}
+			
+			foreach (char o; arg[1..$])
+			switch (o)
+			{
+			case 'M':
+				pfunc = &process_mmfile;
+				continue;
+			case 'F':
+				pfunc = &process_file;
+				continue;
 			default:
-				stderr.writefln(PROJECT_NAME~": unknown option '%s'", arg);
+				stderr.writefln(PROJECT_NAME~": unknown option '%c'", o);
 				return 1;
 			}
 		}
 		
+L_CLI_SKIP:
 		foreach (DirEntry entry; dirEntries(null, arg, SpanMode.shallow))
 		{
 			if (entry.isFile == false)
 				continue;
 			string path = entry.name;
-			if (defaultfunc(path, ddh))
+			if (pfunc(path, ddh))
 				return 1;
 			writefln("%s  %s", ddh_string(ddh), baseName(path));
 			ddh_reinit(ddh);
