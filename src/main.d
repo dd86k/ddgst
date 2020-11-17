@@ -131,9 +131,6 @@ int process_mmfile(ref string path, ref DDH_T ddh)
 		return true;
 	}
 	
-	//TODO: Consider using [] instead of memory chunks
-	//      Perhaps with a -mmfull setting?
-	//      Let's do a benchmark as a unittest first.
 	if (flen)
 	{
 		ulong start;

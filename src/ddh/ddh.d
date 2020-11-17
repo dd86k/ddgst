@@ -4,6 +4,7 @@ private import ddh.chksum.crc32, ddh.chksum.crc64,
 	ddh.hash.md, ddh.hash.ripemd, ddh.hash.sha;
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
 
+/// Choose which checksum or hash will be used
 enum DDHAction
 {
 	SumCRC32,
@@ -16,11 +17,13 @@ enum DDHAction
 	HashSHA512,
 }
 
+/// Last error code
 enum DDHError
 {
 	None
 }
 
+/// Internals for DDH_T
 struct DDH_INTERNALS_T
 {
 	union {
@@ -36,26 +39,32 @@ struct DDH_INTERNALS_T
 	union
 	{
 		ubyte[1024] buffer;	/// Internal buffer for raw result
-		ulong bufferu64;
-		uint bufferu32;
+		ulong bufferu64;	/// Internal union type
+		uint bufferu32;	/// Internal union type
 	}
 	char[1024] result;	/// Internal buffer for formatted result
 	size_t bufferlen;	/// Internal buffer raw result size
 }
 
+/// Main structure
 struct DDH_T
 {
-	DDHAction action;
-	void function(DDH_INTERNALS_T*, ubyte[]) compute;
-	ubyte[] function(DDH_INTERNALS_T*) finish;
+	DDHAction action;	/// 
+	void function(DDH_INTERNALS_T*, ubyte[]) compute;	///
+	ubyte[] function(DDH_INTERNALS_T*) finish;	/// 
 	union
 	{
-		void *invptr;
-		DDH_INTERNALS_T *inptr;
+		void *invptr;	/// 
+		DDH_INTERNALS_T *inptr;	/// 
 	}
 }
 
-
+/// Initiates a DDH_T structure with an DDHAction value.
+/// Params:
+/// 	ddh = DDH_T structure
+/// 	action = DDHAction value
+/// 	seed = Seed, defaults to 0, currently unused
+/// Returns: True on error
 bool ddh_init(ref DDH_T ddh, DDHAction action, uint seed = 0)
 {
 	import core.stdc.stdlib : malloc;
@@ -122,6 +131,8 @@ bool ddh_init(ref DDH_T ddh, DDHAction action, uint seed = 0)
 	return false;
 }
 
+/// Re-initiates the DDH session.
+/// Params: ddh = DDH_T structure
 void ddh_reinit(ref DDH_T ddh)
 {
 	with (DDHAction)
@@ -154,16 +165,27 @@ void ddh_reinit(ref DDH_T ddh)
 	}
 }
 
+/// Compute a block of data
+/// Params:
+/// 	ddh = DDH_T structure
+/// 	data = Byte array
 void ddh_compute(ref DDH_T ddh, ubyte[] data)
 {
 	ddh.compute(ddh.inptr, data);
 }
 
+/// Finalize digest or checksum
+/// Params: ddh = DDH_T structure
+/// Returns: Raw digest slice
 ubyte[] ddh_finish(ref DDH_T ddh)
 {
 	return ddh.finish(ddh.inptr);
 }
 
+/// Finalize digest or checksum and return formatted 
+/// Finalize and return formatted diggest
+/// Params: dd = DDH_T structure
+/// Returns: Formatted digest
 char[] ddh_string(ref DDH_T ddh)
 {
 	import std.format : sformat;
