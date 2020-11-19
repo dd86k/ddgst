@@ -13,7 +13,9 @@ enum DDHAction
 	HashMD5,
 	HashRIPEMD160,
 	HashSHA1,
+	HashSHA224,
 	HashSHA256,
+	HashSHA384,
 	HashSHA512,
 }
 
@@ -34,7 +36,9 @@ struct DDH_INTERNALS_T
 		MD5 md5;	/// MD5
 		RIPEMD160 ripemd160;	/// RIPEMD160
 		SHA1 sha1;	/// SHA1
+		SHA224 sha224;	/// SHA224
 		SHA256 sha256;	/// SHA256
+		SHA384 sha384;	/// SHA384
 		SHA512 sha512;	/// SHA512
 	}
 	union
@@ -83,41 +87,17 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 	with (DDHAction)
 	final switch (action)
 	{
-	case SumCRC32:
-		ddh.inptr.crc32 = CRC32();
-		ddh.compute = &ddh_crc32_compute;
-		ddh.finish  = &ddh_crc32_finish;
-		ddh.inptr.bufferlen = BITS!(32);
+	case HashSHA512:
+		ddh.inptr.sha512 = SHA512();
+		ddh.compute = &ddh_sha512_compute;
+		ddh.finish  = &ddh_sha512_finish;
+		ddh.inptr.bufferlen = BITS!(512);
 		break;
-	case SumCRC64ISO:
-		ddh.inptr.crc64iso = CRC64ISO();
-		ddh.compute = &ddh_crc64iso_compute;
-		ddh.finish  = &ddh_crc64iso_finish;
-		ddh.inptr.bufferlen = BITS!(64);
-		break;
-	case SumCRC64ECMA:
-		ddh.inptr.crc64ecma = CRC64ECMA();
-		ddh.compute = &ddh_crc64ecma_compute;
-		ddh.finish  = &ddh_crc64ecma_finish;
-		ddh.inptr.bufferlen = BITS!(64);
-		break;
-	case HashMD5:
-		ddh.inptr.md5 = MD5();
-		ddh.compute = &ddh_md5_compute;
-		ddh.finish  = &ddh_md5_finish;
-		ddh.inptr.bufferlen = BITS!(128);
-		break;
-	case HashRIPEMD160:
-		ddh.inptr.ripemd160 = RIPEMD160();
-		ddh.compute = &ddh_ripemd_compute;
-		ddh.finish  = &ddh_ripemd_finish;
-		ddh.inptr.bufferlen = BITS!(160);
-		break;
-	case HashSHA1:
-		ddh.inptr.sha1 = SHA1();
-		ddh.compute = &ddh_sha1_compute;
-		ddh.finish  = &ddh_sha1_finish;
-		ddh.inptr.bufferlen = BITS!(160);
+	case HashSHA384:
+		ddh.inptr.sha384 = SHA384();
+		ddh.compute = &ddh_sha384_compute;
+		ddh.finish  = &ddh_sha384_finish;
+		ddh.inptr.bufferlen = BITS!(384);
 		break;
 	case HashSHA256:
 		ddh.inptr.sha256 = SHA256();
@@ -125,11 +105,47 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 		ddh.finish  = &ddh_sha256_finish;
 		ddh.inptr.bufferlen = BITS!(256);
 		break;
-	case HashSHA512:
-		ddh.inptr.sha512 = SHA512();
-		ddh.compute = &ddh_sha512_compute;
-		ddh.finish  = &ddh_sha512_finish;
-		ddh.inptr.bufferlen = BITS!(512);
+	case HashSHA224:
+		ddh.inptr.sha224 = SHA224();
+		ddh.compute = &ddh_sha224_compute;
+		ddh.finish  = &ddh_sha224_finish;
+		ddh.inptr.bufferlen = BITS!(224);
+		break;
+	case HashSHA1:
+		ddh.inptr.sha1 = SHA1();
+		ddh.compute = &ddh_sha1_compute;
+		ddh.finish  = &ddh_sha1_finish;
+		ddh.inptr.bufferlen = BITS!(160);
+		break;
+	case HashRIPEMD160:
+		ddh.inptr.ripemd160 = RIPEMD160();
+		ddh.compute = &ddh_ripemd_compute;
+		ddh.finish  = &ddh_ripemd_finish;
+		ddh.inptr.bufferlen = BITS!(160);
+		break;
+	case HashMD5:
+		ddh.inptr.md5 = MD5();
+		ddh.compute = &ddh_md5_compute;
+		ddh.finish  = &ddh_md5_finish;
+		ddh.inptr.bufferlen = BITS!(128);
+		break;
+	case SumCRC64ECMA:
+		ddh.inptr.crc64ecma = CRC64ECMA();
+		ddh.compute = &ddh_crc64ecma_compute;
+		ddh.finish  = &ddh_crc64ecma_finish;
+		ddh.inptr.bufferlen = BITS!(64);
+		break;
+	case SumCRC64ISO:
+		ddh.inptr.crc64iso = CRC64ISO();
+		ddh.compute = &ddh_crc64iso_compute;
+		ddh.finish  = &ddh_crc64iso_finish;
+		ddh.inptr.bufferlen = BITS!(64);
+		break;
+	case SumCRC32:
+		ddh.inptr.crc32 = CRC32();
+		ddh.compute = &ddh_crc32_compute;
+		ddh.finish  = &ddh_crc32_finish;
+		ddh.inptr.bufferlen = BITS!(32);
 		break;
 	}
 	
@@ -143,29 +159,35 @@ void ddh_reinit(ref DDH_T ddh)
 	with (DDHAction)
 	final switch (ddh.action)
 	{
-	case SumCRC32:
-		ddh.inptr.crc32.start();
+	case HashSHA512:
+		ddh.inptr.sha512.start();
 		break;
-	case SumCRC64ISO:
-		ddh.inptr.crc64iso.start();
-		break;
-	case SumCRC64ECMA:
-		ddh.inptr.crc64ecma.start();
-		break;
-	case HashMD5:
-		ddh.inptr.md5.start();
-		break;
-	case HashRIPEMD160:
-		ddh.inptr.ripemd160.start();
-		break;
-	case HashSHA1:
-		ddh.inptr.sha1.start();
+	case HashSHA384:
+		ddh.inptr.sha256.start();
 		break;
 	case HashSHA256:
 		ddh.inptr.sha256.start();
 		break;
-	case HashSHA512:
-		ddh.inptr.sha512.start();
+	case HashSHA224:
+		ddh.inptr.sha224.start();
+		break;
+	case HashSHA1:
+		ddh.inptr.sha1.start();
+		break;
+	case HashRIPEMD160:
+		ddh.inptr.ripemd160.start();
+		break;
+	case HashMD5:
+		ddh.inptr.md5.start();
+		break;
+	case SumCRC64ECMA:
+		ddh.inptr.crc64ecma.start();
+		break;
+	case SumCRC64ISO:
+		ddh.inptr.crc64iso.start();
+		break;
+	case SumCRC32:
+		ddh.inptr.crc32.start();
 		break;
 	}
 }

@@ -25,9 +25,9 @@ Why? I wanted:
 | RIPEMD-160 | ✔️ | | |
 | BLAKE2 | | ✔️ (b2sum) | |
 | SHA-1-160 | ✔️ | ✔️ (sha1sum) | |
-| SHA-2-224 | | ✔️ (sha224sum) | |
+| SHA-2-224 | ✔️ | ✔️ (sha224sum) | |
 | SHA-2-256 | ✔️ | ✔️ (sha256sum) | |
-| SHA-2-384 | | ✔️ (sha384sum) | |
+| SHA-2-384 | ✔️ | ✔️ (sha384sum) | |
 | SHA-2-512 | ✔️ | ✔️ (sha512sum) | |
 
 ## Feature Comparison

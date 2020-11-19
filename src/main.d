@@ -56,7 +56,9 @@ crc64ecma    CRC-64-ECMA
 md5          MD5
 ripemd160    RIPEMD-160
 sha1         SHA-1-160
+sha224       SHA-2-224
 sha256       SHA-2-256
+sha384       SHA-2-384
 sha512       SHA-2-512`;
 //                                                         80 column marker -> |
 
@@ -177,8 +179,14 @@ int main(string[] args)
 	case "sha512":
 		action = DDHAction.HashSHA512;
 		break;
+	case "sha384":
+		action = DDHAction.HashSHA384;
+		break;
 	case "sha256":
 		action = DDHAction.HashSHA256;
+		break;
+	case "sha224":
+		action = DDHAction.HashSHA224;
 		break;
 	case "sha1":
 		action = DDHAction.HashSHA1;
