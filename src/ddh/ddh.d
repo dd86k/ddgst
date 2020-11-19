@@ -26,7 +26,8 @@ enum DDHError
 /// Internals for DDH_T
 struct DDH_INTERNALS_T
 {
-	union {
+	union
+	{
 		CRC32 crc32;	/// CRC32
 		CRC64ISO crc64iso;	/// CRC64ISO
 		CRC64ECMA crc64ecma;	/// CRC64ECMA
@@ -54,23 +55,27 @@ struct DDH_T
 	ubyte[] function(DDH_INTERNALS_T*) finish;	/// 
 	union
 	{
-		void *invptr;	/// 
-		DDH_INTERNALS_T *inptr;	/// 
+		void *voidptr;	/// Void pointer for allocation
+		DDH_INTERNALS_T *inptr;	/// Internal pointer for allocation
 	}
 }
+
+// Helps converting bits to byte sizes, to avoid errors
+private template BITS(int n) { enum { BITS = n >> 3 } }
+
+unittest { static assert(BITS!(32) == 4); }
 
 /// Initiates a DDH_T structure with an DDHAction value.
 /// Params:
 /// 	ddh = DDH_T structure
 /// 	action = DDHAction value
-/// 	seed = Seed, defaults to 0, currently unused
 /// Returns: True on error
-bool ddh_init(ref DDH_T ddh, DDHAction action, uint seed = 0)
+bool ddh_init(ref DDH_T ddh, DDHAction action)
 {
 	import core.stdc.stdlib : malloc;
 	
-	ddh.invptr = malloc(DDH_INTERNALS_T.sizeof);
-	if (ddh.invptr == null)
+	ddh.voidptr = malloc(DDH_INTERNALS_T.sizeof);
+	if (ddh.voidptr == null)
 		return true;
 	
 	ddh.action = action;
@@ -82,49 +87,49 @@ bool ddh_init(ref DDH_T ddh, DDHAction action, uint seed = 0)
 		ddh.inptr.crc32 = CRC32();
 		ddh.compute = &ddh_crc32_compute;
 		ddh.finish  = &ddh_crc32_finish;
-		ddh.inptr.bufferlen = 4;
+		ddh.inptr.bufferlen = BITS!(32);
 		break;
 	case SumCRC64ISO:
 		ddh.inptr.crc64iso = CRC64ISO();
 		ddh.compute = &ddh_crc64iso_compute;
 		ddh.finish  = &ddh_crc64iso_finish;
-		ddh.inptr.bufferlen = 8;
+		ddh.inptr.bufferlen = BITS!(64);
 		break;
 	case SumCRC64ECMA:
 		ddh.inptr.crc64ecma = CRC64ECMA();
 		ddh.compute = &ddh_crc64ecma_compute;
 		ddh.finish  = &ddh_crc64ecma_finish;
-		ddh.inptr.bufferlen = 8;
+		ddh.inptr.bufferlen = BITS!(64);
 		break;
 	case HashMD5:
 		ddh.inptr.md5 = MD5();
 		ddh.compute = &ddh_md5_compute;
 		ddh.finish  = &ddh_md5_finish;
-		ddh.inptr.bufferlen = 16;
+		ddh.inptr.bufferlen = BITS!(128);
 		break;
 	case HashRIPEMD160:
 		ddh.inptr.ripemd160 = RIPEMD160();
 		ddh.compute = &ddh_ripemd_compute;
 		ddh.finish  = &ddh_ripemd_finish;
-		ddh.inptr.bufferlen = 20;
+		ddh.inptr.bufferlen = BITS!(160);
 		break;
 	case HashSHA1:
 		ddh.inptr.sha1 = SHA1();
 		ddh.compute = &ddh_sha1_compute;
 		ddh.finish  = &ddh_sha1_finish;
-		ddh.inptr.bufferlen = 20;
+		ddh.inptr.bufferlen = BITS!(160);
 		break;
 	case HashSHA256:
 		ddh.inptr.sha256 = SHA256();
 		ddh.compute = &ddh_sha256_compute;
 		ddh.finish  = &ddh_sha256_finish;
-		ddh.inptr.bufferlen = 32;
+		ddh.inptr.bufferlen = BITS!(256);
 		break;
 	case HashSHA512:
 		ddh.inptr.sha512 = SHA512();
 		ddh.compute = &ddh_sha512_compute;
 		ddh.finish  = &ddh_sha512_finish;
-		ddh.inptr.bufferlen = 64;
+		ddh.inptr.bufferlen = BITS!(512);
 		break;
 	}
 	
@@ -210,7 +215,7 @@ char[] ddh_string(ref DDH_T ddh)
 	}
 }
 
-private size_t fasthex(char* buffer, ubyte v)
+private size_t fasthex(char* buffer, ubyte v) nothrow pure @nogc
 {
 	buffer[1] = fasthexchar(v & 0xF);
 	buffer[0] = fasthexchar(v >> 4);
@@ -218,7 +223,7 @@ private size_t fasthex(char* buffer, ubyte v)
 }
 
 pragma(inline, true)
-private char fasthexchar(ubyte v)
+private char fasthexchar(ubyte v) nothrow pure @nogc
 {
 	return cast(char)(v <= 9 ? v + 48 : v + 87);
 }

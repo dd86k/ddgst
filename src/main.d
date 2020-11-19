@@ -3,6 +3,7 @@ import std.compiler : version_major, version_minor;
 import std.path : baseName, dirName;
 import std.file : dirEntries, DirEntry, SpanMode;
 import ddh.ddh;
+static import log = logger;
 
 private:
 
@@ -98,13 +99,13 @@ int process_file(ref string path, ref DDH_T ddh)
 	ulong flen = void;
 	try
 	{
-		// BUG: Using LDC2 crashes as runtime with opAssign
+		// BUG: Using LDC2 crashes at runtime with opAssign
 		f.open(path);
 		flen = f.size();
 	}
 	catch (Exception ex)
 	{
-		stderr.writefln(PROJECT_NAME~": %s", ex.msg);
+		log.error(ex.msg);
 		return true;
 	}
 
@@ -126,7 +127,7 @@ int process_mmfile(ref string path, ref DDH_T ddh)
 	}
 	catch (Exception ex)
 	{
-		stderr.writefln(PROJECT_NAME~": %s", ex.msg);
+		log.error(ex.msg);
 		return true;
 	}
 	
@@ -216,12 +217,12 @@ int main(string[] args)
 		writeln(TEXT_LICENSE);
 		return 0;
 	default:
-		stderr.writefln(PROJECT_NAME~": unknown action '%s'", args[1]);
+		log.error(PROJECT_NAME~": unknown action '%s'", args[1]);
 		return 1;
 	}
 	
 	DDH_T ddh = void;
-	if (ddh_init(ddh, action, 0))
+	if (ddh_init(ddh, action))
 	{
 		perror(__FUNCTION__);
 		return 1;
@@ -234,13 +235,13 @@ int main(string[] args)
 		return 0;
 	}
 	
-	//TODO: -utf16/-utf32: Used to transform CLI utf-8 text into other encodings
+	//TODO: --utf16/--utf32: Used to transform CLI utf-8 text into other encodings
 	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
 	//      So the translate would provide an aid for these encodings, even
 	//      when raw, the data is processed as-is.
 	//TODO: -P/--progress: Consider adding progress bar
 	//TODO: -c/--check: Check against file
-	//TODO: -u/-upper: Upper case hash digests
+	//TODO: -u/--upper: Upper case hash digests
 	//TODO: -C/--continue: Continue to next file on error
 	//TODO: --color: Errors with color
 	//TODO: -p/--parallel: std.parallalism.parallel dirEntries
@@ -252,7 +253,7 @@ int main(string[] args)
 	
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
-		const string arg = args[argi];
+		string arg = args[argi];
 		
 		if (cli_skip)
 		{
@@ -286,7 +287,7 @@ int main(string[] args)
 					cli_skip = true;
 					continue;
 				default:
-					stderr.writefln(PROJECT_NAME~": unknown option '%s'", arg);
+					log.error(PROJECT_NAME~": unknown option '%s'", arg);
 					return 1;
 				}
 			}
@@ -301,7 +302,7 @@ int main(string[] args)
 				pfunc = &process_file;
 				continue;
 			default:
-				stderr.writefln(PROJECT_NAME~": unknown option '%c'", o);
+				log.error(PROJECT_NAME~": unknown option '%c'", o);
 				return 1;
 			}
 		}
