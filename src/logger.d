@@ -24,8 +24,9 @@ void colors(bool enable)
 }
 +/
 
-void error(string fmt, ...)
+void error(string mod = __MODULE__, uint line = __LINE__, Args...)(string fmt, Args args)
 {
-	stderr.write("error: ");
-	stderr.writefln(fmt, _arguments);
+	debug stderr.writef(mod~"@L%u: ", line);
+	else  stderr.write(mod~": ");
+	stderr.writefln(fmt, args);
 }
