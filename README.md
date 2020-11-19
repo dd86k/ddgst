@@ -13,36 +13,36 @@ Why? I wanted:
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | coreutils |
-|---|---|---|
-| BSD sum | | ✔️ (sum) |
-| System V sum | | ✔️ (sum -s) |
-| Ethernet CRC | | ✔️ (cksum) |
-| CRC-32 | ✔️ | |
-| CRC-64-ISO | ✔️ | |
-| CRC-64-ECMA | ✔️ | |
-| MD5-128 | ✔️ | ✔️ (md5sum) |
-| RIPEMD-160 | ✔️ | |
-| BLAKE2 | | ✔️ (b2sum) |
-| SHA-1-160 | ✔️ | ✔️ (sha1sum) |
-| SHA-2-224 | | ✔️ (sha224sum) |
-| SHA-2-256 | ✔️ | ✔️ (sha256sum) |
-| SHA-2-384 | | ✔️ (sha384sum) |
-| SHA-2-512 | ✔️ | ✔️ (sha512sum) |
+| Checksum or Hash | ddh | coreutils | Perl Archive::ZIP crc32(1) |
+|---|---|---|---|
+| BSD sum | | ✔️ (sum) | |
+| System V sum | | ✔️ (sum -s) | |
+| Ethernet CRC | | ✔️ (cksum) | |
+| CRC-32 | ✔️ | | ✔️ |
+| CRC-64-ISO | ✔️ | | |
+| CRC-64-ECMA | ✔️ | | |
+| MD5-128 | ✔️ | ✔️ (md5sum) | |
+| RIPEMD-160 | ✔️ | | |
+| BLAKE2 | | ✔️ (b2sum) | |
+| SHA-1-160 | ✔️ | ✔️ (sha1sum) | |
+| SHA-2-224 | | ✔️ (sha224sum) | |
+| SHA-2-256 | ✔️ | ✔️ (sha256sum) | |
+| SHA-2-384 | | ✔️ (sha384sum) | |
+| SHA-2-512 | ✔️ | ✔️ (sha512sum) | |
 
 ## Feature Comparison
 
-| Feature | ddh | coreutils |
-|---|---|---|
-| Binary mode | ✔️ | ✔️ |
-| Text mode | | ✔️ |
-| UTF-16 translation | Planned | |
-| UTF-32 translation | Planned | |
-| Check support | | ✔️[1] |
-| FILE support | ✔️ | ✔️ |
-| Memory-mapped file support | ✔️ | |
-| Standard Input support | ✔️ | ✔️ |
-| Parallel processing | Planned | |
+| Feature | ddh | coreutils | Perl Archive::ZIP crc32(1) |
+|---|---|---|---|
+| Binary mode | ✔️ | ✔️ | ✔️ |
+| Text mode | | ✔️ | |
+| UTF-16 translation | Planned | | |
+| UTF-32 translation | Planned | | |
+| Check support | | ✔️[1] | ✔️ |
+| FILE support | ✔️ | ✔️ | ✔️ |
+| Memory-mapped file support | ✔️ | | |
+| Standard Input support | ✔️ | ✔️ | |
+| Parallel processing | Planned | | |
 
 [1] All but cksum and sum
 
@@ -67,7 +67,7 @@ To send a EOF signal:
     - This unfortunately sends a newline.
     - BUG: Must be done twice due to cmd internal mechanics. Piping recommended.
 
-## Globbing (* vs. '*')
+## Globbing (`*` vs. `'*'`)
 
 This utility supports file globbing out of the box using `std.file.dirEntries`.
 
