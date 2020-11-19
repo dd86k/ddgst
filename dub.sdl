@@ -11,5 +11,5 @@ buildType "debug-gc" {
 buildType "release-extreme" {
 	buildOptions "releaseMode" "optimize"
 	dflags "-boundscheck=off" "-checkaction=halt" platform="dmd"
-	dflags "--boundscheck=off" "--checkaction=halt" "--float-abi=hard" "--flto=full" "--ffast-math" platform="ldc"
+	dflags "--boundscheck=off" "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
 }
