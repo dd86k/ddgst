@@ -34,6 +34,10 @@ Why? I wanted:
 
 | Feature | ddh | coreutils |
 |---|---|---|
+| Binary mode | ✔️ | ✔️ |
+| Text mode | | ✔️ |
+| UTF-16 translation | Planned | |
+| UTF-32 translation | Planned | |
 | Check support | | ✔️[1] |
 | FILE support | ✔️ | ✔️ |
 | Memory-mapped file support | ✔️ | |
