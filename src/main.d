@@ -320,9 +320,9 @@ int main(string[] args)
 		string name = baseName(arg); // Thankfully doesn't remove glob patterns
 		foreach (DirEntry entry; dirEntries(dir, name, SpanMode.shallow))
 		{
-			if (entry.isFile == false)
-				continue;
 			++count;
+			if (entry.isDir)
+				continue;
 			string path = entry.name;
 			presult = pfunc(path, ddh);
 			if (presult)
@@ -331,7 +331,7 @@ int main(string[] args)
 			ddh_reinit(ddh);
 		}
 		if (count == 0)
-			log.error("No such file: %s", name);
+			log.error("'%s': No such file", name);
 	}
 	
 	return 0;
