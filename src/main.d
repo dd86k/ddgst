@@ -16,7 +16,7 @@ extern (C) __gshared {
 	// This starts with the GC disabled, with -vgc we can see that the GC
 	// will be re-enabled to allocate MmFile into the heap, but that's
 	// pretty much it
-	string[] rt_options = [ "gcopt=disable:1" ];
+	string[] rt_options = [ "gcopt=disable:1 cleanup:none" ];
 }
 
 debug enum BUILD_TYPE = "debug";
@@ -60,8 +60,8 @@ Embedded globber options:
   --shallow ...... Depth: Same directory (default)
   -s, --depth .... Depth: Deepest directories first
   --breadth ...... Depth: Sub directories first
-  --follow ....... Follow soft symbolic links (default)
-  --nofollow ..... Do not follow symbolic links
+  --follow ....... Links: Follow symbolic links (default)
+  --nofollow ..... Links: Do not follow symbolic links
 
 Misc. options:
   -c, --check .... Check hashes against a file
@@ -189,8 +189,7 @@ int process_stdin(ref DDH_T ddh)
 
 int process_check(ref const string path, ref DDH_T ddh, process_func_t pfunc)
 {
-	import std.string : indexOf;
-	import std.conv : text, to;
+	import std.conv : text;
 	
 	File cf;
 	try
@@ -331,10 +330,6 @@ int main(string[] args)
 		return 0;
 	}
 	
-	//TODO: --utf16/--utf32: Used to transform CLI utf-8 text into other encodings
-	//      Reason: CLI is of type string, which is UTF-8 (even on Windows)
-	//      So the translate would provide an aid for these encodings, even
-	//      when raw, the data is processed as-is.
 	//TODO: -P/--progress: Consider adding progress bar
 	//TODO: -u/--upper: Upper case hash digests
 	//TODO: --color: Errors with color
