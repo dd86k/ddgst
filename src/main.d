@@ -11,8 +11,6 @@ extern (C) __gshared {
 	debug bool rt_cmdline_enabled = true;
 	else  bool rt_cmdline_enabled = false;
 
-	bool rt_envvars_enabled = false;
-
 	// This starts with the GC disabled, with -vgc we can see that the GC
 	// will be re-enabled to allocate MmFile into the heap, but that's
 	// pretty much it
@@ -42,32 +40,32 @@ immutable string TEXT_HELP =
   ddh alias [options...] [{file|-}...]
 
 Pages:
-  list ........... List supported checksum and hash algorithms
-  help ........... Show this help screen and exit
-  version ........ Show application version screen and exit
-  ver ............ Only show version and exit
-  license ........ Show license screen and exit
+  list ............. List supported checksum and hash algorithms
+  help ............. Show this help screen and exit
+  version .......... Show application version screen and exit
+  ver .............. Only show version and exit
+  license .......... Show license screen and exit
 
 Input mode options:
-  -F, --file ..... Input mode: Regular file (std.stdio, default)
-  -t, --text ....... Set text mode
-  -b, --binary ..... Set binary mode (default)
-  -M, --mmfile ... Input mode: Memory-map file (std.mmfile)
-  - .............. Input mode: Standard input (stdin)
-  -a, --arg ...... Input mode: Command-line argument text (utf-8)
+  -F, --file ....... Input mode: Regular file (std.stdio, default)
+    -t, --text ....... Set text mode
+    -b, --binary ..... Set binary mode (default)
+  -M, --mmfile ..... Input mode: Memory-map file (std.mmfile)
+  -a, --arg ........ Input mode: Command-line argument text (utf-8)
+  - ................ Input mode: Standard input (stdin)
 
 Embedded globber options:
-  --shallow ...... Depth: Same directory (default)
-  -s, --depth .... Depth: Deepest directories first
-  --breadth ...... Depth: Sub directories first
-  --follow ....... Links: Follow symbolic links (default)
-  --nofollow ..... Links: Do not follow symbolic links
+  --shallow ........ Depth: Same directory (default)
+  -s, --depth ...... Depth: Deepest directories first
+  --breadth ........ Depth: Sub directories first
+  --follow ......... Links: Follow symbolic links (default)
+  --nofollow ....... Links: Do not follow symbolic links
 
 Misc. options:
-  -c, --check .... Check hashes against a file
-  -C, --chunk .... Set chunk size (default=64k)
-                   Modes: file, mmfile, stdin
-  -- ............. Stop processing options`;
+  -c, --check ...... Check hashes against a file
+  -C, --chunk ...... Set chunk size (default=64k)
+                     Modes: file, mmfile, stdin
+  -- ............... Stop processing options`;
 //                                                         80 column marker -> |
 
 immutable string TEXT_ALIASES =
@@ -201,7 +199,7 @@ int process_check(ref const string path, ref DDH_T ddh, process_func_t pfunc)
 		log.error(ex.msg);
 		return 1;
 	}
-		
+	
 	// Number of characters the hash string is
 	size_t hashsize = ddh_digest_size(ddh) << 1;
 	size_t minsize = hashsize + 3;
@@ -417,7 +415,6 @@ int main(string[] args)
 				continue;
 			// Misc.
 			/*case "--chunk":
-				// chunk size
 				continue;*/
 			case "--":
 				cli_skip = true;
