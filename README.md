@@ -13,38 +13,49 @@ Why? I wanted:
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | coreutils | Perl Archive::ZIP crc32(1) |
-|---|---|---|---|
-| BSD sum | | ✔️ (sum) | |
-| System V sum | | ✔️ (sum -s) | |
-| Ethernet CRC | | ✔️ (cksum) | |
-| CRC-32 | ✔️ | | ✔️ |
+| Checksum or Hash | ddh | coreutils | openssl [1] | crc32(1) [2] |
+|---|---|---|---|---|
+| BSD sum | | ✔️ (sum) | | |
+| System V sum | | ✔️ (sum -s) | | |
+| Ethernet CRC | | ✔️ (cksum) | | |
+| MDC-2-128 | | | ✔️ | |
+| CRC-32 | ✔️ | | | ✔️ |
 | CRC-64-ISO | ✔️ | | |
 | CRC-64-ECMA | ✔️ | | |
-| MD5-128 | ✔️ | ✔️ (md5sum) | |
-| RIPEMD-160 | ✔️ | | |
-| BLAKE2 | | ✔️ (b2sum) | |
-| SHA-1-160 | ✔️ | ✔️ (sha1sum) | |
-| SHA-2-224 | ✔️ | ✔️ (sha224sum) | |
-| SHA-2-256 | ✔️ | ✔️ (sha256sum) | |
-| SHA-2-384 | ✔️ | ✔️ (sha384sum) | |
-| SHA-2-512 | ✔️ | ✔️ (sha512sum) | |
+| MD4 | | | ✔️ | |
+| MD5-128 | ✔️ | ✔️ (md5sum) | ✔️ | |
+| RIPEMD-160 | ✔️ | | ✔️ | |
+| SHA-1-160 | ✔️ | ✔️ (sha1sum) | ✔️ | |
+| SHA-2-224 | ✔️ | ✔️ (sha224sum) | ✔️ | |
+| SHA-2-256 | ✔️ | ✔️ (sha256sum) | ✔️ | |
+| SHA-2-384 | ✔️ | ✔️ (sha384sum) | ✔️ | |
+| SHA-2-512 | ✔️ | ✔️ (sha512sum) | ✔️ | |
+| SM3 | | | ✔️ | |
+| BLAKE2 | | ✔️ (b2sum) | ✔️ | |
+| SHAKE | | | ✔️ | |
+| Whirlpool | | | ✔️ | |
+
+[1] See `dgst` command
+
+[2] From the Perl Archive::ZIP package
 
 ## Feature Comparison
 
-| Feature | ddh | coreutils | Perl Archive::ZIP crc32(1) |
-|---|---|---|---|
-| Binary mode | ✔️ | ✔️ | ✔️ |
-| Text mode | | ✔️ | |
-| UTF-16 translation | Planned | | |
-| UTF-32 translation | Planned | | |
-| Check support | | ✔️[1] | ✔️ |
-| FILE support | ✔️ | ✔️ | ✔️ |
-| Memory-mapped file support | ✔️ | | |
-| Standard Input support | ✔️ | ✔️ | |
-| Parallel processing | Planned | | |
+| Feature | ddh | coreutils | openssl | crc32(1) [1] |
+|---|---|---|---|---|
+| Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
+| Text mode | ✔️ | ✔️ | | |
+| UTF-16 translation | Considering | | | |
+| UTF-32 translation | Considering | | | |
+| Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
+| FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
+| Memory-mapped file support | ✔️ | | | |
+| Standard Input support | ✔️ | ✔️ | ✔️ | |
+| Parallel processing | Planned | | | |
 
-[1] All but cksum and sum
+[1] From the Perl Archive::ZIP package
+
+[2] All but cksum and sum
 
 # Usage
 
@@ -76,19 +87,13 @@ behave differently than the previously mentionned function. To use the embedded
 globbing mechanism, you may use `'*'` and `\*` as examples. To disable embedded
 globbing, use the `--` parameter.
 
-The globbing pattern is explained at
+The globbing pattern is further explained at
 [dlang.org](https://dlang.org/phobos/std_path.html#.globMatch).
 
-The default parameters used in `dirEntries` are:
+The default parameters used in `dirEntries` are `SpanMode.shallow` for its
+spanmode (same-level directory), and `true` to _follow symobolic links_.
 
-| Parameter | Argument | Description |
-|---|---|---|
-| `path` | `baseDir(arg)` | Base directory
-| `pattern` | `baseName(arg)` | Base filename |
-| `mode` | `SpanMode.shallow` | Same-level directory only |
-| `followSymlink` | `true` | Follows symbolic links |
-
-For example, an `src/*.{d,dd}` argument will match all files ending with `.d`
+For example: `src/*.{d,dd}` will match all files ending with `.d`
 and `.dd` in the `src` directory, and will follow symbolic links.
 
 # Compiling
