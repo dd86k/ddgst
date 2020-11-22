@@ -24,9 +24,24 @@ void colors(bool enable)
 }
 +/
 
+/*void fatal(string mod = __MODULE__, uint line = __LINE__, Args...)(string fmt, Args args)
+{
+	import core.stdc.stdlib : exit;
+	debug stderr.writef("[%s:%u] fatal: ", mod, line);
+	else  stderr.write("fatal: ");
+	stderr.writefln(fmt, args);
+	exit(255);
+}*/
+
 void error(string mod = __MODULE__, uint line = __LINE__, Args...)(string fmt, Args args)
 {
-	debug stderr.writef(mod~"@L%u: ", line);
-	else  stderr.write(mod~": ");
+	debug stderr.writef("[%s:%u] error: ", mod, line);
+	else  stderr.write("error: ");
+	stderr.writefln(fmt, args);
+}
+
+void warn(Args...)(string fmt, Args args)
+{
+	stderr.write("warning: ");
 	stderr.writefln(fmt, args);
 }

@@ -22,45 +22,66 @@ extern (C) __gshared {
 debug enum BUILD_TYPE = "debug";
 else  enum BUILD_TYPE = "release";
 
-enum PROJECT_VERSION = "0.2.0";
+enum PROJECT_VERSION = "0.3.0";
 enum PROJECT_NAME    = "ddh";
 
-/// Amount of data to process at once.
-/// Modes: File, MmFile, stdin
-enum CHUNK_SIZE = 64 * 1024;
+enum CLIFlags {
+	FileText = 0x8000_0000,
+}
+
+alias process_func_t = int function(ref const string path, ref DDH_T ddh);
 
 immutable string FMT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
 Compiler: `~__VENDOR__~" for v%u.%03u";
 
 immutable string TEXT_HELP =
-`Usage: ddh page
-       ddh {checksum|hash} [options...] [{file|-}...]
+`Usage:
+  ddh page
+  ddh alias [-]
+  ddh alias [options...] [{file|-}...]
 
-Pages
-help ........... Show this help screen and exit
-version ........ Show application version screen and exit
-ver ............ Only show version and exit
-license ........ Show license screen and exit
+Pages:
+  list ........... List supported checksum and hash algorithms
+  help ........... Show this help screen and exit
+  version ........ Show application version screen and exit
+  ver ............ Only show version and exit
+  license ........ Show license screen and exit
 
-Options
--M, --mmfile ... Input mode: Memory-map file (std.mmfile)
--F, --file ..... Input mode: Regular file (std.stdio)
-- .............. Input mode: Standard input (stdin)
--- ............. Stop processing options
+Input mode options:
+  -F, --file ..... Input mode: Regular file (std.stdio, default)
+  -t, --text ....... Set text mode
+  -b, --binary ..... Set binary mode (default)
+  -M, --mmfile ... Input mode: Memory-map file (std.mmfile)
+  - .............. Input mode: Standard input (stdin)
+  -a, --arg ...... Input mode: Command-line argument text (utf-8)
 
-Alias        Name
-crc32        CRC-32
-crc64iso     CRC-64-ISO
-crc64ecma    CRC-64-ECMA
-md5          MD5
-ripemd160    RIPEMD-160
-sha1         SHA-1-160
-sha224       SHA-2-224
-sha256       SHA-2-256
-sha384       SHA-2-384
-sha512       SHA-2-512`;
+Embedded globber options:
+  --shallow ...... Depth: Same directory (default)
+  -s, --depth .... Depth: Deepest directories first
+  --breadth ...... Depth: Sub directories first
+  --follow ....... Follow soft symbolic links (default)
+  --nofollow ..... Do not follow symbolic links
+
+Misc. options:
+  -c, --check .... Check hashes against a file
+  -C, --chunk .... Set chunk size (default=64k)
+                   Modes: file, mmfile, stdin
+  -- ............. Stop processing options`;
 //                                                         80 column marker -> |
+
+immutable string TEXT_ALIASES =
+`Aliases:
+  crc32 .......... CRC-32
+  crc64iso ....... CRC-64-ISO
+  crc64ecma ...... CRC-64-ECMA
+  md5 ............ MD5-128
+  ripemd160 ...... RIPEMD-160
+  sha1 ........... SHA-1-160
+  sha224 ......... SHA-2-224
+  sha256 ......... SHA-2-256
+  sha384 ......... SHA-2-384
+  sha512 ......... SHA-2-512`;
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -92,27 +113,27 @@ immutable string STDIN_BASENAME = "-";
 
 int process_file(ref string path, ref DDH_T ddh)
 {
-	//TODO: Find a way to read and process data concurrently for File
-	//      Not to be confused with multi-threading, this would simply
-	//      ensure that data is loaded in memory from disk before
-	//      computation, e.g. load next group while hashing current.
-	//      Or just set the chunk size according to the environment.
 	File f;	// Must never be void, see BUG
 	ulong flen = void;
 	try
 	{
 		// BUG: Using LDC2 crashes at runtime with opAssign
-		f.open(path);
+		f.open(path, ddh.flags >= CLIFlags.FileText ? "r" : "rb");
 		flen = f.size();
 	}
 	catch (Exception ex)
 	{
-		log.error(ex.msg);
+		log.error("%s: %s", path, ex.msg);
 		return true;
 	}
 
+	//TODO: Find a way to read and process data concurrently for File
+	//      Not to be confused with multi-threading, this would simply
+	//      ensure that data is loaded in memory from disk before
+	//      computation, e.g. load next group while hashing current.
+	//      Or just set the chunk size according to the environment.
 	if (flen)
-	foreach (ubyte[] chunk; f.byChunk(CHUNK_SIZE))
+	foreach (ubyte[] chunk; f.byChunk(ddh.chunksize))
 		ddh_compute(ddh, chunk);
 	
 	return false;
@@ -129,18 +150,18 @@ int process_mmfile(ref string path, ref DDH_T ddh)
 	}
 	catch (Exception ex)
 	{
-		log.error(ex.msg);
+		log.error("%s: %s", path, ex.msg);
 		return true;
 	}
 	
 	if (flen)
 	{
 		ulong start;
-		if (flen > CHUNK_SIZE)
+		if (flen > ddh.chunksize)
 		{
-			const ulong climit = flen - CHUNK_SIZE;
-			for (; start < climit; start += CHUNK_SIZE)
-				ddh_compute(ddh, cast(ubyte[])f[start..start + CHUNK_SIZE]);
+			const ulong climit = flen - ddh.chunksize;
+			for (; start < climit; start += ddh.chunksize)
+				ddh_compute(ddh, cast(ubyte[])f[start..start + ddh.chunksize]);
 		}
 		
 		// Compute remaining
@@ -150,13 +171,78 @@ int process_mmfile(ref string path, ref DDH_T ddh)
 	return false;
 }
 
+void process_text(ref string text, ref DDH_T ddh)
+{
+	ddh_compute(ddh, cast(ubyte[])text);
+	writefln("%s  -", ddh_string(ddh));
+}
+
 int process_stdin(ref DDH_T ddh)
 {
-	foreach (ubyte[] chunk; stdin.byChunk(CHUNK_SIZE))
+	foreach (ubyte[] chunk; stdin.byChunk(ddh.chunksize))
 	{
 		ddh_compute(ddh, chunk);
 	}
+	writefln("%s  -", ddh_string(ddh));
 	return false;
+}
+
+int process_check(ref const string path, ref DDH_T ddh, process_func_t pfunc)
+{
+	import std.string : indexOf;
+	import std.conv : text, to;
+	
+	File cf;
+	try
+	{
+		cf.open(path);
+	}
+	catch (Exception ex)
+	{
+		log.error(ex.msg);
+		return 1;
+	}
+		
+	// Number of characters the hash string is
+	size_t hashsize = ddh_digest_size(ddh) << 1;
+	size_t minsize = hashsize + 3;
+	
+	uint linecnt;
+	uint mismatches;
+	uint notread;
+	foreach (ref char[] line; cf.byLine)
+	{
+		++linecnt;
+		
+		if (line.length < minsize)
+		{
+			log.error("line %u invalid", linecnt);
+			++notread;
+			continue;
+		}
+		
+		// Since it includes the newline
+		string file = line[minsize - 1..$ - 1].text;
+		
+		if (pfunc(file, ddh))
+		{
+			++notread;
+			continue;
+		}
+		
+		if (line[0..hashsize] != ddh_string(ddh))
+		{
+			++mismatches;
+			writeln(file, ": FAILED");
+			continue;
+		}
+		
+		writeln(file, ": OK");
+	}
+	if (mismatches || notread)
+		log.warn("%u mismatched files, %u files not read", mismatches, notread);
+	
+	return 0;
 }
 
 int main(string[] args)
@@ -212,6 +298,9 @@ int main(string[] args)
 	//
 	// Actions
 	//
+	case "list":
+		writeln(TEXT_ALIASES);
+		return 0;
 	case "ver":
 		writeln(PROJECT_VERSION);
 		return 0;
@@ -239,7 +328,6 @@ int main(string[] args)
 	if (argc <= 2)
 	{
 		process_stdin(ddh);
-		writefln("%s  -", ddh_string(ddh));
 		return 0;
 	}
 	
@@ -248,16 +336,15 @@ int main(string[] args)
 	//      So the translate would provide an aid for these encodings, even
 	//      when raw, the data is processed as-is.
 	//TODO: -P/--progress: Consider adding progress bar
-	//TODO: -c/--check: Check against file
 	//TODO: -u/--upper: Upper case hash digests
-	//TODO: -C/--continue: Continue to next file on error
 	//TODO: --color: Errors with color
 	//TODO: -p/--parallel: std.parallalism.parallel dirEntries
 	
-	int function(ref const string, ref DDH_T) pfunc = &process_file;
+	process_func_t pfunc = &process_file;
 	int presult = void;	/// Process function result
+	SpanMode cli_spanmode = SpanMode.shallow;
+	bool cli_follow = true;
 	bool cli_skip;	/// Skip CLI options, default=false
-//	uint cli_seed;	/// Defaults to 0
 	
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
@@ -267,7 +354,7 @@ int main(string[] args)
 		{
 			presult = pfunc(arg, ddh);
 			if (presult) return presult;
-			writefln("%s  %s", ddh_string(ddh), baseName(arg));
+			writefln("%s  %s", ddh_string(ddh), arg);
 			ddh_reinit(ddh);
 			continue;
 		}
@@ -277,48 +364,125 @@ int main(string[] args)
 			if (arg.length == 1) // '-' only: stdin
 			{
 				process_stdin(ddh);
-				writefln("%s  -", ddh_string(ddh));
 				continue;
 			}
 			
-			if (arg[1] == '-') // long opts
+			// Long opts
+			if (arg[1] == '-')
+			switch (arg)
 			{
-				switch (arg)
+			// Input mode
+			case "--mmfile":
+				pfunc = &process_mmfile;
+				continue;
+			case "--file":
+				pfunc = &process_file;
+				continue;
+			case "--check":
+				++argi;
+				if (argi >= argc)
 				{
-				case "--mmfile":
-					pfunc = &process_mmfile;
-					continue;
-				case "--file":
-					pfunc = &process_file;
-					continue;
-				case "--":
-					cli_skip = true;
-					continue;
-				default:
-					log.error(PROJECT_NAME~": unknown option '%s'", arg);
+					log.error("missing argument");
 					return 1;
 				}
+				process_check(args[argi++], ddh, pfunc);
+				continue;
+			case "--arg":
+				++argi;
+				if (argi >= argc)
+				{
+					log.error("missing argument");
+					return 1;
+				}
+				process_text(args[argi++], ddh);
+				continue;
+			// Read mode
+			case "--text":
+				ddh.flags |= CLIFlags.FileText;
+				continue;
+			case "--binary":
+				ddh.flags &= ~CLIFlags.FileText;
+				continue;
+			// SpanMode
+			case "--depth":
+				cli_spanmode = SpanMode.depth;
+				continue;
+			case "--breadth":
+				cli_spanmode = SpanMode.breadth;
+				continue;
+			case "--shallow":
+				cli_spanmode = SpanMode.shallow;
+				continue;
+			// Follow symbolic links
+			case "--nofollow":
+				cli_follow = false;
+				continue;
+			case "--follow":
+				cli_follow = true;
+				continue;
+			// Misc.
+			/*case "--chunk":
+				// chunk size
+				continue;*/
+			case "--":
+				cli_skip = true;
+				continue;
+			default:
+				log.error(PROJECT_NAME~": unknown option '%s'", arg);
+				return 1;
 			}
 			
+			// Short opts
 			foreach (char o; arg[1..$])
 			switch (o)
 			{
-			case 'M':
+			case 'M': // mmfile input
 				pfunc = &process_mmfile;
 				continue;
-			case 'F':
+			case 'F': // file input
 				pfunc = &process_file;
 				continue;
+			case 't': // text file mode
+				ddh.flags |= CLIFlags.FileText;
+				continue;
+			case 'b': // binary file mode
+				ddh.flags &= ~CLIFlags.FileText;
+				continue;
+			case 's': // spanmode: depth
+				cli_spanmode = SpanMode.depth;
+				continue;
+			/*case 'C':
+				continue;*/
+			case 'c': // check
+				++argi;
+				if (argi >= argc)
+				{
+					log.error("missing argument");
+					return 1;
+				}
+				process_check(args[argi++], ddh, pfunc);
+				continue;
+			case 'a': // arg
+				++argi;
+				if (argi >= argc)
+				{
+					log.error("missing argument");
+					return 1;
+				}
+				process_text(args[argi++], ddh);
+				continue;
 			default:
-				log.error(PROJECT_NAME~": unknown option '%c'", o);
+				log.error("unknown option '%c'", o);
 				return 1;
 			}
+			
+			continue;
 		}
 		
 		uint count;
 		string dir  = dirName(arg);
 		string name = baseName(arg); // Thankfully doesn't remove glob patterns
-		foreach (DirEntry entry; dirEntries(dir, name, SpanMode.shallow))
+		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
 		{
 			++count;
 			if (entry.isDir)
@@ -327,7 +491,7 @@ int main(string[] args)
 			presult = pfunc(path, ddh);
 			if (presult)
 				return presult;
-			writefln("%s  %s", ddh_string(ddh), baseName(path));
+			writefln("%s  %s", ddh_string(ddh), path[2..$]);
 			ddh_reinit(ddh);
 		}
 		if (count == 0)

@@ -4,6 +4,7 @@ authors "dd86k"
 license "Unlicense"
 
 buildType "debug-gc" {
+	buildOptions "debugMode"
 	dflags "-vgc" platform="dmd"
 	dflags "--vgc" platform="ldc"
 }

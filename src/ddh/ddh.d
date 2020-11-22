@@ -54,9 +54,11 @@ struct DDH_INTERNALS_T
 /// Main structure
 struct DDH_T
 {
-	DDHAction action;	/// 
-	void function(DDH_INTERNALS_T*, ubyte[]) compute;	///
-	ubyte[] function(DDH_INTERNALS_T*) finish;	/// 
+	DDHAction action;	/// Checksum/Hash
+	uint flags;	/// Low word=self, high word=cli
+	uint chunksize;	/// Chunk processing size
+	void function(DDH_INTERNALS_T*, ubyte[]) compute;	/// compute function ptr
+	ubyte[] function(DDH_INTERNALS_T*) finish;	/// finish function ptr
 	union
 	{
 		void *voidptr;	/// Void pointer for allocation
@@ -64,9 +66,22 @@ struct DDH_T
 	}
 }
 
-// Helps converting bits to byte sizes, to avoid errors
-private template BITS(int n) { enum { BITS = n >> 3 } }
+private immutable uint[] digest_sizes = [
+	BITS!(32),	// CRC32,
+	BITS!(64),	// CRC64ISO,
+	BITS!(64),	// CRC64ECMA,
+	BITS!(128),	// MD5
+	BITS!(160),	// RIPEMD160
+	BITS!(160),	// SHA1
+	BITS!(224),	// SHA224
+	BITS!(256),	// SHA256
+	BITS!(384),	// SHA384
+	BITS!(512),	// SHA512
+];
 
+// Helps converting bits to byte sizes, to avoid errors
+private template BITS(int n) if (n % 8 == 0) { enum { BITS = n >> 3 } }
+/// BITS test
 unittest { static assert(BITS!(32) == 4); }
 
 /// Initiates a DDH_T structure with an DDHAction value.
@@ -83,6 +98,8 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 		return true;
 	
 	ddh.action = action;
+	ddh.flags = 0;
+	ddh.chunksize = 64 * 1024;
 	
 	with (DDHAction)
 	final switch (action)
@@ -91,63 +108,55 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 		ddh.inptr.sha512 = SHA512();
 		ddh.compute = &ddh_sha512_compute;
 		ddh.finish  = &ddh_sha512_finish;
-		ddh.inptr.bufferlen = BITS!(512);
 		break;
 	case HashSHA384:
 		ddh.inptr.sha384 = SHA384();
 		ddh.compute = &ddh_sha384_compute;
 		ddh.finish  = &ddh_sha384_finish;
-		ddh.inptr.bufferlen = BITS!(384);
 		break;
 	case HashSHA256:
 		ddh.inptr.sha256 = SHA256();
 		ddh.compute = &ddh_sha256_compute;
 		ddh.finish  = &ddh_sha256_finish;
-		ddh.inptr.bufferlen = BITS!(256);
 		break;
 	case HashSHA224:
 		ddh.inptr.sha224 = SHA224();
 		ddh.compute = &ddh_sha224_compute;
 		ddh.finish  = &ddh_sha224_finish;
-		ddh.inptr.bufferlen = BITS!(224);
 		break;
 	case HashSHA1:
 		ddh.inptr.sha1 = SHA1();
 		ddh.compute = &ddh_sha1_compute;
 		ddh.finish  = &ddh_sha1_finish;
-		ddh.inptr.bufferlen = BITS!(160);
 		break;
 	case HashRIPEMD160:
 		ddh.inptr.ripemd160 = RIPEMD160();
 		ddh.compute = &ddh_ripemd_compute;
 		ddh.finish  = &ddh_ripemd_finish;
-		ddh.inptr.bufferlen = BITS!(160);
 		break;
 	case HashMD5:
 		ddh.inptr.md5 = MD5();
 		ddh.compute = &ddh_md5_compute;
 		ddh.finish  = &ddh_md5_finish;
-		ddh.inptr.bufferlen = BITS!(128);
 		break;
 	case SumCRC64ECMA:
 		ddh.inptr.crc64ecma = CRC64ECMA();
 		ddh.compute = &ddh_crc64ecma_compute;
 		ddh.finish  = &ddh_crc64ecma_finish;
-		ddh.inptr.bufferlen = BITS!(64);
 		break;
 	case SumCRC64ISO:
 		ddh.inptr.crc64iso = CRC64ISO();
 		ddh.compute = &ddh_crc64iso_compute;
 		ddh.finish  = &ddh_crc64iso_finish;
-		ddh.inptr.bufferlen = BITS!(64);
 		break;
 	case SumCRC32:
 		ddh.inptr.crc32 = CRC32();
 		ddh.compute = &ddh_crc32_compute;
 		ddh.finish  = &ddh_crc32_finish;
-		ddh.inptr.bufferlen = BITS!(32);
 		break;
 	}
+	
+	ddh.inptr.bufferlen = digest_sizes[action];
 	
 	return false;
 }
@@ -190,6 +199,13 @@ void ddh_reinit(ref DDH_T ddh)
 		ddh.inptr.crc32.start();
 		break;
 	}
+}
+
+/// Get the digest size in bytes
+/// Returns: Digest size
+uint ddh_digest_size(ref DDH_T ddh)
+{
+	return digest_sizes[ddh.action];
 }
 
 /// Compute a block of data
