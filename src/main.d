@@ -52,6 +52,7 @@ Input mode options:
     -b, --binary ..... Set binary mode (default)
   -M, --mmfile ..... Input mode: Memory-map file (std.mmfile)
   -a, --arg ........ Input mode: Command-line argument text (utf-8)
+  -c, --check ...... Check hashes against a file
   - ................ Input mode: Standard input (stdin)
 
 Embedded globber options:
@@ -62,11 +63,11 @@ Embedded globber options:
   --nofollow ....... Links: Do not follow symbolic links
 
 Misc. options:
-  -c, --check ...... Check hashes against a file
-  -C, --chunk ...... Set chunk size (default=64k)
-                     Modes: file, mmfile, stdin
   -- ............... Stop processing options`;
 //                                                         80 column marker -> |
+/*
+  -C, --chunk ...... Set chunk size (default=64k)
+                     Modes: file, mmfile, stdin*/
 
 immutable string TEXT_ALIASES =
 `Aliases:

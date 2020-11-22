@@ -59,7 +59,7 @@ Why? I wanted:
 
 # Usage
 
-To get a list of options available: `--help`
+To get a list of options available, use the `--help` argument.
 
 ## Standard Input (stdin)
 
@@ -70,10 +70,10 @@ option has no effect on this operating mode.
 Standard pipe operations are supported.
 
 To send a EOF signal:
-- On a UNIX-like operating system:
+- On UNIX-like systems:
   - `CTRL+D` must be pressed twice on the same line or;
   - `CTRL+D` must be pressed once on a new line.
-- On a Windows-like operating system:
+- On Windows systems:
   - `CTRL+Z` on a new line followed with `RETURN` (Enter key).
     - This unfortunately sends a newline.
     - BUG: Must be done twice due to cmd internal mechanics. Piping recommended.
@@ -84,14 +84,14 @@ This utility supports file globbing out of the box using `std.file.dirEntries`.
 
 However, most UNIX-like terminals support globbing out of the box and may
 behave differently than the previously mentionned function. To use the embedded
-globbing mechanism, you may use `'*'` and `\*` as examples. To disable embedded
+globbing mechanism, you may want to use `'*'` or `\*`. To disable embedded
 globbing, use the `--` parameter.
 
 The globbing pattern is further explained at
 [dlang.org](https://dlang.org/phobos/std_path.html#.globMatch).
 
 The default parameters used in `dirEntries` are `SpanMode.shallow` for its
-spanmode (same-level directory), and `true` to _follow symobolic links_.
+spanmode (same-level directory), and `true` for following symobolic links.
 
 For example: `src/*.{d,dd}` will match all files ending with `.d`
 and `.dd` in the `src` directory, and will follow symbolic links.
