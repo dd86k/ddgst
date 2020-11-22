@@ -1,0 +1,172 @@
+." TOPIC: ddh(1)
+." AUTHOR: dd86k <dd@dax.moe>
+."
+." Please read man-pages(7) and groff_man(7) about the manual page format.
+." If you're missing groff_man.7, install groff. Solid documentati.
+."
+.TH ddh 1 "November 2020" dd86k "User manual"
+.SH NAME
+ddh \(em Generic hasher
+
+.SH SYNOPSIS
+.SY ddh
+.B  {list|ver|help|version|license}
+.SY ddh
+.B  alias
+.OP -
+.SY ddh
+.B  alias
+.OP options...
+.B  {files|-}...
+.YS
+
+.SH DESCRIPTION
+.B ddh
+is a generic hasher. The main goal of this utility is to centralize
+the various options into one package for multiple systems.
+
+The output matches the one of the coreutils sum (e.g., sha1sum) utilities for
+compability reasons.
+
+.SH EXAMPLES
+
+.TP
+.BI ddh \ help
+Shows help screen and exit.
+
+.TP
+.BI ddh \ version
+Shows version screen and exit.
+
+.TP
+.BI ddh \ list
+List supported checksum and hash algorithms and exit.
+
+.TP
+.BI ddh \ sha1
+Use SHA-1 to read from the standard input file handle and digest a result.
+
+.TP
+.BI ddh\ sha1 \ essay.txt
+Use SHA-1 to hash
+.I essay.txt
+.R .
+
+.TP
+.BI ddh\ sha256 \ src/*
+Use SHA-256 to hash all files in the
+.I src
+folder.
+
+.TP
+.BI ddh\ md5 \ -Ms \ *.{json,md}
+Use MD5 to hash all files in sub-directories
+.RI ( -s )
+that end with .json or .md using the memory-mapped file option
+.RI ( -M ).
+
+.TP
+.BI ddh\ sha256 \ -c\ list
+Use SHA-256 to verify the integrity a list of files. This is similar to
+.BR sha1sum\ -c\ list .
+
+.SH ALIASES
+
+Below is a list of supported checksum and hash algorithms.
+
+." See tbl(1)
+.TS
+l l.
+Alias	Name
+.T&
+lB l.
+_
+crc32	CRC-32
+crc64iso	CRC-64-ISO
+crc64ecma	CRC-64-ECMA
+md5	MD5-128
+ripemd160	RIDEMD-160
+sha1	SHA-1-160
+sha224	SHA-2-224
+sha256	SHA-2-256
+sha384	SHA-2-384
+sha512	SHA-2-512
+.TE
+
+.SH OPTIONS
+
+Options beforehand the
+.I files...
+specification affects the set of all current and future files unless new
+options are defined for the current and future set of files.
+
+Short options can be combined. Options that expect an additional argument
+(i.e., the following argument) should not be combined, this includes
+.I -c
+and
+.IR -a .
+
+.SS File input modes
+.TS
+l l.
+Option	Description
+.T&
+lB l.
+_
+-F, --file	Set input mode to file (default).
+-b, --binary	File: Set read mode to binary (default).
+-t, --text	File: Set read mode to text.
+-M, --mmfile	Set input mode to memory-mapped file.
+-a, --arg	Hash the follow argument as text (UTF-8).
+-c, --check	Set input mode to check file.
+-	Set input mode to stdin.
+.TE
+
+.SS Embedded globber engine
+.TS
+l l.
+Option	Description
+.T&
+lB l.
+_
+--shallow	Same-level directory (default).
+-s, --depth	Deepest directories first.
+--breath	Sub directories first.
+--follow	Follow symbolic links (default).
+--nofollow	Do not follow symbolic links.
+.TE
+
+.SS Miscellaneous
+.TS
+l l.
+Option	Description
+.T&
+lB l.
+_
+--	Stop argument parsing, forever.
+.TE
+
+.SH WARNINGS
+
+The \-\-mmfile option does not support files of size zero.
+
+.SH NOTES
+
+UNIX-like shells use their own globbing mechanism. To use the embedded
+globbing mechanism, use '*' or \\*.
+
+The garbage collector is explicitly configured to be disabled when the program
+is started, and avoids collecting when the program stops for performance
+reasons. It is only re-enabled when the user specifies \-\-mmfile.
+
+Release versions of this utility has the druntime gcopts command-line
+interface disabled.
+
+.SH AUTHOR
+Written by dd86k
+.MT dd@dax.moe
+.ME .
+
+.SH LICENSE
+
+ddh is currently licensed under the public domain, and so is this document.
