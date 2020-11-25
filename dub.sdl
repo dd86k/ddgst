@@ -1,7 +1,8 @@
 name "ddh"
-description "Generic hasher and binary encoder/decoder"
-authors "dd86k"
-license "Unlicense"
+description "Generic hasher"
+homepage "https://github.com/dd86k/ddh"
+authors "dd86k <dd@dax.moe>"
+license "public domain"
 
 buildType "debug-gc" {
 	buildOptions "debugMode"
