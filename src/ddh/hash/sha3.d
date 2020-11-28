@@ -6,7 +6,7 @@
  * Re-adapted, cleaned, and re-tweaked for D. The API should be similar to
  * the structures found in std.digest.
  *
- * See FIPS-202 for more information.
+ * See FIPS PUB 202 for more information.
  */
 module ddh.hash.sha3; 
 

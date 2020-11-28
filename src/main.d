@@ -8,8 +8,8 @@ static import log = logger;
 private:
 
 extern (C) __gshared {
-	debug bool rt_cmdline_enabled = true;
-	else  bool rt_cmdline_enabled = false;
+	// The RT CLI is pretty useless
+	bool rt_cmdline_enabled = false;
 
 	// This starts with the GC disabled, with -vgc we can see that the GC
 	// will be re-enabled to allocate MmFile into the heap, but that's
@@ -20,7 +20,7 @@ extern (C) __gshared {
 debug enum BUILD_TYPE = "debug";
 else  enum BUILD_TYPE = "release";
 
-enum PROJECT_VERSION = "0.3.0";
+enum PROJECT_VERSION = "0.4.0";
 enum PROJECT_NAME    = "ddh";
 
 enum CLIFlags {
@@ -80,7 +80,13 @@ immutable string TEXT_ALIASES =
   sha224 ......... SHA-2-224
   sha256 ......... SHA-2-256
   sha384 ......... SHA-2-384
-  sha512 ......... SHA-2-512`;
+  sha512 ......... SHA-2-512
+  sha3-224 ....... SHA-3-224
+  sha3-256 ....... SHA-3-256
+  sha3-384 ....... SHA-3-384
+  sha3-512 ....... SHA-3-512
+  shake128 ....... SHAKE-128
+  shake256 ....... SHAKE-256`;
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
