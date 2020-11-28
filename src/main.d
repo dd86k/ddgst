@@ -355,8 +355,8 @@ int main(string[] args)
 	
 	//TODO: -P/--progress: Consider adding progress bar
 	//TODO: -u/--upper: Upper case hash digests
-	//TODO: --color: Errors with color
-	//TODO: -p/--parallel: std.parallalism.parallel dirEntries
+	//TODO: --nocolor/--color: Errors with color
+	//TODO: -j/--jobs: std.parallalism.parallel dirEntries
 	
 	process_func_t pfunc = &process_file;
 	int presult = void;	/// Process function result
