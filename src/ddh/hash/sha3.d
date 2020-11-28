@@ -36,7 +36,11 @@ private ulong ROTL64(ulong x, ulong y) @safe @nogc pure nothrow
 }
 
 /**
- *
+ * Template API SHA-3/SHAKE implementation using the Keccak[1600] function.
+ * Supports SHA-3-224, SHA-3-256, SHA-3-384, SHA-3-512, SHAKE-128, and SHAKE-256.
+ * 
+ * The digestSize parameter is in bits. However, it's easier to use the SHA3_224,
+ * SHA3_256, SHA3_384, SHA3_512, SHAKE128, and SHAKE256 aliases.
  */
 public struct KECCAK(uint digestSize, bool shake = false)
 {
@@ -49,13 +53,13 @@ public struct KECCAK(uint digestSize, bool shake = false)
 			"digest size must be >224, <512, and be divisible by 8");
 
 	private enum {
-		dgst_sz_bits  = digestSize,
-		dgst_sz_bytes = dgst_sz_bits >> 3,
-		delim = shake ? 0x1f : 0x06,
-		rate = 200 - (dgst_sz_bits >> 2),
+		dgst_sz_bits  = digestSize,	/// digest size in bits
+		dgst_sz_bytes = dgst_sz_bits >> 3,	/// digest size in bytes
+		delim = shake ? 0x1f : 0x06,	/// delimiter when finishing
+		rate = 200 - (dgst_sz_bits >> 2),	/// sponge rate
 	}
 	
-	union { align(1): // Playing it safe
+	union {
 		private ubyte[200] st;	/// state (8bit)
 		private ulong[25] st64;	/// state (64bit)
 	}
@@ -66,7 +70,10 @@ public struct KECCAK(uint digestSize, bool shake = false)
 	@safe @nogc pure nothrow:
 	
 	/**
+	 * Initiates the structure. Begins the SHA-3/SHAKE operation.
 	 *
+	 * This is better used when restarting the operation (e.g.,
+	 * for a file).
 	 */
 	void start()
 	{
@@ -74,7 +81,10 @@ public struct KECCAK(uint digestSize, bool shake = false)
 	}
 	
 	/**
+	 * Feed the algorithm with data.
 	 *
+	 * Also implements the $(REF isOutputRange, std,range,primitives)
+	 * interface for `ubyte` and `const(ubyte)[]`.
 	 */
 	void put(scope const(ubyte)[] input...)
 	{
@@ -93,7 +103,8 @@ public struct KECCAK(uint digestSize, bool shake = false)
 	}
 	
 	/**
-	 *
+	 * Returns the finished hash. This also clears part of the state,
+	 * leaving just the final digest.
 	 */
 	ubyte[dgst_sz_bytes] finish()
 	{
