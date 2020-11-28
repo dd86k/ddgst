@@ -260,6 +260,24 @@ int main(string[] args)
 	//
 	// Hashes
 	//
+	case "sha3-512":
+		action = DDHAction.HashSHA3_512;
+		break;
+	case "sha3-384":
+		action = DDHAction.HashSHA3_384;
+		break;
+	case "sha3-256":
+		action = DDHAction.HashSHA3_256;
+		break;
+	case "sha3-224":
+		action = DDHAction.HashSHA3_224;
+		break;
+	case "shake256":
+		action = DDHAction.HashSHAKE256;
+		break;
+	case "shake128":
+		action = DDHAction.HashSHAKE128;
+		break;
 	case "sha512":
 		action = DDHAction.HashSHA512;
 		break;
@@ -294,7 +312,7 @@ int main(string[] args)
 		action = DDHAction.SumCRC32;
 		break;
 	//
-	// Actions
+	// Pages
 	//
 	case "list":
 		writeln(TEXT_ALIASES);
@@ -312,14 +330,14 @@ int main(string[] args)
 		writeln(TEXT_LICENSE);
 		return 0;
 	default:
-		log.error(PROJECT_NAME~": unknown action '%s'", args[1]);
+		log.error("unknown action '%s'", args[1]);
 		return 1;
 	}
 	
 	DDH_T ddh = void;
 	if (ddh_init(ddh, action))
 	{
-		perror(__FUNCTION__);
+		log.error("could not initiate hash");
 		return 1;
 	}
 	
