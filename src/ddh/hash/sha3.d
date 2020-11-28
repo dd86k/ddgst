@@ -38,7 +38,7 @@ private ulong ROTL64(ulong x, ulong y) @safe @nogc pure nothrow
 /**
  *
  */
-public struct KECCACK(uint digestSize, bool shake = false)
+public struct KECCAK(uint digestSize, bool shake = false)
 {
 	static if (shake)
 		static assert(digestSize == 128 || digestSize == 256,
@@ -180,9 +180,9 @@ public struct KECCACK(uint digestSize, bool shake = false)
 	}
 }
 
-public alias SHA3_224 = KECCACK!(224);	/// Alias for SHA3-224
-public alias SHA3_256 = KECCACK!(256);	/// Alias for SHA3-256
-public alias SHA3_384 = KECCACK!(384);	/// Alias for SHA3-384
-public alias SHA3_512 = KECCACK!(512);	/// Alias for SHA3-512
-public alias SHAKE128 = KECCACK!(128, true);	/// Alias for SHAKE-128
-public alias SHAKE256 = KECCACK!(256, true);	/// Alias for SHAKE-256
+public alias SHA3_224 = KECCAK!(224);	/// Alias for SHA3-224
+public alias SHA3_256 = KECCAK!(256);	/// Alias for SHA3-256
+public alias SHA3_384 = KECCAK!(384);	/// Alias for SHA3-384
+public alias SHA3_512 = KECCAK!(512);	/// Alias for SHA3-512
+public alias SHAKE128 = KECCAK!(128, true);	/// Alias for SHAKE-128
+public alias SHAKE256 = KECCAK!(256, true);	/// Alias for SHAKE-256
