@@ -1,5 +1,5 @@
 name "ddh"
-description "Generic hasher"
+description "dd's hashing utility"
 homepage "https://github.com/dd86k/ddh"
 authors "dd86k <dd@dax.moe>"
 license "public domain"
