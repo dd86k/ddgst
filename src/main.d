@@ -2,13 +2,15 @@ import std.stdio, std.mmfile;
 import std.compiler : version_major, version_minor;
 import std.path : baseName, dirName;
 import std.file : dirEntries, DirEntry, SpanMode;
+//import std.parallelism : parallel;
+//import std.concurrency : spawn, Tid;
 import ddh.ddh;
 static import log = logger;
 
 private:
 
 extern (C) __gshared {
-	// The RT CLI is pretty useless
+	// The DRT CLI is pretty useless
 	bool rt_cmdline_enabled = false;
 
 	// This starts with the GC disabled, with -vgc we can see that the GC
@@ -28,6 +30,21 @@ enum CLIFlags {
 }
 
 alias process_func_t = int function(ref const string path, ref DDH_T ddh);
+
+/*struct Jobs
+{
+	uint jobs;
+	union
+	{
+		void *jobs_raw;
+		Tid *tids;
+	}
+	union
+	{
+		void *ddh_raw;
+		DDH_T *ddh;
+	}
+}*/
 
 immutable string FMT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
@@ -68,25 +85,6 @@ Misc. options:
 /*
   -C, --chunk ...... Set chunk size (default=64k)
                      Modes: file, mmfile, stdin*/
-
-immutable string TEXT_ALIASES =
-`Aliases:
-  crc32 .......... CRC-32
-  crc64iso ....... CRC-64-ISO
-  crc64ecma ...... CRC-64-ECMA
-  md5 ............ MD5-128
-  ripemd160 ...... RIPEMD-160
-  sha1 ........... SHA-1-160
-  sha224 ......... SHA-2-224
-  sha256 ......... SHA-2-256
-  sha384 ......... SHA-2-384
-  sha512 ......... SHA-2-512
-  sha3-224 ....... SHA-3-224
-  sha3-256 ....... SHA-3-256
-  sha3-384 ....... SHA-3-384
-  sha3-512 ....... SHA-3-512
-  shake128 ....... SHAKE-128
-  shake256 ....... SHAKE-256`;
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -259,69 +257,28 @@ int main(string[] args)
 		return 0;
 	}
 	
-	DDHAction action = void;
+	string a = args[1];
+	DDHAction action = cast(DDHAction)-1;
+	foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
+	{
+		if (meta.shortname == a)
+		{
+			action = meta.action;
+			break;
+		}
+	}
 	
+	// Pages
+	if (action == -1)
 	switch (args[1])
 	{
-	//
-	// Hashes
-	//
-	case "sha3-512":
-		action = DDHAction.HashSHA3_512;
-		break;
-	case "sha3-384":
-		action = DDHAction.HashSHA3_384;
-		break;
-	case "sha3-256":
-		action = DDHAction.HashSHA3_256;
-		break;
-	case "sha3-224":
-		action = DDHAction.HashSHA3_224;
-		break;
-	case "shake256":
-		action = DDHAction.HashSHAKE256;
-		break;
-	case "shake128":
-		action = DDHAction.HashSHAKE128;
-		break;
-	case "sha512":
-		action = DDHAction.HashSHA512;
-		break;
-	case "sha384":
-		action = DDHAction.HashSHA384;
-		break;
-	case "sha256":
-		action = DDHAction.HashSHA256;
-		break;
-	case "sha224":
-		action = DDHAction.HashSHA224;
-		break;
-	case "sha1":
-		action = DDHAction.HashSHA1;
-		break;
-	case "ripemd160":
-		action = DDHAction.HashRIPEMD160;
-		break;
-	case "md5":
-		action = DDHAction.HashMD5;
-		break;
-	//
-	// Checksums
-	//
-	case "crc64ecma":
-		action = DDHAction.SumCRC64ECMA;
-		break;
-	case "crc64iso":
-		action = DDHAction.SumCRC64ISO;
-		break;
-	case "crc32":
-		action = DDHAction.SumCRC32;
-		break;
-	//
-	// Pages
-	//
 	case "list":
-		writeln(TEXT_ALIASES);
+		writeln("Aliases");
+		foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
+		{
+			writefln("%-12s%s",
+				meta.shortname, meta.name);
+		}
 		return 0;
 	case "ver":
 		writeln(PROJECT_VERSION);
@@ -364,6 +321,9 @@ int main(string[] args)
 	bool cli_follow = true;
 	bool cli_skip;	/// Skip CLI options, default=false
 	
+//	Jobs jobs = void;
+//	jobs.jobs = 0;
+	
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
 		string arg = args[argi];
@@ -373,7 +333,7 @@ int main(string[] args)
 			presult = pfunc(arg, ddh);
 			if (presult) return presult;
 			writefln("%s  %s", ddh_string(ddh), arg);
-			ddh_reinit(ddh);
+			ddh_reset(ddh);
 			continue;
 		}
 		
@@ -440,6 +400,9 @@ int main(string[] args)
 				continue;
 			// Misc.
 			/*case "--chunk":
+				continue;*/
+			/*case "--jobs":
+				
 				continue;*/
 			case "--":
 				cli_skip = true;
@@ -509,7 +472,7 @@ int main(string[] args)
 			if (presult)
 				return presult;
 			writefln("%s  %s", ddh_string(ddh), path[2..$]);
-			ddh_reinit(ddh);
+			ddh_reset(ddh);
 		}
 		if (count == 0)
 			log.error("'%s': No such file", name);
