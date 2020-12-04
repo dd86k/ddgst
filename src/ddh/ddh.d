@@ -39,8 +39,6 @@ private alias func_reset   = extern (C) void function(DDH_INTERNALS_T*);
 struct DDH_T
 {
 	DDHAction action;	/// Checksum/Hash
-	uint flags;	/// Low word=self, high word=cli
-	uint chunksize;	/// Chunk processing size
 	func_compute compute;	/// compute function ptr
 	func_finish finish;	/// finish function ptr
 	func_reset reset;	/// reset function ptr
@@ -270,11 +268,7 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 	if (ddh.voidptr == null)
 		return true;
 	
-	ddh.action = action;
-	ddh.flags = 0;
-	ddh.chunksize = 64 * 1024;
-	
-	size_t i = action;
+	size_t i = ddh.action = action;
 	ddh.compute = struct_meta[i].fcomp;
 	ddh.finish  = struct_meta[i].fdone;
 	ddh.reset   = struct_meta[i].freset;

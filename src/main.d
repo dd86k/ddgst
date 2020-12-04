@@ -25,30 +25,22 @@ else  enum BUILD_TYPE = "release";
 enum PROJECT_VERSION = "0.4.0";
 enum PROJECT_NAME    = "ddh";
 
-enum CLIFlags {
-	FileText = 0x8000_0000,
+enum DEFAULT_CHUNK_SIZE = 64 * 1024;
+
+struct ArgInput
+{
+	DDH_T ddh;
+	string path;	/// or text
+	uint chunksize;	/// file, mmfile: chunk read/process size
+	bool filetext;	/// file: read as text
+	bool mmwhole;	/// mmfile: whole file as array instead of memory chunks
 }
 
-alias process_func_t = int function(ref const string path, ref DDH_T ddh);
-
-/*struct Jobs
-{
-	uint jobs;
-	union
-	{
-		void *jobs_raw;
-		Tid *tids;
-	}
-	union
-	{
-		void *ddh_raw;
-		DDH_T *ddh;
-	}
-}*/
+alias process_func_t = int function(ref ArgInput);
 
 immutable string FMT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
-Compiler: `~__VENDOR__~" for v%u.%03u";
+Compiler: `~__VENDOR__~" %u.%03u";
 
 immutable string TEXT_HELP =
 `Usage:
@@ -114,83 +106,78 @@ For more information, please refer to <http://unlicense.org/>`;
 
 immutable string STDIN_BASENAME = "-";
 
-int process_file(ref string path, ref DDH_T ddh)
+int process_file(ref ArgInput ai)
 {
 	File f;	// Must never be void, see BUG
 	ulong flen = void;
 	try
 	{
 		// BUG: Using LDC2 crashes at runtime with opAssign
-		f.open(path, ddh.flags >= CLIFlags.FileText ? "r" : "rb");
+		f.open(ai.path, ai.filetext ? "r" : "rb");
 		flen = f.size();
 	}
 	catch (Exception ex)
 	{
-		log.error("%s: %s", path, ex.msg);
+		log.error("%s: %s", ai.path, ex.msg);
 		return true;
 	}
 
-	//TODO: Find a way to read and process data concurrently for File
-	//      Not to be confused with multi-threading, this would simply
-	//      ensure that data is loaded in memory from disk before
-	//      computation, e.g. load next group while hashing current.
-	//      Or just set the chunk size according to the environment.
 	if (flen)
-	foreach (ubyte[] chunk; f.byChunk(ddh.chunksize))
-		ddh_compute(ddh, chunk);
+	foreach (ubyte[] chunk; f.byChunk(ai.chunksize))
+		ddh_compute(ai.ddh, chunk);
 	
 	return false;
 }
 
-int process_mmfile(ref string path, ref DDH_T ddh)
+int process_mmfile(ref ArgInput ai)
 {
 	MmFile f = void;
 	ulong flen = void;
 	try
 	{
-		f = new MmFile(path);
+		f = new MmFile(ai.path);
 		flen = f.length;
 	}
 	catch (Exception ex)
 	{
-		log.error("%s: %s", path, ex.msg);
+		log.error("%s: %s", ai.path, ex.msg);
 		return true;
 	}
 	
 	if (flen)
 	{
 		ulong start;
-		if (flen > ddh.chunksize)
+		if (flen > ai.chunksize)
 		{
-			const ulong climit = flen - ddh.chunksize;
-			for (; start < climit; start += ddh.chunksize)
-				ddh_compute(ddh, cast(ubyte[])f[start..start + ddh.chunksize]);
+			const ulong climit = flen - ai.chunksize;
+			for (; start < climit; start += ai.chunksize)
+				ddh_compute(ai.ddh, cast(ubyte[])f[start..start + ai.chunksize]);
 		}
 		
 		// Compute remaining
-		ddh_compute(ddh, cast(ubyte[])f[start..flen]);
+		ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
 	}
 	
 	return false;
 }
 
-void process_text(ref string text, ref DDH_T ddh)
+void process_textarg(string str, ref ArgInput ai)
 {
-	ddh_compute(ddh, cast(ubyte[])text);
-	writefln("%s  -", ddh_string(ddh));
+	ddh_compute(ai.ddh, cast(ubyte[])str);
+	writefln("%s  \"%s\"", ddh_string(ai.ddh), str);
 }
 
-int process_stdin(ref DDH_T ddh)
+int process_stdin(ref ArgInput ai)
 {
-	foreach (ubyte[] chunk; stdin.byChunk(ddh.chunksize))
+	foreach (ubyte[] chunk; stdin.byChunk(ai.chunksize))
 	{
-		ddh_compute(ddh, chunk);
+		ddh_compute(ai.ddh, chunk);
 	}
-	writefln("%s  -", ddh_string(ddh));
+	writefln("%s  -", ddh_string(ai.ddh));
 	return false;
 }
 
-int process_check(ref const string path, ref DDH_T ddh, process_func_t pfunc)
+int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 {
 	import std.conv : text;
 	
@@ -206,7 +193,7 @@ int process_check(ref const string path, ref DDH_T ddh, process_func_t pfunc)
 	}
 	
 	// Number of characters the hash string is
-	size_t hashsize = ddh_digest_size(ddh) << 1;
+	size_t hashsize = ddh_digest_size(ai.ddh) << 1;
 	size_t minsize = hashsize + 3;
 	
 	uint linecnt;
@@ -224,22 +211,23 @@ int process_check(ref const string path, ref DDH_T ddh, process_func_t pfunc)
 		}
 		
 		// Since it includes the newline
-		string file = line[minsize - 1..$ - 1].text;
+		//string file = line[minsize - 1..$ - 1].text;
 		
-		if (pfunc(file, ddh))
+		ai.path = line[minsize - 1..$ - 1].text;
+		if (pfunc(ai))
 		{
 			++notread;
 			continue;
 		}
 		
-		if (line[0..hashsize] != ddh_string(ddh))
+		if (line[0..hashsize] != ddh_string(ai.ddh))
 		{
 			++mismatches;
-			writeln(file, ": FAILED");
+			writeln(ai.path, ": FAILED");
 			continue;
 		}
 		
-		writeln(file, ": OK");
+		writeln(ai.path, ": OK");
 	}
 	if (mismatches || notread)
 		log.warn("%u mismatched files, %u files not read", mismatches, notread);
@@ -297,8 +285,9 @@ int main(string[] args)
 		return 1;
 	}
 	
-	DDH_T ddh = void;
-	if (ddh_init(ddh, action))
+	ArgInput ai = void;
+	
+	if (ddh_init(ai.ddh, action))
 	{
 		log.error("could not initiate hash");
 		return 1;
@@ -306,7 +295,7 @@ int main(string[] args)
 	
 	if (argc <= 2)
 	{
-		process_stdin(ddh);
+		process_stdin(ai);
 		return 0;
 	}
 	
@@ -320,9 +309,8 @@ int main(string[] args)
 	SpanMode cli_spanmode = SpanMode.shallow;
 	bool cli_follow = true;
 	bool cli_skip;	/// Skip CLI options, default=false
-	
-//	Jobs jobs = void;
-//	jobs.jobs = 0;
+	ai.chunksize = DEFAULT_CHUNK_SIZE;
+	ai.filetext = false;
 	
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
@@ -330,10 +318,11 @@ int main(string[] args)
 		
 		if (cli_skip)
 		{
-			presult = pfunc(arg, ddh);
+			ai.path = arg;
+			presult = pfunc(ai);
 			if (presult) return presult;
-			writefln("%s  %s", ddh_string(ddh), arg);
-			ddh_reset(ddh);
+			writefln("%s  %s", ddh_string(ai.ddh), arg);
+			ddh_reset(ai.ddh);
 			continue;
 		}
 		
@@ -341,7 +330,7 @@ int main(string[] args)
 		{
 			if (arg.length == 1) // '-' only: stdin
 			{
-				process_stdin(ddh);
+				process_stdin(ai);
 				continue;
 			}
 			
@@ -363,7 +352,7 @@ int main(string[] args)
 					log.error("missing argument");
 					return 1;
 				}
-				process_check(args[argi++], ddh, pfunc);
+				process_check(args[argi++], ai, pfunc);
 				continue;
 			case "--arg":
 				++argi;
@@ -372,14 +361,14 @@ int main(string[] args)
 					log.error("missing argument");
 					return 1;
 				}
-				process_text(args[argi++], ddh);
+				process_textarg(args[argi++], ai);
 				continue;
 			// Read mode
 			case "--text":
-				ddh.flags |= CLIFlags.FileText;
+				ai.filetext = true;
 				continue;
 			case "--binary":
-				ddh.flags &= ~CLIFlags.FileText;
+				ai.filetext = false;
 				continue;
 			// SpanMode
 			case "--depth":
@@ -423,10 +412,10 @@ int main(string[] args)
 				pfunc = &process_file;
 				continue;
 			case 't': // text file mode
-				ddh.flags |= CLIFlags.FileText;
+				ai.filetext = true;
 				continue;
 			case 'b': // binary file mode
-				ddh.flags &= ~CLIFlags.FileText;
+				ai.filetext = false;
 				continue;
 			case 's': // spanmode: depth
 				cli_spanmode = SpanMode.depth;
@@ -440,7 +429,7 @@ int main(string[] args)
 					log.error("missing argument");
 					return 1;
 				}
-				process_check(args[argi++], ddh, pfunc);
+				process_check(args[argi++], ai, pfunc);
 				continue;
 			case 'a': // arg
 				++argi;
@@ -449,7 +438,7 @@ int main(string[] args)
 					log.error("missing argument");
 					return 1;
 				}
-				process_text(args[argi++], ddh);
+				process_textarg(args[argi++], ai);
 				continue;
 			default:
 				log.error("unknown option '%c'", o);
@@ -467,12 +456,12 @@ int main(string[] args)
 			++count;
 			if (entry.isDir)
 				continue;
-			string path = entry.name;
-			presult = pfunc(path, ddh);
+			ai.path = entry.name;
+			presult = pfunc(ai);
 			if (presult)
 				return presult;
-			writefln("%s  %s", ddh_string(ddh), path[2..$]);
-			ddh_reset(ddh);
+			writefln("%s  %s", ddh_string(ai.ddh), ai.path[2..$]);
+			ddh_reset(ai.ddh);
 		}
 		if (count == 0)
 			log.error("'%s': No such file", name);
