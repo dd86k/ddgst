@@ -146,6 +146,11 @@ int process_mmfile(ref ArgInput ai)
 	
 	if (flen)
 	{
+		if (ai.mmwhole)
+		{
+			ddh_compute(ai.ddh, cast(ubyte[])f[0..$]);
+			return false;
+		}
 		ulong start;
 		if (flen > ai.chunksize)
 		{
@@ -169,7 +174,7 @@ void process_textarg(string str, ref ArgInput ai)
 
 int process_stdin(ref ArgInput ai)
 {
-	foreach (ubyte[] chunk; stdin.byChunk(ai.chunksize))
+	foreach (ref ubyte[] chunk; stdin.byChunk(ai.chunksize))
 	{
 		ddh_compute(ai.ddh, chunk);
 	}
@@ -245,11 +250,11 @@ int main(string[] args)
 		return 0;
 	}
 	
-	string a = args[1];
+	string arg = args[1];
 	DDHAction action = cast(DDHAction)-1;
 	foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
 	{
-		if (meta.shortname == a)
+		if (meta.shortname == arg)
 		{
 			action = meta.action;
 			break;
@@ -286,6 +291,10 @@ int main(string[] args)
 	}
 	
 	ArgInput ai = void;
+	//TODO: LDC2 optimization bug
+	//      ai fields must be set here
+	ai.chunksize = DEFAULT_CHUNK_SIZE;
+	ai.filetext = false;
 	
 	if (ddh_init(ai.ddh, action))
 	{
@@ -304,17 +313,17 @@ int main(string[] args)
 	//TODO: --nocolor/--color: Errors with color
 	//TODO: -j/--jobs: std.parallalism.parallel dirEntries
 	
+	// default proc
 	process_func_t pfunc = &process_file;
 	int presult = void;	/// Process function result
+	// for dirEntries
 	SpanMode cli_spanmode = SpanMode.shallow;
 	bool cli_follow = true;
 	bool cli_skip;	/// Skip CLI options, default=false
-	ai.chunksize = DEFAULT_CHUNK_SIZE;
-	ai.filetext = false;
 	
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
-		string arg = args[argi];
+		arg = args[argi];
 		
 		if (cli_skip)
 		{
@@ -338,7 +347,7 @@ int main(string[] args)
 			if (arg[1] == '-')
 			switch (arg)
 			{
-			// Input mode
+			// Input modes
 			case "--mmfile":
 				pfunc = &process_mmfile;
 				continue;
@@ -393,6 +402,12 @@ int main(string[] args)
 			/*case "--jobs":
 				
 				continue;*/
+			case "--mmwhole":
+				ai.mmwhole = true;
+				continue;
+			case "--no-mmwhole":
+				ai.mmwhole = false;
+				continue;
 			case "--":
 				cli_skip = true;
 				continue;
@@ -422,6 +437,9 @@ int main(string[] args)
 				continue;
 			/*case 'C':
 				continue;*/
+			case 'm':
+				ai.mmwhole = true;
+				continue;
 			case 'c': // check
 				++argi;
 				if (argi >= argc)
@@ -460,7 +478,10 @@ int main(string[] args)
 			presult = pfunc(ai);
 			if (presult)
 				return presult;
-			writefln("%s  %s", ddh_string(ai.ddh), ai.path[2..$]);
+			version (Windows)
+				writefln("%s  %s", ddh_string(ai.ddh), ai.path[2..$]);
+			else
+				writefln("%s  %s", ddh_string(ai.ddh), ai.path);
 			ddh_reset(ai.ddh);
 		}
 		if (count == 0)

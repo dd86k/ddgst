@@ -99,6 +99,8 @@ The globbing pattern is further explained at
 The default parameters used in `dirEntries` are `SpanMode.shallow` for its
 spanmode (same-level directory), and `true` for following symobolic links.
 
+Do take note that the embedded globbing subsystem includes hidden files.
+
 For example: `src/*.{d,dd}` will match all files ending with `.d`
 and `.dd` in the `src` directory, and will follow symbolic links.
 
