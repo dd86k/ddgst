@@ -90,7 +90,7 @@ struct DDH_INFO_T
 {
 	DDHAction action;	/// static action
 	string name;	/// static name
-	string shortname;	/// static shortname
+	string basename;	/// static basename
 	uint digest_size;	/// static digest_size
 	func_compute fcomp;	/// static fcomp
 	func_finish fdone;	/// static fdone
@@ -341,6 +341,7 @@ char[] ddh_string(ref DDH_T ddh)
 private:
 extern (C):
 
+pragma(inline, true)
 size_t fasthex(char* buffer, ubyte v) nothrow pure @nogc
 {
 	buffer[1] = fasthexchar(v & 0xF);
@@ -349,7 +350,7 @@ size_t fasthex(char* buffer, ubyte v) nothrow pure @nogc
 }
 
 pragma(inline, true)
-char fasthexchar(ubyte v) nothrow pure @nogc
+char fasthexchar(ubyte v) nothrow pure @nogc @safe
 {
 	return cast(char)(v <= 9 ? v + 48 : v + 87);
 }

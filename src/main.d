@@ -2,8 +2,6 @@ import std.stdio, std.mmfile;
 import std.compiler : version_major, version_minor;
 import std.path : baseName, dirName;
 import std.file : dirEntries, DirEntry, SpanMode;
-//import std.parallelism : parallel;
-//import std.concurrency : spawn, Tid;
 import ddh.ddh;
 static import log = logger;
 
@@ -16,7 +14,7 @@ extern (C) __gshared {
 	// This starts with the GC disabled, with -vgc we can see that the GC
 	// will be re-enabled to allocate MmFile into the heap, but that's
 	// pretty much it
-	string[] rt_options = [ "gcopt=disable:1 cleanup:none" ];
+	string[] rt_options = [ "cleanup:none" ];
 }
 
 debug enum BUILD_TYPE = "debug";
@@ -33,7 +31,6 @@ struct ArgInput
 	string path;	/// or text
 	uint chunksize;	/// file, mmfile: chunk read/process size
 	bool filetext;	/// file: read as text
-	bool mmwhole;	/// mmfile: whole file as array instead of memory chunks
 }
 
 alias process_func_t = int function(ref ArgInput);
@@ -123,19 +120,29 @@ int process_file(ref ArgInput ai)
 	}
 
 	if (flen)
-	foreach (ubyte[] chunk; f.byChunk(ai.chunksize))
-		ddh_compute(ai.ddh, chunk);
+	{
+		// For some reason, .byChunk(size_t) is just *slightly* faster
+		// than .byChunk(ubyte[]). Benchmarked on DMD and LDC.
+		foreach (ref ubyte[] chunk; f.byChunk(ai.chunksize))
+			ddh_compute(ai.ddh, chunk);
+	}
+	
+	f.close();
 	
 	return false;
 }
 
+//version = MFILE;
+
+version (MFILE)
 int process_mmfile(ref ArgInput ai)
 {
-	MmFile f = void;
+	import ddh.utils : MFile;
+	MFile f = void;
 	ulong flen = void;
 	try
 	{
-		f = new MmFile(ai.path);
+		f.open(ai.path);
 		flen = f.length;
 	}
 	catch (Exception ex)
@@ -165,11 +172,43 @@ int process_mmfile(ref ArgInput ai)
 	
 	return false;
 }
+else
+int process_mmfile(ref ArgInput ai)
+{
+	MmFile f = void;
+	ulong flen = void;
+	try
+	{
+		f = new MmFile(ai.path);
+		flen = f.length;
+	}
+	catch (Exception ex)
+	{
+		log.error("%s: %s", ai.path, ex.msg);
+		return true;
+	}
+	
+	if (flen)
+	{
+		ulong start;
+		if (flen > ai.chunksize)
+		{
+			const ulong climit = flen - ai.chunksize;
+			for (; start < climit; start += ai.chunksize)
+				ddh_compute(ai.ddh, cast(ubyte[])f[start..start + ai.chunksize]);
+		}
+		
+		// Compute remaining
+		ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
+	}
+	
+	return false;
+}
 
 void process_textarg(string str, ref ArgInput ai)
 {
 	ddh_compute(ai.ddh, cast(ubyte[])str);
-	writefln("%s  \"%s\"", ddh_string(ai.ddh), str);
+	print_result!"%s  \"%s\""(ddh_string(ai.ddh), str);
 }
 
 int process_stdin(ref ArgInput ai)
@@ -178,7 +217,7 @@ int process_stdin(ref ArgInput ai)
 	{
 		ddh_compute(ai.ddh, chunk);
 	}
-	writefln("%s  -", ddh_string(ai.ddh));
+	print_result(ddh_string(ai.ddh), STDIN_BASENAME);
 	return false;
 }
 
@@ -201,43 +240,45 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 	size_t hashsize = ddh_digest_size(ai.ddh) << 1;
 	size_t minsize = hashsize + 3;
 	
-	uint linecnt;
-	uint mismatches;
-	uint notread;
+	uint res_linecount, res_mismatch, res_err;
 	foreach (ref char[] line; cf.byLine)
 	{
-		++linecnt;
+		++res_linecount;
 		
 		if (line.length < minsize)
 		{
-			log.error("line %u invalid", linecnt);
-			++notread;
+			log.error("line %u invalid", res_linecount);
+			++res_err;
 			continue;
 		}
 		
-		// Since it includes the newline
-		//string file = line[minsize - 1..$ - 1].text;
+		// Since `line` includes the newline
+		ai.path = line[minsize-1..$-1].text;
 		
-		ai.path = line[minsize - 1..$ - 1].text;
 		if (pfunc(ai))
 		{
-			++notread;
+			++res_err;
 			continue;
 		}
 		
 		if (line[0..hashsize] != ddh_string(ai.ddh))
 		{
-			++mismatches;
+			++res_mismatch;
 			writeln(ai.path, ": FAILED");
 			continue;
 		}
 		
 		writeln(ai.path, ": OK");
 	}
-	if (mismatches || notread)
-		log.warn("%u mismatched files, %u files not read", mismatches, notread);
+	if (res_mismatch || res_err)
+		log.warn("%u mismatched files, %u files not read", res_mismatch, res_err);
 	
 	return 0;
+}
+
+void print_result(string fmt = "%s  %s")(char[] hash, in char[] file)
+{
+	writefln(fmt, hash, file);
 }
 
 int main(string[] args)
@@ -254,7 +295,7 @@ int main(string[] args)
 	DDHAction action = cast(DDHAction)-1;
 	foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
 	{
-		if (meta.shortname == arg)
+		if (meta.basename == arg)
 		{
 			action = meta.action;
 			break;
@@ -270,7 +311,7 @@ int main(string[] args)
 		foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
 		{
 			writefln("%-12s%s",
-				meta.shortname, meta.name);
+				meta.basename, meta.name);
 		}
 		return 0;
 	case "ver":
@@ -292,7 +333,7 @@ int main(string[] args)
 	
 	ArgInput ai = void;
 	//TODO: LDC2 optimization bug
-	//      ai fields must be set here
+	//      ArgInput fields must be set here
 	ai.chunksize = DEFAULT_CHUNK_SIZE;
 	ai.filetext = false;
 	
@@ -311,7 +352,6 @@ int main(string[] args)
 	//TODO: -P/--progress: Consider adding progress bar
 	//TODO: -u/--upper: Upper case hash digests
 	//TODO: --nocolor/--color: Errors with color
-	//TODO: -j/--jobs: std.parallalism.parallel dirEntries
 	
 	// default proc
 	process_func_t pfunc = &process_file;
@@ -330,7 +370,7 @@ int main(string[] args)
 			ai.path = arg;
 			presult = pfunc(ai);
 			if (presult) return presult;
-			writefln("%s  %s", ddh_string(ai.ddh), arg);
+			print_result(ddh_string(ai.ddh), arg);
 			ddh_reset(ai.ddh);
 			continue;
 		}
@@ -402,12 +442,6 @@ int main(string[] args)
 			/*case "--jobs":
 				
 				continue;*/
-			case "--mmwhole":
-				ai.mmwhole = true;
-				continue;
-			case "--no-mmwhole":
-				ai.mmwhole = false;
-				continue;
 			case "--":
 				cli_skip = true;
 				continue;
@@ -437,9 +471,6 @@ int main(string[] args)
 				continue;
 			/*case 'C':
 				continue;*/
-			case 'm':
-				ai.mmwhole = true;
-				continue;
 			case 'c': // check
 				++argi;
 				if (argi >= argc)
@@ -479,9 +510,9 @@ int main(string[] args)
 			if (presult)
 				return presult;
 			version (Windows)
-				writefln("%s  %s", ddh_string(ai.ddh), ai.path[2..$]);
+				print_result(ddh_string(ai.ddh), ai.path[2..$]);
 			else
-				writefln("%s  %s", ddh_string(ai.ddh), ai.path);
+				print_result(ddh_string(ai.ddh), ai.path);
 			ddh_reset(ai.ddh);
 		}
 		if (count == 0)

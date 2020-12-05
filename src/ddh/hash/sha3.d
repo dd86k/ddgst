@@ -175,19 +175,10 @@ public struct KECCAK(uint digestSize, bool shake = false)
 	
 	version (BigEndian)
 	pragma(inline, true)
-	ulong bswap64(ulong v)
-	{
-		v = (v >> 32) | (v << 32);
-		v = ((v & 0xFFFF0000FFFF0000) >> 16) | ((v & 0x0000FFFF0000FFFF) << 16);
-		return ((v & 0xFF00FF00FF00FF00) >> 8) | ((v & 0x00FF00FF00FF00FF) << 8);
-	}
-	
-	version (BigEndian)
-	pragma(inline, true)
 	void swap()
 	{
 		for (size_t i; i < 25; ++i)
-			st64[i] = bswap64(st64[i]);
+			st64[i] = core.bitop.bswap(st64[i]);
 	}
 }
 

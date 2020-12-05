@@ -51,13 +51,10 @@ Why? I wanted:
 |---|---|---|---|---|
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | | |
-| UTF-16 translation | Considering | | | |
-| UTF-32 translation | Considering | | | |
 | Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
-| Parallel processing | Planned | | | |
 
 [1] From the Perl Archive::ZIP package
 
@@ -103,6 +100,11 @@ Do take note that the embedded globbing subsystem includes hidden files.
 
 For example: `src/*.{d,dd}` will match all files ending with `.d`
 and `.dd` in the `src` directory, and will follow symbolic links.
+
+## Memory-mapped Files
+
+The mmfile mode's performance may vary on systems. Generally, file mode is
+faster on Windows, and mmfile mode is faster on Linux systems.
 
 # Compiling
 
