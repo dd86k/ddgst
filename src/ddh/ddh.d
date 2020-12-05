@@ -245,9 +245,13 @@ immutable DDH_INFO_T[] meta_info = [
 	}
 ];
 static assert(meta_info.length == DDHAction.max + 1);
-static foreach (i, DDH_INFO_T info; meta_info)
+// While GDC 10.0 supports static foreach loops, GDC 9.3 cannot
+unittest
 {
-	static assert(info.action == cast(DDHAction)i);
+	foreach (i, DDH_INFO_T info; meta_info)
+	{
+		assert(info.action == cast(DDHAction)i);
+	}
 }
 
 // Helps converting bits to byte sizes, avoids errors
