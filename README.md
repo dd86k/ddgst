@@ -33,9 +33,9 @@ Why? I wanted:
 | BLAKE2 | | ✔️ (b2sum) | ✔️ | |
 | Whirlpool | | | ✔️ | |
 
-[1] See `dgst` command\
-[2] From the Perl Archive::ZIP package\
-[3] sha224sum, sha256sum, sha384sum, sha512sum
+- [1] See `dgst` command
+- [2] From the Perl Archive::ZIP package
+- [3] sha224sum, sha256sum, sha384sum, sha512sum
 
 ## Feature Comparison
 
@@ -48,8 +48,8 @@ Why? I wanted:
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 
-[1] From the Perl Archive::ZIP package\
-[2] All but cksum and sum
+- [1] From the Perl Archive::ZIP package
+- [2] All but cksum and sum
 
 # Usage
 
