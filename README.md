@@ -13,7 +13,7 @@ Why? I wanted:
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | coreutils | openssl [1] | crc32(1) [2] |
+| Checksum or Hash | ddh | GNU coreutils | openssl [1] | crc32(1) [2] |
 |---|---|---|---|---|
 | BSD sum | | ✔️ (sum) | | |
 | System V sum | | ✔️ (sum -s) | | |
@@ -27,19 +27,19 @@ Why? I wanted:
 | SM3 | | | ✔️ | |
 | RIPEMD-160 | ✔️ | | ✔️ | |
 | SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | |
-| SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | |
+| SHA-2 | ✔️ | ✔️ [3] | ✔️ | |
 | SHA-3 | ✔️ | | ✔️ | |
 | SHAKE | ✔️ | | ✔️ | |
 | BLAKE2 | | ✔️ (b2sum) | ✔️ | |
 | Whirlpool | | | ✔️ | |
 
-[1] See `dgst` command
-
-[2] From the Perl Archive::ZIP package
+[1] See `dgst` command\
+[2] From the Perl Archive::ZIP package\
+[3] sha224sum, sha256sum, sha384sum, sha512sum
 
 ## Feature Comparison
 
-| Feature | ddh | coreutils | openssl | crc32(1) [1] |
+| Feature | ddh | GNU coreutils | openssl | crc32(1) [1] |
 |---|---|---|---|---|
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | | |
@@ -48,8 +48,7 @@ Why? I wanted:
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 
-[1] From the Perl Archive::ZIP package
-
+[1] From the Perl Archive::ZIP package\
 [2] All but cksum and sum
 
 # Usage
