@@ -9,15 +9,11 @@ static import log = logger;
 
 private:
 
-extern (C) __gshared {
-	// The DRT CLI is pretty useless
-	bool rt_cmdline_enabled = false;
+// Leave GC enabled, but avoid cleanup on exit
+extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 
-	// This starts with the GC disabled, with -vgc we can see that the GC
-	// will be re-enabled to allocate MmFile into the heap, but that's
-	// pretty much it
-	string[] rt_options = [ "cleanup:none" ];
-}
+// The DRT CLI is pretty useless
+extern (C) __gshared bool rt_cmdline_enabled = false;
 
 debug enum BUILD_TYPE = "debug";
 else  enum BUILD_TYPE = "release";
@@ -393,9 +389,6 @@ int main(string[] args)
 				continue;
 			// Misc.
 			/*case "--chunk":
-				continue;*/
-			/*case "--jobs":
-				
 				continue;*/
 			case "--":
 				cli_skip = true;
