@@ -26,19 +26,11 @@ Why? I wanted:
 | MD5 | ✔️ | ✔️ (md5sum) | ✔️ | |
 | SM3 | | | ✔️ | |
 | RIPEMD-160 | ✔️ | | ✔️ | |
-| SHA-1-160 | ✔️ | ✔️ (sha1sum) | ✔️ | |
-| SHA-2-224 | ✔️ | ✔️ (sha224sum) | ✔️ | |
-| SHA-2-256 | ✔️ | ✔️ (sha256sum) | ✔️ | |
-| SHA-2-384 | ✔️ | ✔️ (sha384sum) | ✔️ | |
-| SHA-2-512 | ✔️ | ✔️ (sha512sum) | ✔️ | |
-| SHA-3-224 | ✔️ | | ✔️ | |
-| SHA-3-256 | ✔️ | | ✔️ | |
-| SHA-3-384 | ✔️ | | ✔️ | |
-| SHA-3-512 | ✔️ | | ✔️ | |
-| SHAKE-128 | ✔️ | | ✔️ | |
-| SHAKE-256 | ✔️ | | ✔️ | |
-| BLAKE2-256 | | ✔️ (b2sum) | ✔️ | |
-| BLAKE2-512 | | ✔️ (b2sum) | ✔️ | |
+| SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | |
+| SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | |
+| SHA-3 | ✔️ | | ✔️ | |
+| SHAKE | ✔️ | | ✔️ | |
+| BLAKE2 | | ✔️ (b2sum) | ✔️ | |
 | Whirlpool | | | ✔️ | |
 
 [1] See `dgst` command
