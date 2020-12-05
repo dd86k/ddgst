@@ -10,8 +10,16 @@ buildType "debug-gc" {
 	dflags "--vgc" platform="ldc"
 }
 
+buildType "release-static" {
+	# GDC is static by default
+	toolchainRequirements dmd="no" gdc="no" ldc="*"
+	buildOptions "releaseMode" "optimize" "noBoundsCheck"
+	dflags "--static" platform="ldc"
+}
+
 buildType "release-extreme" {
-	buildOptions "releaseMode" "optimize"
-	dflags "-boundscheck=off" "-checkaction=halt" platform="dmd"
-	dflags "--boundscheck=off" "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
+	buildOptions "releaseMode" "optimize" "noBoundsCheck"
+	dflags "-checkaction=halt" platform="dmd"
+	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
+	dflags "-ffast-math" platform="gdc"
 }

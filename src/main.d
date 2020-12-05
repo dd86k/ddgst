@@ -35,7 +35,7 @@ alias process_func_t = int function(ref ArgInput);
 
 immutable string TEXT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
-Compiler: `~__VENDOR__~" "~format("%u.%03u", version_major, version_minor);
+Compiler: `~__VENDOR__~" FE v"~format("%u.%03u", version_major, version_minor);
 
 immutable string TEXT_HELP =
 `Usage:
