@@ -98,7 +98,7 @@ struct DDH_INFO_T
 }
 /// Structure information
 // I could have done a mixin template but oh well
-immutable DDH_INFO_T[] struct_meta = [
+immutable DDH_INFO_T[] meta_info = [
 	{
 		DDHAction.SumCRC32,
 		"CRC-32",
@@ -244,8 +244,8 @@ immutable DDH_INFO_T[] struct_meta = [
 		&ddh_shake256_reset
 	}
 ];
-static assert(struct_meta.length == DDHAction.max + 1);
-static foreach (i, DDH_INFO_T info; struct_meta)
+static assert(meta_info.length == DDHAction.max + 1);
+static foreach (i, DDH_INFO_T info; meta_info)
 {
 	static assert(info.action == cast(DDHAction)i);
 }
@@ -269,10 +269,10 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 		return true;
 	
 	size_t i = ddh.action = action;
-	ddh.compute = struct_meta[i].fcomp;
-	ddh.finish  = struct_meta[i].fdone;
-	ddh.reset   = struct_meta[i].freset;
-	ddh.inptr.bufferlen = struct_meta[i].digest_size;
+	ddh.compute = meta_info[i].fcomp;
+	ddh.finish  = meta_info[i].fdone;
+	ddh.reset   = meta_info[i].freset;
+	ddh.inptr.bufferlen = meta_info[i].digest_size;
 	
 	ddh_reset(ddh);
 	
@@ -283,7 +283,7 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 /// Returns: Digest size
 uint ddh_digest_size(ref DDH_T ddh)
 {
-	return struct_meta[ddh.action].digest_size;
+	return meta_info[ddh.action].digest_size;
 }
 
 /// Compute a block of data

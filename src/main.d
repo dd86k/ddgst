@@ -1,8 +1,10 @@
 import std.stdio, std.mmfile;
+import std.conv : text;
 import std.compiler : version_major, version_minor;
 import std.path : baseName, dirName;
 import std.file : dirEntries, DirEntry, SpanMode;
 import ddh.ddh;
+import std.format;
 static import log = logger;
 
 private:
@@ -35,9 +37,9 @@ struct ArgInput
 
 alias process_func_t = int function(ref ArgInput);
 
-immutable string FMT_VERSION =
+immutable string TEXT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
-Compiler: `~__VENDOR__~" %u.%03u";
+Compiler: `~__VENDOR__~" "~format("%u.%03u", version_major, version_minor);
 
 immutable string TEXT_HELP =
 `Usage:
@@ -132,47 +134,6 @@ int process_file(ref ArgInput ai)
 	return false;
 }
 
-//version = MFILE;
-
-version (MFILE)
-int process_mmfile(ref ArgInput ai)
-{
-	import ddh.utils : MFile;
-	MFile f = void;
-	ulong flen = void;
-	try
-	{
-		f.open(ai.path);
-		flen = f.length;
-	}
-	catch (Exception ex)
-	{
-		log.error("%s: %s", ai.path, ex.msg);
-		return true;
-	}
-	
-	if (flen)
-	{
-		if (ai.mmwhole)
-		{
-			ddh_compute(ai.ddh, cast(ubyte[])f[0..$]);
-			return false;
-		}
-		ulong start;
-		if (flen > ai.chunksize)
-		{
-			const ulong climit = flen - ai.chunksize;
-			for (; start < climit; start += ai.chunksize)
-				ddh_compute(ai.ddh, cast(ubyte[])f[start..start + ai.chunksize]);
-		}
-		
-		// Compute remaining
-		ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
-	}
-	
-	return false;
-}
-else
 int process_mmfile(ref ArgInput ai)
 {
 	MmFile f = void;
@@ -214,17 +175,13 @@ void process_textarg(string str, ref ArgInput ai)
 int process_stdin(ref ArgInput ai)
 {
 	foreach (ref ubyte[] chunk; stdin.byChunk(ai.chunksize))
-	{
 		ddh_compute(ai.ddh, chunk);
-	}
 	print_result(ddh_string(ai.ddh), STDIN_BASENAME);
 	return false;
 }
 
 int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 {
-	import std.conv : text;
-	
 	File cf;
 	try
 	{
@@ -293,7 +250,7 @@ int main(string[] args)
 	
 	string arg = args[1];
 	DDHAction action = cast(DDHAction)-1;
-	foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
+	foreach (meta; meta_info)
 	{
 		if (meta.basename == arg)
 		{
@@ -308,11 +265,9 @@ int main(string[] args)
 	{
 	case "list":
 		writeln("Aliases");
-		foreach (ref immutable(DDH_INFO_T) meta; struct_meta)
-		{
+		foreach (meta; meta_info)
 			writefln("%-12s%s",
 				meta.basename, meta.name);
-		}
 		return 0;
 	case "ver":
 		writeln(PROJECT_VERSION);
@@ -321,7 +276,7 @@ int main(string[] args)
 		write(TEXT_HELP);
 		return 0;
 	case "version", "--version":
-		writefln(FMT_VERSION, version_major, version_minor);
+		writeln(TEXT_VERSION);
 		return 0;
 	case "license":
 		writeln(TEXT_LICENSE);
