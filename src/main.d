@@ -148,6 +148,7 @@ int process_mmfile(ref ArgInput ai)
 	if (flen)
 	{
 		ulong start;
+		
 		if (flen > ai.chunksize)
 		{
 			const ulong climit = flen - ai.chunksize;
@@ -224,7 +225,7 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 		writeln(ai.path, ": OK");
 	}
 	if (res_mismatch || res_err)
-		log.warn("%u mismatched files, %u files not read", res_mismatch, res_err);
+		log.warn("%u mismatched file(s), %u file(s) not read", res_mismatch, res_err);
 	
 	return 0;
 }
@@ -457,10 +458,7 @@ int main(string[] args)
 			presult = pfunc(ai);
 			if (presult)
 				return presult;
-			version (Windows)
-				print_result(ddh_string(ai.ddh), ai.path[2..$]);
-			else
-				print_result(ddh_string(ai.ddh), ai.path);
+			print_result(ddh_string(ai.ddh), ai.path[2..$]);
 			ddh_reset(ai.ddh);
 		}
 		if (count == 0)
