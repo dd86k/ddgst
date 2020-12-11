@@ -8,7 +8,7 @@
  *
  * See FIPS PUB 202 for more information.
  */
-module ddh.hash.sha3; 
+module ddh.hash.sha3;
 
 private immutable ulong[24] K_RC = [
 	0x0000000000000001, 0x0000000000008082, 0x800000000000808a,
@@ -50,7 +50,7 @@ public struct KECCAK(uint digestSize, bool shake = false)
 	else
 		static assert(digestSize == 224 || digestSize == 256 ||
 			digestSize == 384 || digestSize == 512,
-			"digest size must be >224, <512, and be divisible by 8");
+			"digest size must be 224, 256, 384, or 512 bits");
 
 	private enum {
 		dgst_sz_bits  = digestSize,	/// digest size in bits
@@ -63,6 +63,7 @@ public struct KECCAK(uint digestSize, bool shake = false)
 		private ubyte[200] st;	/// state (8bit)
 		private ulong[25] st64;	/// state (64bit)
 	}
+	
 	static assert(st64.sizeof == st.sizeof);
 	
 	private size_t pt; /// left-over pointer
@@ -174,7 +175,6 @@ public struct KECCAK(uint digestSize, bool shake = false)
 	}
 	
 	version (BigEndian)
-	pragma(inline, true)
 	void swap()
 	{
 		for (size_t i; i < 25; ++i)
