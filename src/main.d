@@ -190,8 +190,9 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 		return 1;
 	}
 	
-	// Number of characters the hash string is
+	/// Number of characters the hash string
 	size_t hashsize = ddh_digest_size(ai.ddh) << 1;
+	/// Minimum line length
 	size_t minsize = hashsize + 3;
 	
 	uint res_linecount, res_mismatch, res_err;
@@ -301,10 +302,6 @@ int main(string[] args)
 		return 0;
 	}
 	
-	//TODO: -P/--progress: Consider adding progress bar
-	//TODO: -u/--upper: Upper case hash digests
-	//TODO: --nocolor/--color: Errors with color
-	
 	// default proc
 	process_func_t pfunc = &process_file;
 	int presult = void;	/// Process function result
@@ -335,7 +332,9 @@ int main(string[] args)
 				continue;
 			}
 			
+			//
 			// Long opts
+			//
 			if (arg[1] == '-')
 			switch (arg)
 			{
@@ -364,14 +363,14 @@ int main(string[] args)
 				}
 				process_textarg(args[argi++], ai);
 				continue;
-			// Read mode
+			// Read modes for File
 			case "--text":
 				ai.filetext = true;
 				continue;
 			case "--binary":
 				ai.filetext = false;
 				continue;
-			// SpanMode
+			// Span modes
 			case "--depth":
 				cli_spanmode = SpanMode.depth;
 				continue;
@@ -399,7 +398,9 @@ int main(string[] args)
 				return 1;
 			}
 			
+			//
 			// Short opts
+			//
 			foreach (char o; arg[1..$])
 			switch (o)
 			{
@@ -447,9 +448,8 @@ int main(string[] args)
 		}
 		
 		uint count;
-		string dir  = dirName(arg);
-		string name = baseName(arg); // Thankfully doesn't remove glob patterns
-		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
+		string name = baseName(arg); // Thankfully glob patterns are kept
+		foreach (DirEntry entry; dirEntries(dirName(arg), name, cli_spanmode, cli_follow))
 		{
 			++count;
 			if (entry.isDir)
