@@ -200,6 +200,10 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 	{
 		++res_linecount;
 		
+		// Skip '#' comments
+		if (line[0] == '#')
+			continue;
+		
 		if (line.length < minsize)
 		{
 			log.error("line %u invalid", res_linecount);
@@ -207,15 +211,18 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 			continue;
 		}
 		
-		// Since `line` includes the newline
+		// FileArg.path is modified for the file function
+		// `..$-1`: Since `.byLine` includes the newline
 		ai.path = line[minsize-1..$-1].text;
 		
+		// Process file
 		if (pfunc(ai))
 		{
 			++res_err;
 			continue;
 		}
 		
+		// Compare hash/checksum
 		if (line[0..hashsize] != ddh_string(ai.ddh))
 		{
 			++res_mismatch;
