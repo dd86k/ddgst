@@ -18,7 +18,7 @@ extern (C) __gshared bool rt_cmdline_enabled = false;
 debug enum BUILD_TYPE = "debug";
 else  enum BUILD_TYPE = "release";
 
-enum PROJECT_VERSION = "0.4.0";
+enum PROJECT_VERSION = "0.4.1";
 enum PROJECT_NAME    = "ddh";
 
 enum DEFAULT_CHUNK_SIZE = 64 * 1024;
@@ -455,8 +455,10 @@ int main(string[] args)
 		}
 		
 		uint count;
+		string dir  = dirName(arg);  // "." if anything
 		string name = baseName(arg); // Thankfully glob patterns are kept
-		foreach (DirEntry entry; dirEntries(dirName(arg), name, cli_spanmode, cli_follow))
+		const bool samedir = dir == ".";
+		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
 		{
 			++count;
 			if (entry.isDir)
@@ -465,7 +467,9 @@ int main(string[] args)
 			presult = pfunc(ai);
 			if (presult)
 				return presult;
-			print_result(ddh_string(ai.ddh), ai.path[2..$]);
+			if (samedir)
+				ai.path = ai.path[2..$];
+			print_result(ddh_string(ai.ddh), ai.path);
 			ddh_reset(ai.ddh);
 		}
 		if (count == 0)
