@@ -456,17 +456,19 @@ int main(string[] args)
 		
 		uint count;
 		string dir  = dirName(arg);  // "." if anything
-		string name = baseName(arg); // Thankfully glob patterns are kept
+		string name = baseName(arg); // Glob patterns are kept
 		const bool samedir = dir == ".";
-		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
+		L_ENTRY: foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
 		{
-			if (entry.isDir)
-				continue;
-			++count;
 			ai.path = samedir ? entry.name[2..$] : entry.name;
+			++count;
+			if (entry.isDir) {
+				log.error("'%s': Is a directory", ai.path);
+				continue L_ENTRY;
+			}
 			if (pfunc(ai)) {
 				log.error("'%s': couldn't open file", ai.path);
-				continue;
+				continue L_ENTRY;
 			}
 			print_result(ddh_string(ai.ddh), ai.path);
 			ddh_reset(ai.ddh);
