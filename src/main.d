@@ -292,8 +292,8 @@ int main(string[] args)
 	}
 	
 	ArgInput ai = void;
-	//TODO: LDC2 optimization bug
-	//      ArgInput fields must be set here
+	// NOTE: LDC2 optimization bug
+	//       ArgInput fields must be initiated here
 	ai.chunksize = DEFAULT_CHUNK_SIZE;
 	ai.filetext = false;
 	
@@ -460,15 +460,14 @@ int main(string[] args)
 		const bool samedir = dir == ".";
 		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
 		{
-			++count;
 			if (entry.isDir)
 				continue;
-			ai.path = entry.name;
-			presult = pfunc(ai);
-			if (presult)
-				return presult;
-			if (samedir)
-				ai.path = ai.path[2..$];
+			++count;
+			ai.path = samedir ? entry.name[2..$] : entry.name;
+			if (pfunc(ai)) {
+				log.error("'%s': couldn't open file", ai.path);
+				continue;
+			}
 			print_result(ddh_string(ai.ddh), ai.path);
 			ddh_reset(ai.ddh);
 		}
