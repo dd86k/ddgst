@@ -19,7 +19,10 @@ buildType "release-static" {
 
 buildType "release-extreme" {
 	buildOptions "releaseMode" "optimize" "noBoundsCheck"
+	# NOTE: DMD supports AVX, but that started with Sandy Bridge (2011)
 	dflags "-checkaction=halt" platform="dmd"
+	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=core2" platform="x86-ldc"
+	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=nehalem" platform="x86_64-ldc"
 	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
 	dflags "-ffast-math" platform="gdc"
 }
