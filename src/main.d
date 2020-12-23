@@ -1,10 +1,10 @@
-import std.stdio, std.mmfile;
 import std.conv : text;
 import std.compiler : version_major, version_minor;
-import std.path : baseName, dirName;
 import std.file : dirEntries, DirEntry, SpanMode;
+import std.format : format;
+import std.path : baseName, dirName;
+import std.stdio, std.mmfile;
 import ddh.ddh;
-import std.format;
 static import log = logger;
 
 private:
@@ -113,14 +113,12 @@ int process_file(ref ArgInput ai)
 	}
 	catch (Exception ex)
 	{
-		log.error("%s: %s", ai.path, ex.msg);
+		log.error("'%s': %s", ai.path, ex.msg);
 		return true;
 	}
 
 	if (flen)
 	{
-		// For some reason, .byChunk(size_t) is just *slightly* faster
-		// than .byChunk(ubyte[]). Benchmarked on DMD and LDC.
 		foreach (ubyte[] chunk; f.byChunk(ai.chunksize))
 			ddh_compute(ai.ddh, chunk);
 	}
@@ -141,7 +139,7 @@ int process_mmfile(ref ArgInput ai)
 	}
 	catch (Exception ex)
 	{
-		log.error("%s: %s", ai.path, ex.msg);
+		log.error("'%s': %s", ai.path, ex.msg);
 		return true;
 	}
 	
@@ -196,7 +194,7 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 	size_t minsize = hashsize + 3;
 	
 	uint res_linecount, res_mismatch, res_err;
-	foreach (ref char[] line; cf.byLine)
+	foreach (char[] line; cf.byLine)
 	{
 		++res_linecount;
 		
@@ -206,7 +204,7 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 		
 		if (line.length < minsize)
 		{
-			log.error("line %u invalid", res_linecount);
+			log.error("Line %u invalid", res_linecount);
 			++res_err;
 			continue;
 		}
@@ -287,7 +285,7 @@ int main(string[] args)
 		writeln(TEXT_LICENSE);
 		return 0;
 	default:
-		log.error("unknown action '%s'", args[1]);
+		log.error("Unknown action '%s'", args[1]);
 		return 1;
 	}
 	
@@ -299,7 +297,7 @@ int main(string[] args)
 	
 	if (ddh_init(ai.ddh, action))
 	{
-		log.error("could not initiate hash");
+		log.error("Could not initiate hash");
 		return 1;
 	}
 	
@@ -356,7 +354,7 @@ int main(string[] args)
 				++argi;
 				if (argi >= argc)
 				{
-					log.error("missing argument");
+					log.error("Missing argument");
 					return 1;
 				}
 				process_check(args[argi++], ai, pfunc);
@@ -365,7 +363,7 @@ int main(string[] args)
 				++argi;
 				if (argi >= argc)
 				{
-					log.error("missing argument");
+					log.error("Missing argument");
 					return 1;
 				}
 				process_textarg(args[argi++], ai);
@@ -401,7 +399,7 @@ int main(string[] args)
 				cli_skip = true;
 				continue;
 			default:
-				log.error(PROJECT_NAME~": unknown option '%s'", arg);
+				log.error("Unknown option '%s'", arg);
 				return 1;
 			}
 			
@@ -447,7 +445,7 @@ int main(string[] args)
 				process_textarg(args[argi++], ai);
 				continue;
 			default:
-				log.error("unknown option '%c'", o);
+				log.error("Unknown option '%c'", o);
 				return 1;
 			}
 			
@@ -467,7 +465,7 @@ int main(string[] args)
 				continue L_ENTRY;
 			}
 			if (pfunc(ai)) {
-				log.error("'%s': couldn't open file", ai.path);
+				log.error("'%s': Couldn't open file", ai.path);
 				continue L_ENTRY;
 			}
 			print_result(ddh_string(ai.ddh), ai.path);
