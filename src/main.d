@@ -121,7 +121,7 @@ int process_file(ref ArgInput ai)
 	{
 		// For some reason, .byChunk(size_t) is just *slightly* faster
 		// than .byChunk(ubyte[]). Benchmarked on DMD and LDC.
-		foreach (ref ubyte[] chunk; f.byChunk(ai.chunksize))
+		foreach (ubyte[] chunk; f.byChunk(ai.chunksize))
 			ddh_compute(ai.ddh, chunk);
 	}
 	
@@ -171,7 +171,7 @@ void process_textarg(string str, ref ArgInput ai)
 
 int process_stdin(ref ArgInput ai)
 {
-	foreach (ref ubyte[] chunk; stdin.byChunk(ai.chunksize))
+	foreach (ubyte[] chunk; stdin.byChunk(ai.chunksize))
 		ddh_compute(ai.ddh, chunk);
 	print_result(ddh_string(ai.ddh), STDIN_BASENAME);
 	return false;
