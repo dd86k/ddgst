@@ -307,14 +307,18 @@ int main(string[] args)
 		return 0;
 	}
 	
-	// default proc
-	process_func_t pfunc = &process_file;
+	// CLI arguments
+	process_func_t pfunc = &process_file; /// Process function
 	int presult = void;	/// Process function result
-	// for dirEntries
-	SpanMode cli_spanmode = SpanMode.shallow;
-	bool cli_follow = true;
+	SpanMode cli_spanmode; /// dirEntries: span mode, default=shallow
+	bool cli_follow = true; /// dirEntries: follow symlinks
 	bool cli_skip;	/// Skip CLI options, default=false
 	
+	// Main CLI loop
+	// getopt isn't used (for now?) for specific behaviour
+	//TODO: getopt(args[2..$])
+	//      config.passThrough, remaining args are files/patterns
+	//      * args: detects "-" manually
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
 		arg = args[argi];
