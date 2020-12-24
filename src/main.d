@@ -18,7 +18,7 @@ extern (C) __gshared bool rt_cmdline_enabled = false;
 debug enum BUILD_TYPE = "debug";
 else  enum BUILD_TYPE = "release";
 
-enum PROJECT_VERSION = "0.4.1";
+enum PROJECT_VERSION = "0.4.2";
 enum PROJECT_NAME    = "ddh";
 
 enum DEFAULT_CHUNK_SIZE = 64 * 1024;
@@ -315,10 +315,7 @@ int main(string[] args)
 	bool cli_skip;	/// Skip CLI options, default=false
 	
 	// Main CLI loop
-	// getopt isn't used (for now?) for specific behaviour
-	//TODO: getopt(args[2..$])
-	//      config.passThrough, remaining args are files/patterns
-	//      * args: detects "-" manually
+	// getopt isn't used (for now?) for "on-the-go" specific behaviour
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
 		arg = args[argi];
