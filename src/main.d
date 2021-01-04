@@ -191,7 +191,7 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 	/// Number of characters the hash string
 	size_t hashsize = ddh_digest_size(ai.ddh) << 1;
 	/// Minimum line length
-	size_t minsize = hashsize + 3;
+	size_t minsize = hashsize + 2;
 	
 	uint res_linecount, res_mismatch, res_err;
 	foreach (char[] line; cf.byLine)
@@ -202,7 +202,7 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 		if (line[0] == '#')
 			continue;
 		
-		if (line.length < minsize)
+		if (line.length <= minsize)
 		{
 			log.error("Line %u invalid", res_linecount);
 			++res_err;
@@ -211,7 +211,7 @@ int process_check(string path, ref ArgInput ai, process_func_t pfunc)
 		
 		// FileArg.path is modified for the file function
 		// `..$-1`: Since `.byLine` includes the newline
-		ai.path = line[minsize-1..$-1].text;
+		ai.path = line[minsize..$-1].text;
 		
 		// Process file
 		if (pfunc(ai))
