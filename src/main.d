@@ -15,10 +15,10 @@ extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 // The DRT CLI is pretty useless
 extern (C) __gshared bool rt_cmdline_enabled = false;
 
-debug enum BUILD_TYPE = "debug";
-else  enum BUILD_TYPE = "release";
+debug enum BUILD_TYPE = "-debug";
+else  enum BUILD_TYPE = "";
 
-enum PROJECT_VERSION = "0.4.2";
+enum PROJECT_VERSION = "1.0.0";
 enum PROJECT_NAME    = "ddh";
 
 enum DEFAULT_CHUNK_SIZE = 64 * 1024;
@@ -34,7 +34,7 @@ struct ArgInput
 alias process_func_t = int function(ref ArgInput);
 
 immutable string TEXT_VERSION =
-PROJECT_NAME~` v`~PROJECT_VERSION~`-`~BUILD_TYPE~` (`~__TIMESTAMP__~`)
+PROJECT_NAME~` v`~PROJECT_VERSION~BUILD_TYPE~` (`~__TIMESTAMP__~`)
 Compiler: `~__VENDOR__~" FE v"~format("%u.%03u", version_major, version_minor);
 
 immutable string TEXT_HELP =

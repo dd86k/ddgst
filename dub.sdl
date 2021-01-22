@@ -3,10 +3,13 @@ description "dd's hashing utility"
 homepage "https://github.com/dd86k/ddh"
 authors "dd86k <dd@dax.moe>"
 license "public domain"
+dependency "sha3-d" version="~>1.0.0"
+
 buildType "release-static" {
 	dflags "--static" platform="ldc"
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 }
+
 buildType "release-extreme" {
 	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
 	dflags "-ffast-math" platform="gdc"
@@ -15,9 +18,10 @@ buildType "release-extreme" {
 	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=core2" platform="x86-ldc"
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 }
+
+# Verbose on GC usage
 buildType "debug-gc" {
 	dflags "-vgc" platform="dmd"
 	dflags "--vgc" platform="ldc"
 	buildOptions "debugMode"
 }
-dependency "sha3-d" version="~>1.0.0"
