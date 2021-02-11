@@ -130,32 +130,32 @@ int process_file(ref ArgInput ai)
 
 int process_mmfile(ref ArgInput ai)
 {
-	MmFile f = void;
-	ulong flen = void;
+	import std.typecons : scoped;
+	
 	try
 	{
-		f = new MmFile(ai.path);
-		flen = f.length;
+		auto f = scoped!MmFile(ai.path);
+		ulong flen = f.length;
+		
+		if (flen)
+		{
+			ulong start;
+			
+			if (flen > ai.chunksize)
+			{
+				const ulong climit = flen - ai.chunksize;
+				for (; start < climit; start += ai.chunksize)
+					ddh_compute(ai.ddh, cast(ubyte[])f[start..start + ai.chunksize]);
+			}
+			
+			// Compute remaining
+			ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
+		}
 	}
 	catch (Exception ex)
 	{
 		log.error("'%s': %s", ai.path, ex.msg);
 		return true;
-	}
-	
-	if (flen)
-	{
-		ulong start;
-		
-		if (flen > ai.chunksize)
-		{
-			const ulong climit = flen - ai.chunksize;
-			for (; start < climit; start += ai.chunksize)
-				ddh_compute(ai.ddh, cast(ubyte[])f[start..start + ai.chunksize]);
-		}
-		
-		// Compute remaining
-		ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
 	}
 	
 	return false;
