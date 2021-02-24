@@ -3,32 +3,25 @@ module ddh.ddh;
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
 private import sha3d.sha3;
 
-/// Last error code
-enum DDHError
-{
-	None,
-	CRT
-}
-
 /// Choose which checksum or hash will be used
-enum DDHAction
+enum DDHType
 {
-	SumCRC32,
-	SumCRC64ISO,
-	SumCRC64ECMA,
-	HashMD5,
-	HashRIPEMD160,
-	HashSHA1,
-	HashSHA224,
-	HashSHA256,
-	HashSHA384,
-	HashSHA512,
-	HashSHA3_224,
-	HashSHA3_256,
-	HashSHA3_384,
-	HashSHA3_512,
-	HashSHAKE128,
-	HashSHAKE256,
+	CRC32,
+	CRC64ISO,
+	CRC64ECMA,
+	MD5,
+	RIPEMD160,
+	SHA1,
+	SHA224,
+	SHA256,
+	SHA384,
+	SHA512,
+	SHA3_224,
+	SHA3_256,
+	SHA3_384,
+	SHA3_512,
+	SHAKE128,
+	SHAKE256,
 }
 
 private alias func_compute = extern (C) void function(DDH_INTERNALS_T*, ubyte[]);
@@ -38,7 +31,7 @@ private alias func_reset   = extern (C) void function(DDH_INTERNALS_T*);
 /// Main structure
 struct DDH_T
 {
-	DDHAction action;	/// Checksum/Hash
+	DDHType type;	/// Checksum or hash type
 	func_compute compute;	/// compute function ptr
 	func_finish finish;	/// finish function ptr
 	func_reset reset;	/// reset function ptr
@@ -88,7 +81,7 @@ private struct DDH_INTERNALS_T
 /// 
 struct DDH_INFO_T
 {
-	DDHAction action;	/// static action
+	DDHType type;	/// static action
 	string name;	/// static name
 	string basename;	/// static basename
 	uint digest_size;	/// static digest_size
@@ -100,7 +93,7 @@ struct DDH_INFO_T
 // I could have done a mixin template but oh well
 immutable DDH_INFO_T[] meta_info = [
 	{
-		DDHAction.SumCRC32,
+		DDHType.CRC32,
 		"CRC-32",
 		"crc32",
 		BITS!(32),
@@ -109,7 +102,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_crc32_reset
 	},
 	{
-		DDHAction.SumCRC64ISO,
+		DDHType.CRC64ISO,
 		"CRC-64-ISO",
 		"crc64iso",
 		BITS!(64),
@@ -118,7 +111,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_crc64iso_reset
 	},
 	{
-		DDHAction.SumCRC64ECMA,
+		DDHType.CRC64ECMA,
 		"CRC-64-ECMA",
 		"crc64ecma",
 		BITS!(64),
@@ -127,7 +120,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_crc64ecma_reset
 	},
 	{
-		DDHAction.HashMD5,
+		DDHType.MD5,
 		"MD5-128",
 		"md5",
 		BITS!(128),
@@ -136,7 +129,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_md5_reset
 	},
 	{
-		DDHAction.HashRIPEMD160,
+		DDHType.RIPEMD160,
 		"RIPEMD-160",
 		"ripemd160",
 		BITS!(160),
@@ -145,7 +138,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_ripemd_reset
 	},
 	{
-		DDHAction.HashSHA1,
+		DDHType.SHA1,
 		"SHA-1-160",
 		"sha1",
 		BITS!(160),
@@ -154,7 +147,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha1_reset
 	},
 	{
-		DDHAction.HashSHA224,
+		DDHType.SHA224,
 		"SHA-2-224",
 		"sha224",
 		BITS!(224),
@@ -163,7 +156,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha224_reset
 	},
 	{
-		DDHAction.HashSHA256,
+		DDHType.SHA256,
 		"SHA-2-256",
 		"sha256",
 		BITS!(256),
@@ -172,7 +165,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha256_reset
 	},
 	{
-		DDHAction.HashSHA384,
+		DDHType.SHA384,
 		"SHA-2-384",
 		"sha384",
 		BITS!(384),
@@ -181,7 +174,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha384_reset
 	},
 	{
-		DDHAction.HashSHA512,
+		DDHType.SHA512,
 		"SHA-2-512",
 		"sha512",
 		BITS!(512),
@@ -190,7 +183,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha512_reset
 	},
 	{
-		DDHAction.HashSHA3_224,
+		DDHType.SHA3_224,
 		"SHA-3-224",
 		"sha3-224",
 		BITS!(224),
@@ -199,7 +192,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha3_224_reset
 	},
 	{
-		DDHAction.HashSHA3_256,
+		DDHType.SHA3_256,
 		"SHA-3-256",
 		"sha3-256",
 		BITS!(256),
@@ -208,7 +201,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha3_256_reset
 	},
 	{
-		DDHAction.HashSHA3_384,
+		DDHType.SHA3_384,
 		"SHA-3-384",
 		"sha3-384",
 		BITS!(384),
@@ -217,7 +210,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha3_384_reset
 	},
 	{
-		DDHAction.HashSHA3_512,
+		DDHType.SHA3_512,
 		"SHA-3-512",
 		"sha3-512",
 		BITS!(512),
@@ -226,7 +219,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_sha3_512_reset
 	},
 	{
-		DDHAction.HashSHAKE128,
+		DDHType.SHAKE128,
 		"SHAKE-128",
 		"shake128",
 		BITS!(128),
@@ -235,7 +228,7 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_shake128_reset
 	},
 	{
-		DDHAction.HashSHAKE256,
+		DDHType.SHAKE256,
 		"SHAKE-256",
 		"shake256",
 		BITS!(256),
@@ -244,13 +237,13 @@ immutable DDH_INFO_T[] meta_info = [
 		&ddh_shake256_reset
 	}
 ];
-static assert(meta_info.length == DDHAction.max + 1);
-// While GDC 10.0 supports static foreach loops, GDC 9.3 cannot
+static assert(meta_info.length == DDHType.max + 1);
+// GDC 10.0 supports static foreach, GDC 9.3 does not
 unittest
 {
 	foreach (i, DDH_INFO_T info; meta_info)
 	{
-		assert(info.action == cast(DDHAction)i);
+		assert(info.action == cast(DDHType)i);
 	}
 }
 
@@ -259,12 +252,12 @@ private template BITS(int n) if (n % 8 == 0) { enum { BITS = n >> 3 } }
 /// BITS test
 unittest { static assert(BITS!(32) == 4); }
 
-/// Initiates a DDH_T structure with an DDHAction value.
+/// Initiates a DDH_T structure with an DDHType value.
 /// Params:
 /// 	ddh = DDH_T structure
-/// 	action = DDHAction value
+/// 	type = DDHType value
 /// Returns: True on error
-bool ddh_init(ref DDH_T ddh, DDHAction action)
+bool ddh_init(ref DDH_T ddh, DDHType type)
 {
 	import core.stdc.stdlib : malloc;
 	
@@ -272,7 +265,7 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 	if (ddh.voidptr == null)
 		return true;
 	
-	size_t i = ddh.action = action;
+	size_t i = ddh.type = type;
 	ddh.compute = meta_info[i].fcomp;
 	ddh.finish  = meta_info[i].fdone;
 	ddh.reset   = meta_info[i].freset;
@@ -287,7 +280,7 @@ bool ddh_init(ref DDH_T ddh, DDHAction action)
 /// Returns: Digest size
 uint ddh_digest_size(ref DDH_T ddh)
 {
-	return meta_info[ddh.action].digest_size;
+	return meta_info[ddh.type].digest_size;
 }
 
 /// Compute a block of data
@@ -324,19 +317,21 @@ char[] ddh_string(ref DDH_T ddh)
 	
 	ddh_finish(ddh);
 	
-	with (DDHAction)
-	switch (ddh.action)
+	switch (ddh.type)
 	{
-	case SumCRC64ISO, SumCRC64ECMA:	// 64 bits
+	case DDHType.CRC64ISO, DDHType.CRC64ECMA:	// 64 bits
 		return sformat(ddh.inptr.result, "%016x", ddh.inptr.bufferu64);
-	case SumCRC32:	// 32 bits
+	case DDHType.CRC32:	// 32 bits
 		return sformat(ddh.inptr.result, "%08x", ddh.inptr.bufferu32);
 	default:	// Of any length
 		const size_t len = ddh.inptr.bufferlen;
 		ubyte *tbuf = ddh.inptr.buffer.ptr;
 		char  *rbuf = ddh.inptr.result.ptr;
 		for (size_t i; i < len; ++i) {
-			rbuf += fasthex(rbuf, tbuf[i]);
+			ubyte v = tbuf[i];
+			rbuf[1] = fasthexchar(v & 0xF);
+			rbuf[0] = fasthexchar(v >> 4);
+			rbuf += 2;
 		}
 		return ddh.inptr.result[0..len << 1];
 	}
@@ -344,14 +339,6 @@ char[] ddh_string(ref DDH_T ddh)
 
 private:
 extern (C):
-
-pragma(inline, true)
-size_t fasthex(char* buffer, ubyte v) nothrow pure @nogc
-{
-	buffer[1] = fasthexchar(v & 0xF);
-	buffer[0] = fasthexchar(v >> 4);
-	return 2;
-}
 
 pragma(inline, true)
 char fasthexchar(ubyte v) nothrow pure @nogc @safe

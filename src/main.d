@@ -151,14 +151,14 @@ int process_mmfile(ref ArgInput ai)
 			// Compute remaining
 			ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
 		}
+		
+		return false;
 	}
 	catch (Exception ex)
 	{
 		log.error("'%s': %s", ai.path, ex.msg);
 		return true;
 	}
-	
-	return false;
 }
 
 void process_textarg(string str, ref ArgInput ai)
@@ -252,18 +252,18 @@ int main(string[] args)
 	}
 	
 	string arg = args[1];
-	DDHAction action = cast(DDHAction)-1;
+	DDHType type = cast(DDHType)-1;
 	foreach (meta; meta_info)
 	{
 		if (meta.basename == arg)
 		{
-			action = meta.action;
+			type = meta.type;
 			break;
 		}
 	}
 	
 	// Pages
-	if (action == -1)
+	if (type == -1)
 	switch (args[1])
 	{
 	case "list":
@@ -295,7 +295,7 @@ int main(string[] args)
 	ai.chunksize = DEFAULT_CHUNK_SIZE;
 	ai.filetext = false;
 	
-	if (ddh_init(ai.ddh, action))
+	if (ddh_init(ai.ddh, type))
 	{
 		log.error("Could not initiate hash");
 		return 1;
