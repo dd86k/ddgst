@@ -24,6 +24,75 @@ enum DDHType
 	SHAKE256,
 }
 
+template DGSTSZ(DDHType type)
+{
+	static if (type == DDHType.CRC32)
+	{
+		enum DGSTSZ = BITS!(32);
+	}
+	else static if (type == DDHType.CRC64ISO)
+	{
+		enum DGSTSZ = BITS!(64);
+	}
+	else static if (type == DDHType.CRC64ECMA)
+	{
+		enum DGSTSZ = BITS!(64);
+	}
+	else static if (type == DDHType.MD5)
+	{
+		enum DGSTSZ = BITS!(128);
+	}
+	else static if (type == DDHType.RIPEMD160)
+	{
+		enum DGSTSZ = BITS!(160);
+	}
+	else static if (type == DDHType.SHA1)
+	{
+		enum DGSTSZ = BITS!(160);
+	}
+	else static if (type == DDHType.SHA224)
+	{
+		enum DGSTSZ = BITS!(224);
+	}
+	else static if (type == DDHType.SHA256)
+	{
+		enum DGSTSZ = BITS!(256);
+	}
+	else static if (type == DDHType.SHA384)
+	{
+		enum DGSTSZ = BITS!(384);
+	}
+	else static if (type == DDHType.SHA512)
+	{
+		enum DGSTSZ = BITS!(512);
+	}
+	else static if (type == DDHType.SHA3_224)
+	{
+		enum DGSTSZ = BITS!(224);
+	}
+	else static if (type == DDHType.SHA3_256)
+	{
+		enum DGSTSZ = BITS!(256);
+	}
+	else static if (type == DDHType.SHA3_384)
+	{
+		enum DGSTSZ = BITS!(384);
+	}
+	else static if (type == DDHType.SHA3_512)
+	{
+		enum DGSTSZ = BITS!(512);
+	}
+	else static if (type == DDHType.SHAKE128)
+	{
+		enum DGSTSZ = BITS!(128);
+	}
+	else static if (type == DDHType.SHAKE256)
+	{
+		enum DGSTSZ = BITS!(256);
+	}
+	else static assert(0, "Implement DGSTSZ");
+}
+
 private alias func_compute = extern (C) void function(DDH_INTERNALS_T*, ubyte[]);
 private alias func_finish  = extern (C) ubyte[] function(DDH_INTERNALS_T*);
 private alias func_reset   = extern (C) void function(DDH_INTERNALS_T*);
@@ -45,6 +114,7 @@ struct DDH_T
 /// Internals for DDH_T
 private struct DDH_INTERNALS_T
 {
+	enum BIGGEST = BITS!(512);
 	union
 	{
 		CRC32 crc32;	/// CRC32
@@ -70,180 +140,151 @@ private struct DDH_INTERNALS_T
 	}
 	union
 	{
-		ubyte[1024] buffer;	/// Internal buffer for raw result
+		ubyte[BIGGEST] buffer;	/// Internal buffer for raw result
 		ulong bufferu64;	/// Internal union type
 		uint bufferu32;	/// Internal union type
 	}
-	char[1024] result;	/// Internal buffer for formatted result
 	size_t bufferlen;	/// Internal buffer raw result size
+	char[BIGGEST * 2] result;	/// Internal buffer for formatted result
 }
 
+//TODO: Template that lets me initiate structure
+//      In a cute way
+
 /// 
-struct DDH_INFO_T
+struct DDHInfo
 {
 	DDHType type;	/// static action
+	uint size;	/// static digest_size
 	string name;	/// static name
 	string basename;	/// static basename
-	uint digest_size;	/// static digest_size
 	func_compute fcomp;	/// static fcomp
 	func_finish fdone;	/// static fdone
 	func_reset freset;	/// static freset
 }
+
 /// Structure information
-// I could have done a mixin template but oh well
-immutable DDH_INFO_T[] meta_info = [
+immutable DDHInfo[] meta_info = [
 	{
-		DDHType.CRC32,
-		"CRC-32",
-		"crc32",
-		BITS!(32),
-		&ddh_crc32_compute,
-		&ddh_crc32_finish,
-		&ddh_crc32_reset
+		DDHType.CRC32, DGSTSZ!(DDHType.CRC32),
+		"CRC-32", "crc32",
+		&ddh_compute!(DDHType.CRC32),
+		&ddh_finish!(DDHType.CRC32),
+		&ddh_reset!(DDHType.CRC32),
 	},
 	{
-		DDHType.CRC64ISO,
-		"CRC-64-ISO",
-		"crc64iso",
-		BITS!(64),
-		&ddh_crc64iso_compute,
-		&ddh_crc64iso_finish,
-		&ddh_crc64iso_reset
+		DDHType.CRC64ISO, DGSTSZ!(DDHType.CRC64ISO),
+		"CRC-64-ISO", "crc64iso",
+		&ddh_compute!(DDHType.CRC64ISO),
+		&ddh_finish!(DDHType.CRC64ISO),
+		&ddh_reset!(DDHType.CRC64ISO),
 	},
 	{
-		DDHType.CRC64ECMA,
-		"CRC-64-ECMA",
-		"crc64ecma",
-		BITS!(64),
-		&ddh_crc64ecma_compute,
-		&ddh_crc64ecma_finish,
-		&ddh_crc64ecma_reset
+		DDHType.CRC64ECMA, DGSTSZ!(DDHType.CRC64ECMA),
+		"CRC-64-ECMA", "crc64ecma",
+		&ddh_compute!(DDHType.CRC64ECMA),
+		&ddh_finish!(DDHType.CRC64ECMA),
+		&ddh_reset!(DDHType.CRC64ECMA),
 	},
 	{
-		DDHType.MD5,
-		"MD5-128",
-		"md5",
-		BITS!(128),
-		&ddh_md5_compute,
-		&ddh_md5_finish,
-		&ddh_md5_reset
+		DDHType.MD5, DGSTSZ!(DDHType.MD5),
+		"MD5-128", "md5",
+		&ddh_compute!(DDHType.MD5),
+		&ddh_finish!(DDHType.MD5),
+		&ddh_reset!(DDHType.MD5)
 	},
 	{
-		DDHType.RIPEMD160,
-		"RIPEMD-160",
-		"ripemd160",
-		BITS!(160),
-		&ddh_ripemd_compute,
-		&ddh_ripemd_finish,
-		&ddh_ripemd_reset
+		DDHType.RIPEMD160, DGSTSZ!(DDHType.RIPEMD160),
+		"RIPEMD-160", "ripemd160",
+		&ddh_compute!(DDHType.RIPEMD160),
+		&ddh_finish!(DDHType.RIPEMD160),
+		&ddh_reset!(DDHType.RIPEMD160)
 	},
 	{
-		DDHType.SHA1,
-		"SHA-1-160",
-		"sha1",
-		BITS!(160),
-		&ddh_sha1_compute,
-		&ddh_sha1_finish,
-		&ddh_sha1_reset
+		DDHType.SHA1, DGSTSZ!(DDHType.SHA1),
+		"SHA-1-160", "sha1",
+		&ddh_compute!(DDHType.SHA1),
+		&ddh_finish!(DDHType.SHA1),
+		&ddh_reset!(DDHType.SHA1)
 	},
 	{
-		DDHType.SHA224,
-		"SHA-2-224",
-		"sha224",
-		BITS!(224),
-		&ddh_sha224_compute,
-		&ddh_sha224_finish,
-		&ddh_sha224_reset
+		DDHType.SHA224, DGSTSZ!(DDHType.SHA224),
+		"SHA-2-224", "sha224",
+		&ddh_compute!(DDHType.SHA224),
+		&ddh_finish!(DDHType.SHA224),
+		&ddh_reset!(DDHType.SHA224)
 	},
 	{
-		DDHType.SHA256,
-		"SHA-2-256",
-		"sha256",
-		BITS!(256),
-		&ddh_sha256_compute,
-		&ddh_sha256_finish,
-		&ddh_sha256_reset
+		DDHType.SHA256, DGSTSZ!(DDHType.SHA256),
+		"SHA-2-256", "sha256",
+		&ddh_compute!(DDHType.SHA256),
+		&ddh_finish!(DDHType.SHA256),
+		&ddh_reset!(DDHType.SHA256)
 	},
 	{
-		DDHType.SHA384,
-		"SHA-2-384",
-		"sha384",
-		BITS!(384),
-		&ddh_sha384_compute,
-		&ddh_sha384_finish,
-		&ddh_sha384_reset
+		DDHType.SHA384, DGSTSZ!(DDHType.SHA384),
+		"SHA-2-384", "sha384",
+		&ddh_compute!(DDHType.SHA384),
+		&ddh_finish!(DDHType.SHA384),
+		&ddh_reset!(DDHType.SHA384)
 	},
 	{
-		DDHType.SHA512,
-		"SHA-2-512",
-		"sha512",
-		BITS!(512),
-		&ddh_sha512_compute,
-		&ddh_sha512_finish,
-		&ddh_sha512_reset
+		DDHType.SHA512, DGSTSZ!(DDHType.SHA512),
+		"SHA-2-512", "sha512",
+		&ddh_compute!(DDHType.SHA512),
+		&ddh_finish!(DDHType.SHA512),
+		&ddh_reset!(DDHType.SHA512)
 	},
 	{
-		DDHType.SHA3_224,
-		"SHA-3-224",
-		"sha3-224",
-		BITS!(224),
-		&ddh_sha3_224_compute,
-		&ddh_sha3_224_finish,
-		&ddh_sha3_224_reset
+		DDHType.SHA3_224, DGSTSZ!(DDHType.SHA3_224),
+		"SHA-3-224", "sha3-224",
+		&ddh_compute!(DDHType.SHA3_224),
+		&ddh_finish!(DDHType.SHA3_224),
+		&ddh_reset!(DDHType.SHA3_224)
 	},
 	{
-		DDHType.SHA3_256,
-		"SHA-3-256",
-		"sha3-256",
-		BITS!(256),
-		&ddh_sha3_256_compute,
-		&ddh_sha3_256_finish,
-		&ddh_sha3_256_reset
+		DDHType.SHA3_256, DGSTSZ!(DDHType.SHA3_256),
+		"SHA-3-256", "sha3-256",
+		&ddh_compute!(DDHType.SHA3_256),
+		&ddh_finish!(DDHType.SHA3_256),
+		&ddh_reset!(DDHType.SHA3_256)
 	},
 	{
-		DDHType.SHA3_384,
-		"SHA-3-384",
-		"sha3-384",
-		BITS!(384),
-		&ddh_sha3_384_compute,
-		&ddh_sha3_384_finish,
-		&ddh_sha3_384_reset
+		DDHType.SHA3_384, DGSTSZ!(DDHType.SHA3_384),
+		"SHA-3-384", "sha3-384",
+		&ddh_compute!(DDHType.SHA3_384),
+		&ddh_finish!(DDHType.SHA3_384),
+		&ddh_reset!(DDHType.SHA3_384)
 	},
 	{
-		DDHType.SHA3_512,
-		"SHA-3-512",
-		"sha3-512",
-		BITS!(512),
-		&ddh_sha3_512_compute,
-		&ddh_sha3_512_finish,
-		&ddh_sha3_512_reset
+		DDHType.SHA3_512, DGSTSZ!(DDHType.SHA3_512),
+		"SHA-3-512", "sha3-512",
+		&ddh_compute!(DDHType.SHA3_512),
+		&ddh_finish!(DDHType.SHA3_512),
+		&ddh_reset!(DDHType.SHA3_512)
 	},
 	{
-		DDHType.SHAKE128,
-		"SHAKE-128",
-		"shake128",
-		BITS!(128),
-		&ddh_shake128_compute,
-		&ddh_shake128_finish,
-		&ddh_shake128_reset
+		DDHType.SHAKE128, DGSTSZ!(DDHType.SHAKE128),
+		"SHAKE-128", "shake128",
+		&ddh_compute!(DDHType.SHAKE128),
+		&ddh_finish!(DDHType.SHAKE128),
+		&ddh_reset!(DDHType.SHAKE128)
 	},
 	{
-		DDHType.SHAKE256,
-		"SHAKE-256",
-		"shake256",
-		BITS!(256),
-		&ddh_shake256_compute,
-		&ddh_shake256_finish,
-		&ddh_shake256_reset
+		DDHType.SHAKE256, DGSTSZ!(DDHType.SHAKE128),
+		"SHAKE-256", "shake256",
+		&ddh_compute!(DDHType.SHAKE256),
+		&ddh_finish!(DDHType.SHAKE256),
+		&ddh_reset!(DDHType.SHAKE256)
 	}
 ];
 static assert(meta_info.length == DDHType.max + 1);
 // GDC 10.0 supports static foreach, GDC 9.3 does not
 unittest
 {
-	foreach (i, DDH_INFO_T info; meta_info)
+	foreach (i, DDHInfo info; meta_info)
 	{
-		assert(info.action == cast(DDHType)i);
+		assert(info.type == cast(DDHType)i);
 	}
 }
 
@@ -269,7 +310,7 @@ bool ddh_init(ref DDH_T ddh, DDHType type)
 	ddh.compute = meta_info[i].fcomp;
 	ddh.finish  = meta_info[i].fdone;
 	ddh.reset   = meta_info[i].freset;
-	ddh.inptr.bufferlen = meta_info[i].digest_size;
+	ddh.inptr.bufferlen = meta_info[i].size;
 	
 	ddh_reset(ddh);
 	
@@ -280,7 +321,7 @@ bool ddh_init(ref DDH_T ddh, DDHType type)
 /// Returns: Digest size
 uint ddh_digest_size(ref DDH_T ddh)
 {
-	return meta_info[ddh.type].digest_size;
+	return meta_info[ddh.type].size;
 }
 
 /// Compute a block of data
@@ -309,7 +350,7 @@ void ddh_reset(ref DDH_T ddh)
 
 /// Finalize digest or checksum and return formatted 
 /// Finalize and return formatted diggest
-/// Params: dd = DDH_T structure
+/// Params: ddh = DDH_T structure
 /// Returns: Formatted digest
 char[] ddh_string(ref DDH_T ddh)
 {
@@ -346,246 +387,209 @@ char fasthexchar(ubyte v) nothrow pure @nogc @safe
 	return cast(char)(v <= 9 ? v + 48 : v + 87);
 }
 
-//
-// CRC-32
-//
-
-void ddh_crc32_compute(DDH_INTERNALS_T *v, ubyte[] data)
+void ddh_compute(DDHType type)(DDH_INTERNALS_T *v, ubyte[] data)
 {
-	v.crc32.put(data);
-}
-ubyte[] ddh_crc32_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..4] = v.crc32.finish()[];
-}
-void ddh_crc32_reset(DDH_INTERNALS_T *v)
-{
-	v.crc32.start();
-}
-
-//
-// CRC-64-ISO
-//
-
-void ddh_crc64iso_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.crc64iso.put(data);
-}
-ubyte[] ddh_crc64iso_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..8] = v.crc64iso.finish()[];
-}
-void ddh_crc64iso_reset(DDH_INTERNALS_T *v)
-{
-	v.crc64iso.start();
-}
-
-//
-// CRC-64-ECMA
-//
-
-void ddh_crc64ecma_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.crc64ecma.put(data);
-}
-ubyte[] ddh_crc64ecma_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..8] = v.crc64ecma.finish()[];
-}
-void ddh_crc64ecma_reset(DDH_INTERNALS_T *v)
-{
-	v.crc64ecma.start();
-}
-
-//
-// MD5
-//
-
-void ddh_md5_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.md5.put(data);
-}
-ubyte[] ddh_md5_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..16] = v.md5.finish()[];
-}
-void ddh_md5_reset(DDH_INTERNALS_T *v)
-{
-	v.md5.start();
-}
-
-//
-// RIPEMD-160
-//
-
-void ddh_ripemd_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.ripemd160.put(data);
-}
-ubyte[] ddh_ripemd_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..20] = v.ripemd160.finish()[];
-}
-void ddh_ripemd_reset(DDH_INTERNALS_T *v)
-{
-	v.ripemd160.start();
+	static if (type == DDHType.CRC32)
+	{
+		v.crc32.put(data);
+	}
+	else static if (type == DDHType.CRC64ISO)
+	{
+		v.crc64iso.put(data);
+	}
+	else static if (type == DDHType.CRC64ECMA)
+	{
+		v.crc64ecma.put(data);
+	}
+	else static if (type == DDHType.MD5)
+	{
+		v.md5.put(data);
+	}
+	else static if (type == DDHType.RIPEMD160)
+	{
+		v.ripemd160.put(data);
+	}
+	else static if (type == DDHType.SHA1)
+	{
+		v.sha1.put(data);
+	}
+	else static if (type == DDHType.SHA224)
+	{
+		v.sha224.put(data);
+	}
+	else static if (type == DDHType.SHA256)
+	{
+		v.sha256.put(data);
+	}
+	else static if (type == DDHType.SHA384)
+	{
+		v.sha384.put(data);
+	}
+	else static if (type == DDHType.SHA512)
+	{
+		v.sha512.put(data);
+	}
+	else static if (type == DDHType.SHA3_224)
+	{
+		v.sha3_224.put(data);
+	}
+	else static if (type == DDHType.SHA3_256)
+	{
+		v.sha3_256.put(data);
+	}
+	else static if (type == DDHType.SHA3_384)
+	{
+		v.sha3_384.put(data);
+	}
+	else static if (type == DDHType.SHA3_512)
+	{
+		v.sha3_512.put(data);
+	}
+	else static if (type == DDHType.SHAKE128)
+	{
+		v.shake128.put(data);
+	}
+	else static if (type == DDHType.SHAKE256)
+	{
+		v.shake256.put(data);
+	}
+	else static assert(0, "Implement ddh_compute");
 }
 
-//
-// SHA-1
-//
-
-void ddh_sha1_compute(DDH_INTERNALS_T *v, ubyte[] data)
+ubyte[] ddh_finish(DDHType type)(DDH_INTERNALS_T *v)
 {
-	v.sha1.put(data);
-}
-ubyte[] ddh_sha1_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..20] = v.sha1.finish()[];
-}
-void ddh_sha1_reset(DDH_INTERNALS_T *v)
-{
-	v.sha1.start();
-}
-
-//
-// SHA-2
-//
-
-void ddh_sha224_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha224.put(data);
-}
-ubyte[] ddh_sha224_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..28] = v.sha224.finish()[];
-}
-void ddh_sha224_reset(DDH_INTERNALS_T *v)
-{
-	v.sha224.start();
-}
-
-void ddh_sha256_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha256.put(data);
-}
-ubyte[] ddh_sha256_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..32] = v.sha256.finish()[];
-}
-void ddh_sha256_reset(DDH_INTERNALS_T *v)
-{
-	v.sha256.start();
-}
-
-void ddh_sha384_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha384.put(data);
-}
-ubyte[] ddh_sha384_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..48] = v.sha384.finish()[];
-}
-void ddh_sha384_reset(DDH_INTERNALS_T *v)
-{
-	v.sha384.start();
-}
-
-void ddh_sha512_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha512.put(data);
-}
-ubyte[] ddh_sha512_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..64] = v.sha512.finish()[];
-}
-void ddh_sha512_reset(DDH_INTERNALS_T *v)
-{
-	v.sha512.start();
+	static if (type == DDHType.CRC32)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.CRC32)] = v.crc32.finish()[];
+	}
+	else static if (type == DDHType.CRC64ISO)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.CRC64ISO)] = v.crc64iso.finish()[];
+	}
+	else static if (type == DDHType.CRC64ECMA)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.CRC64ECMA)] = v.crc64ecma.finish()[];
+	}
+	else static if (type == DDHType.MD5)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.MD5)] = v.md5.finish()[];
+	}
+	else static if (type == DDHType.RIPEMD160)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.RIPEMD160)] = v.ripemd160.finish()[];
+	}
+	else static if (type == DDHType.SHA1)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA1)] = v.sha1.finish()[];
+	}
+	else static if (type == DDHType.SHA224)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA224)] = v.sha224.finish()[];
+	}
+	else static if (type == DDHType.SHA256)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA256)] = v.sha256.finish()[];
+	}
+	else static if (type == DDHType.SHA384)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA384)] = v.sha384.finish()[];
+	}
+	else static if (type == DDHType.SHA512)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA512)] = v.sha512.finish()[];
+	}
+	else static if (type == DDHType.SHA3_224)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA3_224)] = v.sha3_224.finish()[];
+	}
+	else static if (type == DDHType.SHA3_256)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA3_256)] = v.sha3_256.finish()[];
+	}
+	else static if (type == DDHType.SHA3_384)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA3_384)] = v.sha3_384.finish()[];
+	}
+	else static if (type == DDHType.SHA3_512)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHA3_512)] = v.sha3_512.finish()[];
+	}
+	else static if (type == DDHType.SHAKE128)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHAKE128)] = v.shake128.finish()[];
+	}
+	else static if (type == DDHType.SHAKE256)
+	{
+		return v.buffer[0..DGSTSZ!(DDHType.SHAKE256)] = v.shake256.finish()[];
+	}
+	else static assert(0, "Implement ddh_compute");
 }
 
-//
-// SHA-3
-//
-
-void ddh_sha3_224_compute(DDH_INTERNALS_T *v, ubyte[] data)
+void ddh_reset(DDHType type)(DDH_INTERNALS_T *v)
 {
-	v.sha3_224.put(data);
-}
-ubyte[] ddh_sha3_224_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..28] = v.sha3_224.finish()[];
-}
-void ddh_sha3_224_reset(DDH_INTERNALS_T *v)
-{
-	v.sha3_224.start();
-}
-
-void ddh_sha3_256_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha3_256.put(data);
-}
-ubyte[] ddh_sha3_256_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..32] = v.sha3_256.finish()[];
-}
-void ddh_sha3_256_reset(DDH_INTERNALS_T *v)
-{
-	v.sha3_256.start();
-}
-
-void ddh_sha3_384_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha3_384.put(data);
-}
-ubyte[] ddh_sha3_384_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..48] = v.sha3_384.finish()[];
-}
-void ddh_sha3_384_reset(DDH_INTERNALS_T *v)
-{
-	v.sha3_384.start();
-}
-
-void ddh_sha3_512_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.sha3_512.put(data);
-}
-ubyte[] ddh_sha3_512_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..64] = v.sha3_512.finish()[];
-}
-void ddh_sha3_512_reset(DDH_INTERNALS_T *v)
-{
-	v.sha3_512.start();
-}
-
-//
-// SHAKE
-//
-
-void ddh_shake128_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.shake128.put(data);
-}
-ubyte[] ddh_shake128_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..16] = v.shake128.finish()[];
-}
-void ddh_shake128_reset(DDH_INTERNALS_T *v)
-{
-	v.shake128.start();
-}
-
-void ddh_shake256_compute(DDH_INTERNALS_T *v, ubyte[] data)
-{
-	v.shake256.put(data);
-}
-ubyte[] ddh_shake256_finish(DDH_INTERNALS_T *v)
-{
-	return v.buffer[0..32] = v.shake256.finish()[];
-}
-void ddh_shake256_reset(DDH_INTERNALS_T *v)
-{
-	v.shake256.start();
+	static if (type == DDHType.CRC32)
+	{
+		v.crc32.start();
+	}
+	else static if (type == DDHType.CRC64ISO)
+	{
+		v.crc64iso.start();
+	}
+	else static if (type == DDHType.CRC64ECMA)
+	{
+		v.crc64ecma.start();
+	}
+	else static if (type == DDHType.MD5)
+	{
+		v.md5.start();
+	}
+	else static if (type == DDHType.RIPEMD160)
+	{
+		v.ripemd160.start();
+	}
+	else static if (type == DDHType.SHA1)
+	{
+		v.sha1.start();
+	}
+	else static if (type == DDHType.SHA224)
+	{
+		v.sha224.start();
+	}
+	else static if (type == DDHType.SHA256)
+	{
+		v.sha256.start();
+	}
+	else static if (type == DDHType.SHA384)
+	{
+		v.sha384.start();
+	}
+	else static if (type == DDHType.SHA512)
+	{
+		v.sha512.start();
+	}
+	else static if (type == DDHType.SHA3_224)
+	{
+		v.sha3_224.start();
+	}
+	else static if (type == DDHType.SHA3_256)
+	{
+		v.sha3_256.start();
+	}
+	else static if (type == DDHType.SHA3_384)
+	{
+		v.sha3_384.start();
+	}
+	else static if (type == DDHType.SHA3_512)
+	{
+		v.sha3_512.start();
+	}
+	else static if (type == DDHType.SHAKE128)
+	{
+		v.shake128.start();
+	}
+	else static if (type == DDHType.SHAKE256)
+	{
+		v.shake256.start();
+	}
+	else static assert(0, "Implement ddh_compute");
 }
