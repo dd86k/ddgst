@@ -1,3 +1,10 @@
+/**
+ * Main module that handles various hashing algorithms at run-time.
+ *
+ * Authors: dd86k <dd@dax.moe>
+ * Copyright: None
+ * License: Public domain
+ */
 module ddh.ddh;
 
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
@@ -117,26 +124,22 @@ private struct DDH_INTERNALS_T
 	enum BIGGEST = BITS!(512);
 	union
 	{
-		CRC32 crc32;	/// CRC32
-		CRC64ISO crc64iso;	/// CRC64ISO
-		CRC64ECMA crc64ecma;	/// CRC64ECMA
-		MD5 md5;	/// MD5
-		RIPEMD160 ripemd160;	/// RIPEMD160
-		// SHA-1
-		SHA1 sha1;	/// SHA1
-		// SHA-2
-		SHA224 sha224;	/// SHA224
-		SHA256 sha256;	/// SHA256
-		SHA384 sha384;	/// SHA384
-		SHA512 sha512;	/// SHA512
-		// SHA-3
-		SHA3_224 sha3_224;	/// SHA3_256
-		SHA3_256 sha3_256;	/// SHA3_256
-		SHA3_384 sha3_384;	/// SHA3_256
-		SHA3_512 sha3_512;	/// SHA3_256
-		// SHAKE
-		SHAKE128 shake128;	/// SHA3_256
-		SHAKE256 shake256;	/// SHA3_256
+		CRC32 crc32;	/// CRC-32
+		CRC64ISO crc64iso;	/// CRC-64-ISO
+		CRC64ECMA crc64ecma;	/// CRC-64-ECMA
+		MD5 md5;	/// MD-5
+		RIPEMD160 ripemd160;	/// RIPEMD-160
+		SHA1 sha1;	/// SHA-1
+		SHA224 sha224;	/// SHA-2-224
+		SHA256 sha256;	/// SHA-2-256
+		SHA384 sha384;	/// SHA-2-384
+		SHA512 sha512;	/// SHA-2-512
+		SHA3_224 sha3_224;	/// SHA-3-256
+		SHA3_256 sha3_256;	/// SHA-3-256
+		SHA3_384 sha3_384;	/// SHA-3-256
+		SHA3_512 sha3_512;	/// SHA-3-256
+		SHAKE128 shake128;	/// SHAKE-128
+		SHAKE256 shake256;	/// SHAKE-256
 	}
 	union
 	{

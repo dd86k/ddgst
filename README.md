@@ -1,15 +1,21 @@
 # ddh, Generic hasher
 
-ddh is a generic hasher using the D standard library for the most part to
-perform hashing and compute checksums.
+ddh is a generic hasher available cross-platform (Windows, macOS, Linux, BSDs)
+and more features than built-in OS tools.
 
-Why? I wanted:
-- Something quick and easy to verify the integrety of downloaded content;
-- Something simple with only the most popular hashing algorithms used;
-- A cross-platform tool, notably Windows®️ and Linux®️;
-- A memory-mapped option (`--mmfile`);
-- The same features accross different algorithms;
-- And decently fast.
+## Feature Comparison
+
+| Feature | ddh | GNU coreutils | openssl | crc32(1) [1] |
+|---|---|---|---|---|
+| Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
+| Text mode | ✔️ | ✔️ | | |
+| Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
+| FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
+| Memory-mapped file support | ✔️ | | | |
+| Standard Input support | ✔️ | ✔️ | ✔️ | |
+
+- [1] From the Perl Archive::ZIP package
+- [2] All but cksum and sum
 
 ## Algorithm Availability
 
@@ -37,65 +43,46 @@ Why? I wanted:
 - [2] From the Perl Archive::ZIP package
 - [3] sha224sum, sha256sum, sha384sum, sha512sum
 
-## Feature Comparison
-
-| Feature | ddh | GNU coreutils | openssl | crc32(1) [1] |
-|---|---|---|---|---|
-| Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
-| Text mode | ✔️ | ✔️ | | |
-| Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
-| FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
-| Memory-mapped file support | ✔️ | | | |
-| Standard Input support | ✔️ | ✔️ | ✔️ | |
-
-- [1] From the Perl Archive::ZIP package
-- [2] All but cksum and sum
-
 # Usage
 
 To get a list of options available, use the `--help` argument.
 
+With no arguments, the help page is shown.
+
 ## Standard Input (stdin)
 
-The program, if lacking a third parameter or if a `-` parameter has been
-detected, will enter in the stdin input mode. Please note that the `--mmfile`
-option has no effect on this operating mode.
-
-Standard pipe operations are supported.
-
-To send a EOF signal:
-- On UNIX-like systems:
-  - `CTRL+D` must be pressed twice on the same line or;
-  - `CTRL+D` must be pressed once on a new line.
-- On Windows systems:
-  - `CTRL+Z` on a new line followed with `RETURN` (Enter key).
-    - This unfortunately sends a newline.
-    - BUG: Must be done twice due to cmd internal mechanics. Piping recommended.
+To use the standard input (stdin) method, either:
+- Omit the third parameter;
+- Or use the `-` character.
 
 ## Globbing (`*` vs. `'*'`)
 
 This utility supports file globbing out of the box using `std.file.dirEntries`.
 
-However, most UNIX-like terminals support globbing out of the box and may
-behave differently than the previously mentionned function. To use the embedded
-globbing mechanism, you may want to use `'*'` or `\*`. To disable embedded
-globbing, use the `--` parameter.
+However, while useful on Windows, most UNIX-like terminals support in-shell
+globbing. This may behave differently than the `dirEntries` function.
 
-The globbing pattern is further explained at
+To force the usage of the embedded globbing mechanism, you may want to use
+`'*'` or `\*`. To disable it, use the `--` parameter.
+
+The globbing pattern is further explained on
 [dlang.org](https://dlang.org/phobos/std_path.html#.globMatch).
 
-The default parameters used in `dirEntries` are `SpanMode.shallow` for its
-spanmode (same-level directory), and `true` for following symobolic links.
+The default parameters used in `dirEntries` are:
+- `SpanMode`: `shallow` (same-level directory);
+- And `followSymlink`: `true` (follows soft symbolic links).
 
-Do take note that the embedded globbing subsystem includes hidden files.
+**NOTE**: The embedded globbing system includes hidden files.
 
-For example: `src/*.{d,dd}` will match all files ending with `.d`
-and `.dd` in the `src` directory, and will follow symbolic links.
+**EXAMPLE**: A pattern such as `src/*.{d,dd}`:
+- Matches `src/example.d`, `src/.dd`, and `src/file.dd`;
+- But doesn't match `example.d`, `src/.ddd`, and `src/.e`;
+- Basically all files ending with `.d` and `.dd` in the `src` directory, following symlinks.
 
 ## Memory-mapped Files
 
-The mmfile mode's performance may vary on systems. Generally, file mode is
-faster on Windows, and mmfile mode is faster on Linux systems.
+The mmfile mode's performance may vary on systems. Generally, file (default)
+mode is faster on Windows, and `--mmfile` mode is faster on Linux systems.
 
 # Compiling
 

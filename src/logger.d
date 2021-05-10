@@ -1,3 +1,10 @@
+/**
+ * Quick and dirty logging utility.
+ *
+ * Authors: dd86k <dd@dax.moe>
+ * Copyright: None
+ * License: Public domain
+ */
 module logger;
 
 import std.stdio;
