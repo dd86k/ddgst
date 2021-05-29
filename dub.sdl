@@ -22,6 +22,7 @@ buildType "release-extreme" {
 
 # Verbose on GC/TLS usage
 buildType "debugv" {
+	versions "PrintInfo"
 	buildOptions "debugMode"
 	dflags "-vgc" "-vtls" platform="dmd"
 	dflags "--vgc" "--vtls" platform="ldc"
