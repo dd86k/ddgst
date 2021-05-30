@@ -84,11 +84,25 @@ The default parameters used in `dirEntries` are:
 The mmfile mode's performance may vary on systems. Generally, file (default)
 mode is faster on Windows, and `--mmfile` mode is faster on Linux systems.
 
+## Checking against a list
+
+**NOTE**: BSD-style tags are not supported.
+
+To check hashes in a list, like for example:
+```
+34f53abbdbc66ebdb969c5a77f0f8902  .gitignore
+301dff35a1c11b231b67aaaed0e7be46  ddh
+38605d99f2cd043879c401ff1fe292cf  ddh-test-library.exe
+9a2fdb96ff77f4d71510b38c2f278ff6  ddh.exe
+```
+
+Simply use the `-c` option: `ddh md5 -c LIST`
+
 # Compiling
 
 Compiling requires a recent D compiler and DUB.
 
-To compile a `debug` build with the default compiler:
+To compile a debug build with the default compiler:
 ```
 dub build
 ```
@@ -96,4 +110,14 @@ dub build
 Release recommendation with the LDC compiler:
 ```
 dub build -b release-nobounds --compiler=ldc2
+```
+
+# Contributing
+
+At the moment of writing, it's a bit messy.
+
+```
+man/      - Manual page
+src/      - Source code, entry point, generic stuff
++- ddh/   - Reference implementations
 ```
