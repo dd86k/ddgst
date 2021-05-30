@@ -13,7 +13,7 @@ import std.file : dirEntries, DirEntry, SpanMode;
 import std.format : format;
 import std.path : baseName, dirName;
 import std.stdio, std.mmfile;
-import ddh.ddh;
+import ddh.ddh, hasher;
 static import log = logger;
 
 private:
@@ -29,18 +29,6 @@ else  enum BUILD_TYPE = "";
 
 enum PROJECT_VERSION = "1.0.0";
 enum PROJECT_NAME    = "ddh";
-
-enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
-
-struct ArgInput
-{
-	DDH_T ddh;
-	string path;	/// or text
-	uint chunksize;	/// file, mmfile: chunk read/process size
-	bool filetext;	/// file: read as text
-}
-
-alias process_func_t = bool function(ref ArgInput);
 
 immutable string TEXT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~BUILD_TYPE~` (`~__TIMESTAMP__~`)
@@ -65,7 +53,7 @@ Input mode options:
     -b, --binary ..... Set binary mode (default)
   -M, --mmfile ..... Input mode: Memory-map file (std.mmfile)
   -a, --arg ........ Input mode: Command-line argument text (utf-8)
-  -c, --check ...... Check hashes against a file
+  -c, --check ...... Check hashes list in this file
   - ................ Input mode: Standard input (stdin)
 
 Embedded globber options:
@@ -108,166 +96,140 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>`;
 
-immutable string STDIN = "-";
-immutable string F_EX = "'%s': %s"; /// Used in printing exception messages
+immutable string F_EX = "%s: %s"; /// Used in printing exception messages
 
-bool processFile(ref ArgInput ai)
+void printResult(string fmt = "%s  %s")(char[] hash, in char[] file)
 {
-	try
-	{
-		File f;	// Must never be void
-		ulong flen = void;
-		// BUG: Using opAssign with LDC2 crashes at runtime
-		f.open(ai.path, ai.filetext ? "r" : "rb");
-		flen = f.size();
-		
-		if (flen)
-		{
-			foreach (ubyte[] chunk; f.byChunk(ai.chunksize))
-				ddh_compute(ai.ddh, chunk);
-		}
-		
-		f.close();
-		return false;
-	}
-	catch (Exception ex)
-	{
-		log.error(F_EX, ai.path, ex.msg);
-		return true;
-	}
+	writefln(fmt, hash, file);
 }
 
-bool processMmfile(ref ArgInput ai)
+int processText(ref Hasher p, string text)
 {
-	import std.typecons : scoped;
+	int e = p.processText(text);
+	if (e == 0)
+		printResult!`%s  "%s"`(p.hash, text);
+	return e;
+}
 	
-	try
-	{
-		auto f = scoped!MmFile(ai.path);
-		ulong flen = f.length;
-		
-		if (flen)
-		{
-			ulong start;
-			
-			if (flen > ai.chunksize)
-			{
-				const ulong climit = flen - ai.chunksize;
-				for (; start < climit; start += ai.chunksize)
-					ddh_compute(ai.ddh, cast(ubyte[])f[start..start + ai.chunksize]);
-			}
-			
-			// Compute remaining
-			ddh_compute(ai.ddh, cast(ubyte[])f[start..flen]);
-		}
-		
-		return false;
-	}
-	catch (Exception ex)
-	{
-		log.error(F_EX, ai.path, ex.msg);
-		return true;
-	}
-}
-
-bool processText(string str, ref ArgInput ai)
+int processList(ref Hasher p, string path)
 {
-	try
-	{
-		ddh_compute(ai.ddh, cast(ubyte[])str);
-		printResult!"%s  \"%s\""(ddh_string(ai.ddh), str);
-		return false;
-	}
-	catch (Exception ex)
-	{
-		log.error(F_EX, ai.path, ex.msg);
-		return true;
-	}
-}
-
-bool processStdin(ref ArgInput ai)
-{
-	try
-	{
-		foreach (ubyte[] chunk; stdin.byChunk(ai.chunksize))
-			ddh_compute(ai.ddh, chunk);
-		printResult(ddh_string(ai.ddh), STDIN);
-		return false;
-	}
-	catch (Exception ex)
-	{
-		log.error(F_EX, ai.path, ex.msg);
-		return true;
-	}
-}
-
-int processCheck(string path, ref ArgInput ai, process_func_t process)
-{
-	File cf;
-	try
-	{
-		cf.open(path); // See BUG mentioned earlier
-	}
-	catch (Exception ex)
-	{
-		log.error(F_EX, ai.path, ex.msg);
-		return true;
-	}
+	import std.file : readText;
+	import std.utf : UTFException;
+	import std.algorithm.iteration : splitter;
 	
-	/// Number of characters the hash string
-	size_t hashsize = ddh_digest_size(ai.ddh) << 1;
-	/// Minimum line length (hash + 2 spaces)
+	/// Number of characters the hash string.
+	size_t hashsize = ddh_digest_size(p.ddh) << 1;
+	/// Minimum line length (hash + 1 spaces).
 	// Example: abcd1234  file.txt
-	size_t minsize = hashsize + 2;
+	size_t minsize = hashsize + 1;
 	
-	uint r_linecount, r_mismatch, r_errors;
-	foreach (char[] line; cf.byLine)
+	union text_t
 	{
-		++r_linecount;
+		string utf8;
+		wstring utf16;
+		dstring utf32;
+	}
+	text_t text = void;
+	
+	try
+	{
+		text.utf8 = readText(path);
+	}
+	//TODO: readText!wstring(path); etc.
+	/*catch (UTFException ex)
+	{
+		log.error(F_EX, path, ex.msg);
+		return 2;
+	}*/
+	catch (Exception ex)
+	{
+		log.error(ex.msg);
+		return 1;
+	}
+	
+	size_t len = text.utf8.length;
+	
+	if (len == 0)
+	{
+		log.error(F_EX, path, "List file is empty");
+		return 2;
+	}
+	if (len < minsize)
+	{
+		log.error(F_EX, path, "List file does not meet length minimum");
+		return 3;
+	}
+	
+	// Newline detection
+	enum MAX = 1024;
+	string newline = "\n"; // default
+	size_t l = text.utf8.length - 1; // @suppress(dscanner.suspicious.length_subtraction)
+	loop: for (size_t i; i < l && i < MAX; ++i)
+	{
+		char c = text.utf8[i];
 		
-		// Skip comments (starting with '#')
-		if (line[0] == '#')
+		switch (c)
+		{
+		case '\n':
+			newline = "\n";
+			break loop;
+		case '\r':
+			newline = text.utf8[i + 1] == '\n' ? "\r\n" : "\r";
+			break loop;
+		default: continue loop;
+		}
+	}
+	
+	// Treat every hash line
+	uint r_currline, r_mismatch, r_errors;
+	foreach (string line; text.utf8.splitter(newline))
+	{
+		++r_currline;
+		
+		// Skip:
+		// - Empty lines
+		// - Comments starting with '#'
+		if (line.length == 0 || line[0] == '#')
 			continue;
 		
 		// Line needs to at least be hash length + 2 spaces + 1 character
 		if (line.length <= minsize)
 		{
-			log.error("Line %u invalid", r_linecount);
+			log.error("Line %u invalid", r_currline);
 			++r_errors;
 			continue;
 		}
 		
-		// FileArg.path is modified for the file function
-		// `..$-1`: Since `.byLine` includes the newline
-		ai.path = line[minsize..$-1].text;
+		import std.string : stripLeft;
+		
+		// FileArg.path is modified for the file function.
+		// There may be one or more spaces to its left.
+		string filepath = line[minsize..$].stripLeft; /// File path
 		
 		// Process file
-		if (process(ai))
+		int e = p.process(filepath);
+		if (e)
 		{
+			log.error(F_EX, filepath, p.errorMsg);
 			++r_errors;
 			continue;
 		}
 		
 		// Compare hash/checksum
-		if (line[0..hashsize] != ddh_string(ai.ddh))
+		if (line[0..hashsize] != p.hash)
 		{
 			++r_mismatch;
-			writeln(ai.path, ": FAILED");
+			log.error(F_EX, filepath, "FAILED");
 			continue;
 		}
 		
-		writeln(ai.path, ": OK");
+		writeln(filepath, ": OK");
 	}
 	
 	if (r_mismatch || r_errors)
-		log.warn("%u mismatched file(s), %u file(s) not read", r_mismatch, r_errors);
+		log.warn("%u file(s) mismatch, %u file(s) not read", r_mismatch, r_errors);
 	
 	return 0;
-}
-
-void printResult(string fmt = "%s  %s")(char[] hash, in char[] file)
-{
-	writefln(fmt, hash, file);
 }
 
 int main(string[] args)
@@ -283,7 +245,7 @@ int main(string[] args)
 	string action = args[1];
 	DDHType type = cast(DDHType)-1;
 	
-	// Aliases
+	// Aliases for hashes and checksums
 	foreach (meta; meta_info)
 	{
 		if (meta.basename == action)
@@ -301,8 +263,7 @@ int main(string[] args)
 		case "list":
 			writeln("Alias       Name");
 			foreach (meta; meta_info)
-				writefln("%-12s%s",
-					meta.basename, meta.name);
+				writefln("%-12s%s", meta.basename, meta.name);
 			return 0;
 		case "ver":
 			writeln(PROJECT_VERSION);
@@ -322,92 +283,90 @@ int main(string[] args)
 		}
 	}
 	
-	ArgInput ai = void;
-	// NOTE: LDC2 optimization bug
-	//       ArgInput fields must be initiated here
-	ai.chunksize = DEFAULT_CHUNK_SIZE;
-	ai.filetext = false;
+	Hasher config = Hasher(type);
 	
-	if (ddh_init(ai.ddh, type))
-	{
-		log.error("Could not initiate hash");
-		return 1;
-	}
-	
+	int e = void;
 	if (argc <= 2)
 	{
-		processStdin(ai);
-		return 0;
+		if ((e = config.processStdin) != 0)
+			log.error(config.errorMsg);
+		else
+			printResult(config.hash, "-");
+		return e;
 	}
 	
 	// CLI arguments
-	process_func_t process = &processFile; /// Process function, default is File
 	SpanMode cli_spanmode;	/// dirEntries: span mode, default=shallow
 	bool cli_follow = true;	/// dirEntries: follow symlinks
 	bool cli_skip;	/// Skip CLI options, default=false
 	
 	// Main CLI loop
-	// getopt isn't used (for now?) for "on-the-go" specific behaviour
+	// getopt isn't used (for now?) since:
+	// - we handle '-' for stdin mode
 	for (size_t argi = 2; argi < argc; ++argi)
 	{
 		string arg = args[argi];
 		
 		if (cli_skip)
 		{
-			ai.path = arg;
-			if (process(ai))
-				return 3;
-			printResult(ddh_string(ai.ddh), arg);
-			ddh_reset(ai.ddh);
+			e = config.process(arg);
+			if ((e = config.process(arg)) != 0)
+			{
+				log.error(config.errorMsg);
+				return e;
+			}
+			printResult(config.hash, arg);
 			continue;
 		}
 		
+		// It's an argument
 		if (arg[0] == '-')
 		{
 			if (arg.length == 1) // '-' only: stdin
 			{
-				processStdin(ai);
+				if ((e = config.processStdin) != 0)
+				{
+					log.error(config.errorMsg);
+					return e;
+				}
+				printResult(config.hash, arg);
 				continue;
 			}
 			
-			//
 			// Long opts
-			//
 			if (arg[1] == '-')
 			{
 				switch (arg)
 				{
 				// Input modes
 				case "--mmfile":
-					process = &processMmfile;
+					config.setModeMmFile;
 					continue;
 				case "--file":
-					process = &processFile;
+					config.setModeFile;
 					continue;
 				case "--check":
-					++argi;
-					if (argi >= argc)
+					if (++argi >= argc)
 					{
 						log.error("Missing argument");
 						return 1;
 					}
-					processCheck(args[argi++], ai, process);
+					processList(config, args[argi++]);
 					continue;
 				case "--arg":
-					++argi;
-					if (argi >= argc)
+					if (++argi >= argc)
 					{
 						log.error("Missing argument");
 						return 1;
 					}
-					processText(args[argi++], ai);
+					processText(config, args[argi++]);
 					continue;
 				// Read modes for File
 				case "--text":
-					ai.filetext = true;
+					config.fileText = true;
 					continue;
 				case "--binary":
-					ai.filetext = false;
+					config.fileText = false;
 					continue;
 				// Span modes
 				case "--depth":
@@ -438,50 +397,48 @@ int main(string[] args)
 				}
 			}
 			
-			//
 			// Short opts
-			//
 			foreach (char o; arg[1..$])
-			switch (o)
 			{
-			case 'M': // mmfile input
-				process = &processMmfile;
-				continue;
-			case 'F': // file input
-				process = &processFile;
-				continue;
-			case 't': // text file mode
-				ai.filetext = true;
-				continue;
-			case 'b': // binary file mode
-				ai.filetext = false;
-				continue;
-			case 's': // spanmode: depth
-				cli_spanmode = SpanMode.depth;
-				continue;
-			/*case 'C':
-				continue;*/
-			case 'c': // check
-				++argi;
-				if (argi >= argc)
+				switch (o)
 				{
-					log.error("missing argument");
-					return 2;
+				case 'M': // mmfile input
+					config.setModeMmFile;
+					continue;
+				case 'F': // file input
+					config.setModeFile;
+					continue;
+				case 't': // text file mode
+					config.fileText = true;
+					continue;
+				case 'b': // binary file mode
+					config.fileText = false;
+					continue;
+				case 's': // spanmode: depth
+					cli_spanmode = SpanMode.depth;
+					continue;
+				/*case 'C':
+					continue;*/
+				case 'c': // check
+					if (++argi >= argc)
+					{
+						log.error("missing argument");
+						return 2;
+					}
+					processList(config, args[argi++]);
+					continue;
+				case 'a': // arg
+					if (++argi >= argc)
+					{
+						log.error("missing argument");
+						return 2;
+					}
+					processText(config, args[argi++]);
+					continue;
+				default:
+					log.error("Unknown option '%c'", o);
+					return 1;
 				}
-				processCheck(args[argi++], ai, process);
-				continue;
-			case 'a': // arg
-				++argi;
-				if (argi >= argc)
-				{
-					log.error("missing argument");
-					return 2;
-				}
-				processText(args[argi++], ai);
-				continue;
-			default:
-				log.error("Unknown option '%c'", o);
-				return 1;
 			}
 			
 			continue;
@@ -490,21 +447,23 @@ int main(string[] args)
 		uint count;
 		string dir  = dirName(arg);  // "." if anything
 		string name = baseName(arg); // Glob patterns are kept
-		const bool samedir = dir == ".";
+		const bool same = dir == "."; // same directory name from dirName
 		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
 		{
-			ai.path = samedir ? entry.name[2..$] : entry.name;
+			// Because entry will have "./" prefixed to it
+			string path = same ? entry.name[2..$] : entry.name;
 			++count;
-			if (entry.isDir) {
-				log.error("'%s': Is a directory", ai.path);
+			if (entry.isDir)
+			{
+				log.error("'%s': Is a directory", path);
 				continue;
 			}
-			if (process(ai)) {
-				log.error("'%s': Couldn't open file", ai.path);
+			if (config.process(path))
+			{
+				log.error("'%s': %s", path, config.errorMsg);
 				continue;
 			}
-			printResult(ddh_string(ai.ddh), ai.path);
-			ddh_reset(ai.ddh);
+			printResult(config.hash, path);
 		}
 		if (count == 0)
 			log.error("'%s': No such file", name);
