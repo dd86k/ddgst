@@ -10,6 +10,31 @@ module ddh.ddh;
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
 private import sha3d.sha3;
 
+//TODO: Consider moving all of this into the Hasher structure
+
+version (PrintInfo)
+{
+	pragma(msg, "CRC32.sizeof\t",	CRC32.sizeof);
+	pragma(msg, "CRC64ISO.sizeof\t",	CRC64ISO.sizeof);
+	pragma(msg, "CRC64ECMA.sizeof\t",	CRC64ECMA.sizeof);
+	pragma(msg, "MD5.sizeof\t",	MD5.sizeof);
+	pragma(msg, "RIPEMD160.sizeof\t",	RIPEMD160.sizeof);
+	pragma(msg, "SHA1.sizeof\t",	SHA1.sizeof);
+	pragma(msg, "SHA224.sizeof\t",	SHA224.sizeof);
+	pragma(msg, "SHA256.sizeof\t",	SHA256.sizeof);
+	pragma(msg, "SHA384.sizeof\t",	SHA384.sizeof);
+	pragma(msg, "SHA512.sizeof\t",	SHA512.sizeof);
+	pragma(msg, "SHA3_224.sizeof\t",	SHA3_224.sizeof);
+	pragma(msg, "SHA3_256.sizeof\t",	SHA3_256.sizeof);
+	pragma(msg, "SHA3_384.sizeof\t",	SHA3_384.sizeof);
+	pragma(msg, "SHA3_512.sizeof\t",	SHA3_512.sizeof);
+	pragma(msg, "SHAKE128.sizeof\t",	SHAKE128.sizeof);
+	pragma(msg, "SHAKE256.sizeof\t",	SHAKE256.sizeof);
+	pragma(msg, "BLAKE2.sizeof\t",	BLAKE2.sizeof);
+	pragma(msg, "BLAKE2b.sizeof\t",	BLAKE2b.sizeof);
+	pragma(msg, "BLAKE2s.sizeof\t",	BLAKE2s.sizeof);
+}
+
 /// Choose which checksum or hash will be used
 enum DDHType
 {
