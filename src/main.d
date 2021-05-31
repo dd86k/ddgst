@@ -54,6 +54,8 @@ Input mode options:
   -M, --mmfile ..... Input mode: Memory-map file (std.mmfile)
   -a, --arg ........ Input mode: Command-line argument text (utf-8)
   -c, --check ...... Check hashes list in this file
+  -C, --chunk ...... Set chunk size (default=64K)
+                     Modes affected: file, mmfile, stdin
   - ................ Input mode: Standard input (stdin)
 
 Embedded globber options:
@@ -66,9 +68,6 @@ Embedded globber options:
 Misc. options:
   -- ............... Stop processing options`;
 //                                                         80 column marker -> |
-/*
-  -C, --chunk ...... Set chunk size (default=64k)
-                     Modes: file, mmfile, stdin*/
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.

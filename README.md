@@ -37,6 +37,7 @@ and more features than built-in OS tools.
 | SHA-3 | ✔️ | | ✔️ | |
 | SHAKE | ✔️ | | ✔️ | |
 | BLAKE2 | | ✔️ (b2sum) | ✔️ | |
+| BLAKE3 | | ✔️ (b3sum) | | |
 | Whirlpool | | | ✔️ | |
 
 - [1] See `dgst` command
@@ -45,9 +46,18 @@ and more features than built-in OS tools.
 
 # Usage
 
-To get a list of options available, use the `--help` argument.
+Typical usage should resemble:
+```
+ddh md5 -C 128K LICENSE
+```
+- `ddh`: Command;
+- `md5`: Operate with MD-5;
+- `-C 128K`: Set new input chunk size to 128 KiB for the following files;
+- `LICENSE`: File to process.
 
 With no arguments, the help page is shown.
+
+To get a list of options available, use the `--help` argument.
 
 ## Standard Input (stdin)
 
@@ -82,7 +92,7 @@ The default parameters used in `dirEntries` are:
 ## Memory-mapped Files
 
 The mmfile mode's performance may vary on systems. Generally, file (default)
-mode is faster on Windows, and `--mmfile` mode is faster on Linux systems.
+mode is faster on Windows, and mmfile mode is faster on Linux systems.
 
 ## Checking against a list
 
