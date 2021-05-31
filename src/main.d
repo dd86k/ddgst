@@ -10,7 +10,7 @@ module main;
 import std.conv : text;
 import std.compiler : version_major, version_minor;
 import std.file : dirEntries, DirEntry, SpanMode;
-import std.format : format;
+import std.format : format, formattedRead;
 import std.path : baseName, dirName;
 import std.stdio, std.mmfile;
 import ddh.ddh, hasher;
@@ -97,6 +97,52 @@ OTHER DEALINGS IN THE SOFTWARE.
 For more information, please refer to <http://unlicense.org/>`;
 
 immutable string F_EX = "%s: %s"; /// Used in printing exception messages
+
+// String to binary size
+int strtobin(ulong *size, string input) {
+	enum {
+		K = 1024,
+		M = K * 1024,
+		G = M * 1024,
+		T = G * 1024,
+	}
+	
+	float f; char c;
+	if (input.formattedRead!"%f%c"(f, c) != 2)
+		return 1;
+	if (f <= 0.0f) return 2;
+	
+	ulong u = cast(ulong)f;
+	switch (c) {
+	case 'T', 't': u *= T; break;
+	case 'G', 'g': u *= G; break;
+	case 'M', 'm': u *= M; break;
+	case 'K', 'k': u *= K; break;
+	case 'B', 'b': break;
+	default: return 3;
+	}
+	
+	// limit
+	version (D_LP64) {
+		if (u > (4L * G))
+			return 4;
+	} else {
+		if (u > (2 * G))
+			return 4;
+	}
+	
+	*size = u;
+	return 0;
+}
+/// 
+unittest
+{
+	ulong s = void;
+	strtobin(&s, "1K");
+	assert(s == 1024);
+	strtobin(&s, "1.1K");
+	assert(s == 1024 + 102); // 102.4
+}
 
 void printResult(string fmt = "%s  %s")(char[] hash, in char[] file)
 {
@@ -386,8 +432,19 @@ int main(string[] args)
 					cli_follow = true;
 					continue;
 				// Misc.
-				/*case "--chunk":
-					continue;*/
+				case "--chunk":
+					if (++argi >= argc)
+					{
+						log.error("Missing argument");
+						return 1;
+					}
+					string s = args[argi++];
+					if (strtobin(&config.inputSize, s))
+					{
+						log.error("Invalid binary size: %s", s);
+						return 1;
+					}
+					continue;
 				case "--":
 					cli_skip = true;
 					continue;
@@ -417,8 +474,19 @@ int main(string[] args)
 				case 's': // spanmode: depth
 					cli_spanmode = SpanMode.depth;
 					continue;
-				/*case 'C':
-					continue;*/
+				case 'C':
+					if (++argi >= argc)
+					{
+						log.error("Missing argument");
+						return 1;
+					}
+					string s = args[argi++];
+					if (strtobin(&config.inputSize, s))
+					{
+						log.error("Invalid binary size: %s", s);
+						return 1;
+					}
+					continue;
 				case 'c': // check
 					if (++argi >= argc)
 					{
