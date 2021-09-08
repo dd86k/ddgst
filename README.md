@@ -46,14 +46,13 @@ and more features than built-in OS tools.
 
 # Usage
 
-Typical usage should resemble:
+Typical usage looks like this:
 ```
-ddh md5 -C 128K LICENSE
+ddh md5 LICENSE
 ```
 - `ddh`: Command;
-- `md5`: Operate with MD-5;
-- `-C 128K`: Set new input chunk size to 128 KiB for the following files;
-- `LICENSE`: File to process.
+- `md5`: Select MD-5;
+- `LICENSE`: File.
 
 With no arguments, the help page is shown.
 

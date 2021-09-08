@@ -23,7 +23,7 @@ struct Hasher
 		char[] hash;
 		string errorMsg;
 	}
-	uint inputSize;
+	ulong inputSize; /// Buffer size
 	bool fileText;
 	
 	//
