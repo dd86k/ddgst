@@ -9,7 +9,6 @@ module hasher;
 
 import std.stdio, std.mmfile;
 import ddh.ddh;
-static import log = logger;
 
 private enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
 
@@ -18,13 +17,10 @@ struct Hasher
 {
 	DDH_T ddh;
 	int delegate(string path) process;
-	union
-	{
-		char[] hash;
-		string errorMsg;
-	}
+	char[] hash;
 	ulong inputSize; /// Buffer size
 	bool fileText;
+	Exception lastException;
 	
 	//
 	// ANCHOR: Configuration
@@ -74,7 +70,7 @@ struct Hasher
 		}
 		catch (Exception ex)
 		{
-			errorMsg = ex.msg;
+			lastException = ex;
 			return 1;
 		}
 	}
@@ -109,7 +105,7 @@ struct Hasher
 		}
 		catch (Exception ex)
 		{
-			errorMsg = ex.msg;
+			lastException = ex;
 			return 1;
 		}
 	}
@@ -125,7 +121,7 @@ struct Hasher
 		}
 		catch (Exception ex)
 		{
-			errorMsg = ex.msg;
+			lastException = ex;
 			return 1;
 		}
 	}
@@ -142,7 +138,7 @@ struct Hasher
 		}
 		catch (Exception ex)
 		{
-			errorMsg = ex.msg;
+			lastException = ex;
 			return 1;
 		}
 	}

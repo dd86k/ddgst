@@ -14,7 +14,6 @@ import std.format : format, formattedRead;
 import std.path : baseName, dirName;
 import std.stdio, std.mmfile;
 import ddh.ddh, hasher;
-static import log = logger;
 
 private:
 
@@ -67,7 +66,6 @@ Embedded globber options:
 
 Misc. options:
   -- ............... Stop processing options`;
-//                                                         80 column marker -> |
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -95,7 +93,19 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>`;
 
+deprecated
 immutable string F_EX = "%s: %s"; /// Used in printing exception messages
+
+int printError(string func = __FUNCTION__, A...)(string fmt, A args) {
+	stderr.write(func, ": ");
+	stderr.writefln(fmt, args);
+	return 1;
+}
+int printError(ref Exception ex, string func = __FUNCTION__) {
+	debug stderr.writefln("%s: %s", func, ex);
+	else  stderr.writefln("%s: %s", func, ex.msg);
+	return 1;
+}
 
 // String to binary size
 int strtobin(ulong *size, string input) {
@@ -107,9 +117,17 @@ int strtobin(ulong *size, string input) {
 	}
 	
 	float f; char c;
-	if (input.formattedRead!"%f%c"(f, c) != 2)
-		return 1;
-	if (f <= 0.0f) return 2;
+	try
+	{
+		if (input.formattedRead!"%f%c"(f, c) != 2)
+			return 1;
+	}
+	catch (Exception)
+	{
+		return 2;
+	}
+	
+	if (f <= 0.0f) return 3;
 	
 	ulong u = cast(ulong)f;
 	switch (c) {
@@ -118,16 +136,16 @@ int strtobin(ulong *size, string input) {
 	case 'M', 'm': u *= M; break;
 	case 'K', 'k': u *= K; break;
 	case 'B', 'b': break;
-	default: return 3;
+	default: return 4;
 	}
 	
 	// limit
 	version (D_LP64) {
 		if (u > (4L * G))
-			return 4;
+			return 5;
 	} else {
 		if (u > (2 * G))
-			return 4;
+			return 5;
 	}
 	
 	*size = u;
@@ -180,30 +198,18 @@ int processList(ref Hasher p, string path)
 	{
 		text.utf8 = readText(path);
 	}
-	//TODO: readText!wstring(path); etc.
-	/*catch (UTFException ex)
-	{
-		log.error(F_EX, path, ex.msg);
-		return 2;
-	}*/
 	catch (Exception ex)
 	{
-		log.error(ex.msg);
-		return 1;
+		return printError(ex);
 	}
 	
 	size_t len = text.utf8.length;
 	
 	if (len == 0)
-	{
-		log.error(F_EX, path, "List file is empty");
-		return 2;
-	}
+		return printError("File '%s' is empty", path);
+	
 	if (len < minsize)
-	{
-		log.error(F_EX, path, "List file does not meet length minimum");
-		return 3;
-	}
+		return printError("File '%s' too small", path);
 	
 	// Newline detection
 	enum MAX = 1024;
@@ -240,7 +246,7 @@ int processList(ref Hasher p, string path)
 		// Line needs to at least be hash length + 2 spaces + 1 character
 		if (line.length <= minsize)
 		{
-			log.error("Line %u invalid", r_currline);
+			printError("Line %u invalid", r_currline);
 			++r_errors;
 			continue;
 		}
@@ -255,7 +261,7 @@ int processList(ref Hasher p, string path)
 		int e = p.process(filepath);
 		if (e)
 		{
-			log.error(F_EX, filepath, p.errorMsg);
+			printError("Failed to process '%s': %s", filepath, p.lastException.msg);
 			++r_errors;
 			continue;
 		}
@@ -263,8 +269,8 @@ int processList(ref Hasher p, string path)
 		// Compare hash/checksum
 		if (line[0..hashsize] != p.hash)
 		{
+			printError("%s: FAILED", filepath);
 			++r_mismatch;
-			log.error(F_EX, filepath, "FAILED");
 			continue;
 		}
 		
@@ -272,7 +278,7 @@ int processList(ref Hasher p, string path)
 	}
 	
 	if (r_mismatch || r_errors)
-		log.warn("%u file(s) mismatch, %u file(s) not read", r_mismatch, r_errors);
+		printError("%u file(s) mismatch, %u file(s) not read", r_mismatch, r_errors);
 	
 	return 0;
 }
@@ -323,8 +329,7 @@ int main(string[] args)
 			writeln(TEXT_LICENSE);
 			return 0;
 		default:
-			log.error("Unknown action '%s'", action);
-			return 1;
+			return printError("Unknown action '%s'", action);
 		}
 	}
 	
@@ -334,7 +339,7 @@ int main(string[] args)
 	if (argc <= 2)
 	{
 		if ((e = config.processStdin) != 0)
-			log.error(config.errorMsg);
+			printError(config.lastException);
 		else
 			printResult(config.hash, "-");
 		return e;
@@ -357,7 +362,7 @@ int main(string[] args)
 			e = config.process(arg);
 			if ((e = config.process(arg)) != 0)
 			{
-				log.error(config.errorMsg);
+				printError(config.lastException.msg);
 				return e;
 			}
 			printResult(config.hash, arg);
@@ -371,7 +376,7 @@ int main(string[] args)
 			{
 				if ((e = config.processStdin) != 0)
 				{
-					log.error(config.errorMsg);
+					printError(config.lastException.msg);
 					return e;
 				}
 				printResult(config.hash, arg);
@@ -393,7 +398,7 @@ int main(string[] args)
 				case "--check":
 					if (++argi >= argc)
 					{
-						log.error("Missing argument");
+						printError("Missing argument");
 						return 1;
 					}
 					processList(config, args[argi++]);
@@ -401,7 +406,7 @@ int main(string[] args)
 				case "--arg":
 					if (++argi >= argc)
 					{
-						log.error("Missing argument");
+						printError("Missing argument");
 						return 1;
 					}
 					processText(config, args[argi++]);
@@ -434,13 +439,13 @@ int main(string[] args)
 				case "--chunk":
 					if (++argi >= argc)
 					{
-						log.error("Missing argument");
+						printError("Missing argument");
 						return 1;
 					}
 					string s = args[argi++];
 					if (strtobin(&config.inputSize, s))
 					{
-						log.error("Invalid binary size: %s", s);
+						printError("Invalid binary size: %s", s);
 						return 1;
 					}
 					continue;
@@ -448,7 +453,7 @@ int main(string[] args)
 					cli_skip = true;
 					continue;
 				default:
-					log.error("Unknown option '%s'", arg);
+					printError("Unknown option '%s'", arg);
 					return 1;
 				}
 			}
@@ -476,20 +481,20 @@ int main(string[] args)
 				case 'C':
 					if (++argi >= argc)
 					{
-						log.error("Missing argument");
+						printError("Missing argument");
 						return 1;
 					}
 					string s = args[argi++];
 					if (strtobin(&config.inputSize, s))
 					{
-						log.error("Invalid binary size: %s", s);
+						printError("Invalid binary size: %s", s);
 						return 1;
 					}
 					continue;
 				case 'c': // check
 					if (++argi >= argc)
 					{
-						log.error("missing argument");
+						printError("missing argument");
 						return 2;
 					}
 					processList(config, args[argi++]);
@@ -497,13 +502,13 @@ int main(string[] args)
 				case 'a': // arg
 					if (++argi >= argc)
 					{
-						log.error("missing argument");
+						printError("missing argument");
 						return 2;
 					}
 					processText(config, args[argi++]);
 					continue;
 				default:
-					log.error("Unknown option '%c'", o);
+					printError("Unknown option '%c'", o);
 					return 1;
 				}
 			}
@@ -522,18 +527,18 @@ int main(string[] args)
 			++count;
 			if (entry.isDir)
 			{
-				log.error("'%s': Is a directory", path);
+				printError("'%s': Is a directory", path);
 				continue;
 			}
 			if (config.process(path))
 			{
-				log.error("'%s': %s", path, config.errorMsg);
+				printError("'%s': %s", path, config.lastException.msg);
 				continue;
 			}
 			printResult(config.hash, path);
 		}
 		if (count == 0)
-			log.error("'%s': No such file", name);
+			printError("'%s': No such file", name);
 	}
 	
 	return 0;
