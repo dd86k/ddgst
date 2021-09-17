@@ -11,11 +11,15 @@ import std.conv : text;
 import std.compiler : version_major, version_minor;
 import std.file : dirEntries, DirEntry, SpanMode;
 import std.format : format, formattedRead;
+import std.getopt;
 import std.path : baseName, dirName;
-import std.stdio, std.mmfile;
-import ddh.ddh, hasher;
+import std.stdio;
+import ddh.ddh;
 
 private:
+
+enum PROJECT_VERSION = "1.0.0";
+enum PROJECT_NAME    = "ddh";
 
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
@@ -26,9 +30,6 @@ extern (C) __gshared bool rt_cmdline_enabled = false;
 debug enum BUILD_TYPE = "-debug";
 else  enum BUILD_TYPE = "";
 
-enum PROJECT_VERSION = "1.0.0";
-enum PROJECT_NAME    = "ddh";
-
 immutable string TEXT_VERSION =
 PROJECT_NAME~` v`~PROJECT_VERSION~BUILD_TYPE~` (`~__TIMESTAMP__~`)
 Compiler: `~__VENDOR__~" FE v"~format("%u.%03u", version_major, version_minor);
@@ -38,34 +39,7 @@ immutable string TEXT_HELP =
   ddh page
   ddh alias [-]
   ddh alias [options...] [{file|-}...]
-
-Pages:
-  list ............. List supported checksum and hash algorithms
-  help ............. Show this help screen and exit
-  version .......... Show application version screen and exit
-  ver .............. Only show version and exit
-  license .......... Show license screen and exit
-
-Input mode options:
-  -F, --file ....... Input mode: Regular file (std.stdio, default)
-    -t, --text ....... Set text mode
-    -b, --binary ..... Set binary mode (default)
-  -M, --mmfile ..... Input mode: Memory-map file (std.mmfile)
-  -a, --arg ........ Input mode: Command-line argument text (utf-8)
-  -c, --check ...... Check hashes list in this file
-  -C, --chunk ...... Set chunk size (default=64K)
-                     Modes affected: file, mmfile, stdin
-  - ................ Input mode: Standard input (stdin)
-
-Embedded globber options:
-  --shallow ........ Depth: Same directory (default)
-  -s, --depth ...... Depth: Deepest directories first
-  --breadth ........ Depth: Sub directories first
-  --follow ......... Links: Follow symbolic links (default)
-  --nofollow ....... Links: Do not follow symbolic links
-
-Misc. options:
-  -- ............... Stop processing options`;
+`;
 
 immutable string TEXT_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -93,18 +67,102 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>`;
 
-deprecated
-immutable string F_EX = "%s: %s"; /// Used in printing exception messages
+immutable string STDIN_NAME = "-";
 
-int printError(string func = __FUNCTION__, A...)(string fmt, A args) {
+enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
+
+enum EntryMethod { file, text, list }
+
+struct Settings
+{
+	EntryMethod method;
+	DDH_T ddh;
+	char[] result;
+	string listPath;
+	ulong bufferSize = DEFAULT_CHUNK_SIZE;
+	SpanMode spanMode;
+	bool follow = true;
+	bool textMode;
+	
+	int function(ref Settings, string) hash = &hashFile;
+	
+	int select(DDHType type)
+	{
+		if (ddh_init(ddh, type))
+			return 2;
+		return 0;
+	}
+	
+	void setInputMode(string opt)
+	{
+		final switch (opt)
+		{
+		case "F|file":   hash = &hashFile; break;
+		case "M|mmfile": hash = &hashMmfile; break;
+		case "a|arg":	 hash = &hashText; break;
+		}
+	}
+	
+	void setFileModeText()
+	{
+		textMode = true;
+	}
+	
+	void setFileModeBinary()
+	{
+		textMode = false;
+	}
+	
+	void setBufferSize(string, string val)
+	{
+		ulong v = void;
+		if (strtobin(&v, val))
+			throw new GetOptException("Couldn't unformat buffer size");
+		bufferSize = v;
+	}
+	
+	void setSpanMode(string opt)
+	{
+		final switch (opt)
+		{
+		case "s|depth": spanMode = SpanMode.depth; return;
+		case "shallow": spanMode = SpanMode.shallow; return;
+		case "breath": spanMode = SpanMode.breadth; return;
+		}
+	}
+	
+	void setFollow()
+	{
+		follow = true;
+	}
+	
+	void setNofollow()
+	{
+		follow = false;
+	}
+}
+
+int printError(string func = __FUNCTION__, A...)(string fmt, A args)
+{
 	stderr.write(func, ": ");
 	stderr.writefln(fmt, args);
 	return 1;
 }
-int printError(ref Exception ex, string func = __FUNCTION__) {
-	debug stderr.writefln("%s: %s", func, ex);
+int printError(ref Exception ex, string func = __FUNCTION__)
+{
+	debug stderr.writeln(ex);
 	else  stderr.writefln("%s: %s", func, ex.msg);
 	return 1;
+}
+void printResult(string fmt = "%s  %s")(char[] hash, in char[] file)
+{
+	writefln(fmt, hash, file);
+}
+version (Trace)
+void trace(string func = __FUNCTION__, A...)(string fmt, A args)
+{
+	write(func, ": ");
+	writefln(fmt, args);
 }
 
 // String to binary size
@@ -116,13 +174,14 @@ int strtobin(ulong *size, string input) {
 		T = G * 1024,
 	}
 	
-	float f; char c;
+	float f = void;
+	char c = void;
 	try
 	{
 		if (input.formattedRead!"%f%c"(f, c) != 2)
 			return 1;
 	}
-	catch (Exception)
+	catch (Exception ex)
 	{
 		return 2;
 	}
@@ -161,27 +220,148 @@ unittest
 	assert(s == 1024 + 102); // 102.4
 }
 
-void printResult(string fmt = "%s  %s")(char[] hash, in char[] file)
+int hashFile(ref Settings settings, string path)
 {
-	writefln(fmt, hash, file);
+	version (Trace) trace("path=%s", path);
+	try
+	{
+		File f;	// Must never be void
+		// BUG: Using opAssign with LDC2 crashes at runtime
+		f.open(path, settings.textMode ? "r" : "rb");
+		
+		if (f.size())
+			hashFile(settings, f);
+		
+		f.close();
+		return 0;
+	}
+	catch (Exception ex)
+	{
+		return printError(ex);
+	}
+}
+int hashFile(ref Settings settings, ref File file)
+{
+	try
+	{
+		foreach (ubyte[] chunk; file.byChunk(settings.bufferSize))
+			ddh_compute(settings.ddh, chunk);
+		
+		settings.result = ddh_string(settings.ddh);
+		ddh_reset(settings.ddh);
+		return 0;
+	}
+	catch (Exception ex)
+	{
+		return printError(ex);
+	}
+}
+int hashMmfile(ref Settings settings, string path)
+{
+	import std.typecons : scoped;
+	import std.mmfile : MmFile;
+	
+	version (Trace) trace("path=%s", path);
+	
+	try
+	{
+		auto mmfile = scoped!MmFile(path);
+		ulong flen = mmfile.length;
+		
+		if (flen)
+		{
+			ulong start;
+			
+			if (flen > settings.bufferSize)
+			{
+				const ulong climit = flen - settings.bufferSize;
+				for (; start < climit; start += settings.bufferSize)
+					ddh_compute(settings.ddh,
+						cast(ubyte[])mmfile[start..start + settings.bufferSize]);
+			}
+			
+			// Compute remaining
+			ddh_compute(settings.ddh, cast(ubyte[])mmfile[start..flen]);
+		}
+		
+		settings.result = ddh_string(settings.ddh);
+		ddh_reset(settings.ddh);
+		return 0;
+	}
+	catch (Exception ex)
+	{
+		return printError(ex);
+	}
+}
+int hashStdin(ref Settings settings, string)
+{
+	version (Trace) trace("stdin");
+	return hashFile(settings, stdin);
+}
+int hashText(ref Settings settings, string text)
+{
+	try
+	{
+		ddh_compute(settings.ddh, cast(ubyte[])text);
+		settings.result = ddh_string(settings.ddh);
+		ddh_reset(settings.ddh);
+		return 0;
+	}
+	catch (Exception ex)
+	{
+		return printError(ex);
+	}
 }
 
-int processText(ref Hasher p, string text)
+int entryFile(ref Settings settings, string path)
 {
-	int e = p.processText(text);
+	uint count;
+	string dir  = dirName(path);  // "." if anything
+	string name = baseName(path); // Glob patterns are kept
+	const bool same = dir == "."; // same directory name from dirName
+	foreach (DirEntry entry; dirEntries(dir, name, settings.spanMode, settings.follow))
+	{
+		// Because entry will have "./" prefixed to it
+		string file = same ? entry.name[2..$] : entry.name;
+		++count;
+		if (entry.isDir)
+		{
+			printError("'%s': Is a directory", file);
+			continue;
+		}
+		if (settings.hash(settings, file))
+		{
+			continue;
+		}
+		printResult(settings.result, file);
+	}
+	if (count == 0)
+		printError("'%s': No such file", name);
+	return 0;
+}
+int entryStdin(ref Settings settings)
+{
+	int e = hashStdin(settings, STDIN_NAME);
 	if (e == 0)
-		printResult!`%s  "%s"`(p.hash, text);
+		printResult(settings.result, STDIN_NAME);
 	return e;
 }
-	
-int processList(ref Hasher p, string path)
+int entryText(ref Settings settings, string text)
+{
+	int e = hashText(settings, text);
+	if (e == 0)
+		printResult!`%s  "%s"`(settings.result, text);
+	return e;
+}
+
+int entryList(ref Settings settings, string listPath)
 {
 	import std.file : readText;
 	import std.utf : UTFException;
 	import std.algorithm.iteration : splitter;
 	
 	/// Number of characters the hash string.
-	size_t hashsize = ddh_digest_size(p.ddh) << 1;
+	size_t hashsize = ddh_digest_size(settings.ddh) << 1;
 	/// Minimum line length (hash + 1 spaces).
 	// Example: abcd1234  file.txt
 	size_t minsize = hashsize + 1;
@@ -196,7 +376,7 @@ int processList(ref Hasher p, string path)
 	
 	try
 	{
-		text.utf8 = readText(path);
+		text.utf8 = readText(listPath);
 	}
 	catch (Exception ex)
 	{
@@ -206,10 +386,10 @@ int processList(ref Hasher p, string path)
 	size_t len = text.utf8.length;
 	
 	if (len == 0)
-		return printError("File '%s' is empty", path);
+		return printError("File '%s' is empty", listPath);
 	
 	if (len < minsize)
-		return printError("File '%s' too small", path);
+		return printError("File '%s' too small", listPath);
 	
 	// Newline detection
 	enum MAX = 1024;
@@ -258,16 +438,15 @@ int processList(ref Hasher p, string path)
 		string filepath = line[minsize..$].stripLeft; /// File path
 		
 		// Process file
-		int e = p.process(filepath);
+		int e = settings.hash(settings, filepath);
 		if (e)
 		{
-			printError("Failed to process '%s': %s", filepath, p.lastException.msg);
 			++r_errors;
 			continue;
 		}
 		
 		// Compare hash/checksum
-		if (line[0..hashsize] != p.hash)
+		if (line[0..hashsize] != settings.result)
 		{
 			printError("%s: FAILED", filepath);
 			++r_mismatch;
@@ -283,14 +462,66 @@ int processList(ref Hasher p, string path)
 	return 0;
 }
 
+void showPage(string setting)
+{
+	import core.stdc.stdlib : exit;
+	switch (setting)
+	{
+	case "ver": writeln(PROJECT_VERSION); break;
+	case "version": break;
+	case "license": break;
+	default: assert(0);
+	}
+	exit(0);
+}
+
 int main(string[] args)
 {
 	const size_t argc = args.length;
-	
-	if (argc <= 1)
+	Settings settings;	/// CLI arguments
+	GetoptResult res = void;
+	try
 	{
+		res = getopt(args, config.caseInsensitive, config.passThrough,
+		"F|file",     "Input mode: Regular file (default)", &settings.setInputMode,
+		"b|binary",   "  File: Set binary mode (default)", &settings.setFileModeText,
+		"t|text",     "  File: Set text mode", &settings.setFileModeBinary,
+		"M|mmfile",   "Input mode: Memory-map file (std.mmfile)", &settings.setInputMode,
+		"a|arg",      "Input mode: Command-line argument text (utf-8)", &settings.setInputMode,
+		"c|check",    "Check hashes list in this file", &settings.listPath,
+		"C|chunk",    "Set chunk size, affects file/mmfile/stdin (default=64K)", &settings.setBufferSize,
+		"shallow",    "Depth: Same directory (default)", &settings.setSpanMode,
+		"s|depth",    "Depth: Deepest directories first", &settings.setSpanMode,
+		"breadth",    "Depth: Sub directories first", &settings.setSpanMode,
+		"follow",     "Links: Follow symbolic links (default)", &settings.setFollow,
+		"nofollow",   "Links: Do not follow symbolic links", &settings.setNofollow,
+		"version",    "Show version page and quit", &showPage,
+		"ver",        "Show version and quit", &showPage,
+		"license",    "Show license page and quit", &showPage,
+		);
+	}
+	catch (Exception ex)
+	{
+		return printError(ex);
+	}
+	
+	if (res.helpWanted)
+	{
+L_HELP:
 		writeln(TEXT_HELP);
+		foreach (Option opt; res.options)
+		{
+			with (opt) if (optShort)
+				writefln("%s, %-12s  %s", optShort, optLong, help);
+			else
+				writefln("    %-12s  %s", optLong, help);
+		}
 		return 0;
+	}
+	
+	if (argc < 2)
+	{
+		goto L_HELP;
 	}
 	
 	string action = args[1];
@@ -317,228 +548,48 @@ int main(string[] args)
 				writefln("%-12s%s", meta.basename, meta.name);
 			return 0;
 		case "ver":
-			writeln(PROJECT_VERSION);
+			showPage("ver");
 			return 0;
-		case "help", "--help":
-			write(TEXT_HELP);
-			return 0;
-		case "version", "--version":
-			writeln(TEXT_VERSION);
+		case "help":
+			goto L_HELP;
+		case "version":
+			showPage("version");
 			return 0;
 		case "license":
-			writeln(TEXT_LICENSE);
+			showPage("license");
 			return 0;
 		default:
 			return printError("Unknown action '%s'", action);
 		}
 	}
 	
-	Hasher config = Hasher(type);
-	
-	int e = void;
-	if (argc <= 2)
+	if (settings.select(type))
 	{
-		if ((e = config.processStdin) != 0)
-			printError(config.lastException);
-		else
-			printResult(config.hash, "-");
-		return e;
+		printError("Couldn't initiate hash module");
+		return 2;
 	}
 	
-	// CLI arguments
-	SpanMode cli_spanmode;	/// dirEntries: span mode, default=shallow
-	bool cli_follow = true;	/// dirEntries: follow symlinks
-	bool cli_skip;	/// Skip CLI options, default=false
+	if (argc < 3)
+		return entryStdin(settings);
 	
-	// Main CLI loop
-	// getopt isn't used (for now?) since:
-	// - we handle '-' for stdin mode
-	for (size_t argi = 2; argi < argc; ++argi)
+	int function(ref Settings, string) entry = void;
+	final switch (settings.method)
 	{
-		string arg = args[argi];
-		
-		if (cli_skip)
+	case EntryMethod.file:  entry = &entryFile; break;
+	case EntryMethod.list:  entry = &entryList; break;
+	case EntryMethod.text:  entry = &entryText; break;
+	}
+	
+	foreach (string arg; args[2..$])
+	{
+		if (arg == STDIN_NAME) // stdin
 		{
-			e = config.process(arg);
-			if ((e = config.process(arg)) != 0)
-			{
-				printError(config.lastException.msg);
-				return e;
-			}
-			printResult(config.hash, arg);
+			if (entryStdin(settings))
+				return 2;
 			continue;
 		}
 		
-		// It's an argument
-		if (arg[0] == '-')
-		{
-			if (arg.length == 1) // '-' only: stdin
-			{
-				if ((e = config.processStdin) != 0)
-				{
-					printError(config.lastException.msg);
-					return e;
-				}
-				printResult(config.hash, arg);
-				continue;
-			}
-			
-			// Long opts
-			if (arg[1] == '-')
-			{
-				switch (arg)
-				{
-				// Input modes
-				case "--mmfile":
-					config.setModeMmFile;
-					continue;
-				case "--file":
-					config.setModeFile;
-					continue;
-				case "--check":
-					if (++argi >= argc)
-					{
-						printError("Missing argument");
-						return 1;
-					}
-					processList(config, args[argi++]);
-					continue;
-				case "--arg":
-					if (++argi >= argc)
-					{
-						printError("Missing argument");
-						return 1;
-					}
-					processText(config, args[argi++]);
-					continue;
-				// Read modes for File
-				case "--text":
-					config.fileText = true;
-					continue;
-				case "--binary":
-					config.fileText = false;
-					continue;
-				// Span modes
-				case "--depth":
-					cli_spanmode = SpanMode.depth;
-					continue;
-				case "--breadth":
-					cli_spanmode = SpanMode.breadth;
-					continue;
-				case "--shallow":
-					cli_spanmode = SpanMode.shallow;
-					continue;
-				// Follow symbolic links
-				case "--nofollow":
-					cli_follow = false;
-					continue;
-				case "--follow":
-					cli_follow = true;
-					continue;
-				// Misc.
-				case "--chunk":
-					if (++argi >= argc)
-					{
-						printError("Missing argument");
-						return 1;
-					}
-					string s = args[argi++];
-					if (strtobin(&config.inputSize, s))
-					{
-						printError("Invalid binary size: %s", s);
-						return 1;
-					}
-					continue;
-				case "--":
-					cli_skip = true;
-					continue;
-				default:
-					printError("Unknown option '%s'", arg);
-					return 1;
-				}
-			}
-			
-			// Short opts
-			foreach (char o; arg[1..$])
-			{
-				switch (o)
-				{
-				case 'M': // mmfile input
-					config.setModeMmFile;
-					continue;
-				case 'F': // file input
-					config.setModeFile;
-					continue;
-				case 't': // text file mode
-					config.fileText = true;
-					continue;
-				case 'b': // binary file mode
-					config.fileText = false;
-					continue;
-				case 's': // spanmode: depth
-					cli_spanmode = SpanMode.depth;
-					continue;
-				case 'C':
-					if (++argi >= argc)
-					{
-						printError("Missing argument");
-						return 1;
-					}
-					string s = args[argi++];
-					if (strtobin(&config.inputSize, s))
-					{
-						printError("Invalid binary size: %s", s);
-						return 1;
-					}
-					continue;
-				case 'c': // check
-					if (++argi >= argc)
-					{
-						printError("missing argument");
-						return 2;
-					}
-					processList(config, args[argi++]);
-					continue;
-				case 'a': // arg
-					if (++argi >= argc)
-					{
-						printError("missing argument");
-						return 2;
-					}
-					processText(config, args[argi++]);
-					continue;
-				default:
-					printError("Unknown option '%c'", o);
-					return 1;
-				}
-			}
-			
-			continue;
-		}
-		
-		uint count;
-		string dir  = dirName(arg);  // "." if anything
-		string name = baseName(arg); // Glob patterns are kept
-		const bool same = dir == "."; // same directory name from dirName
-		foreach (DirEntry entry; dirEntries(dir, name, cli_spanmode, cli_follow))
-		{
-			// Because entry will have "./" prefixed to it
-			string path = same ? entry.name[2..$] : entry.name;
-			++count;
-			if (entry.isDir)
-			{
-				printError("'%s': Is a directory", path);
-				continue;
-			}
-			if (config.process(path))
-			{
-				printError("'%s': %s", path, config.lastException.msg);
-				continue;
-			}
-			printResult(config.hash, path);
-		}
-		if (count == 0)
-			printError("'%s': No such file", name);
+		entry(settings, arg);
 	}
 	
 	return 0;

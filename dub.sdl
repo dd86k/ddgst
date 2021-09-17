@@ -5,6 +5,11 @@ authors "dd86k <dd@dax.moe>"
 license "public domain"
 dependency "sha3-d" version="~>1.0.0"
 
+buildType "trace" {
+	versions "Trace"
+	buildOptions "debugMode" "debugInfo"
+}
+
 buildType "release-static" {
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 	dflags "--static" platform="ldc"
