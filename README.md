@@ -11,6 +11,7 @@ and more features than built-in OS tools.
 | Text mode | ✔️ | ✔️ | | |
 | Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
+| BSD-style checksums | ✔️ | ✔️ | ✔️ | |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 

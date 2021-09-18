@@ -5,12 +5,10 @@
  * Copyright: None
  * License: Public domain
  */
-module ddh.ddh;
+module ddh;
 
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
 private import sha3d.sha3;
-
-//TODO: Consider moving all of this into the Hasher structure
 
 version (PrintInfo)
 {
@@ -141,6 +139,7 @@ struct DDH_T
 		void *voidptr;	/// Void pointer for allocation
 		DDH_INTERNALS_T *inptr;	/// Internal pointer for allocation
 	}
+	bool internalInit;
 }
 
 /// Internals for DDH_T
@@ -186,6 +185,7 @@ struct DDHInfo
 	uint size;	/// static digest_size
 	string name;	/// static name
 	string basename;	/// static basename
+	string tagname;	/// BSD-style tag name
 	func_compute fcomp;	/// static fcomp
 	func_finish fdone;	/// static fdone
 	func_reset freset;	/// static freset
@@ -195,112 +195,112 @@ struct DDHInfo
 immutable DDHInfo[] meta_info = [
 	{
 		DDHType.CRC32, DGSTSZ!(DDHType.CRC32),
-		"CRC-32", "crc32",
+		"CRC-32", "crc32", "CRC32",
 		&ddh_compute!(DDHType.CRC32),
 		&ddh_finish!(DDHType.CRC32),
 		&ddh_reset!(DDHType.CRC32),
 	},
 	{
 		DDHType.CRC64ISO, DGSTSZ!(DDHType.CRC64ISO),
-		"CRC-64-ISO", "crc64iso",
+		"CRC-64-ISO", "crc64iso", "CRC64ISO",
 		&ddh_compute!(DDHType.CRC64ISO),
 		&ddh_finish!(DDHType.CRC64ISO),
 		&ddh_reset!(DDHType.CRC64ISO),
 	},
 	{
 		DDHType.CRC64ECMA, DGSTSZ!(DDHType.CRC64ECMA),
-		"CRC-64-ECMA", "crc64ecma",
+		"CRC-64-ECMA", "crc64ecma", "CRC64ECMA",
 		&ddh_compute!(DDHType.CRC64ECMA),
 		&ddh_finish!(DDHType.CRC64ECMA),
 		&ddh_reset!(DDHType.CRC64ECMA),
 	},
 	{
 		DDHType.MD5, DGSTSZ!(DDHType.MD5),
-		"MD5-128", "md5",
+		"MD5-128", "md5", "MD5",
 		&ddh_compute!(DDHType.MD5),
 		&ddh_finish!(DDHType.MD5),
 		&ddh_reset!(DDHType.MD5)
 	},
 	{
 		DDHType.RIPEMD160, DGSTSZ!(DDHType.RIPEMD160),
-		"RIPEMD-160", "ripemd160",
+		"RIPEMD-160", "ripemd160", "RIPEMD160",
 		&ddh_compute!(DDHType.RIPEMD160),
 		&ddh_finish!(DDHType.RIPEMD160),
 		&ddh_reset!(DDHType.RIPEMD160)
 	},
 	{
 		DDHType.SHA1, DGSTSZ!(DDHType.SHA1),
-		"SHA-1-160", "sha1",
+		"SHA-1-160", "sha1", "SHA1",
 		&ddh_compute!(DDHType.SHA1),
 		&ddh_finish!(DDHType.SHA1),
 		&ddh_reset!(DDHType.SHA1)
 	},
 	{
 		DDHType.SHA224, DGSTSZ!(DDHType.SHA224),
-		"SHA-2-224", "sha224",
+		"SHA-2-224", "sha224", "SHA224",
 		&ddh_compute!(DDHType.SHA224),
 		&ddh_finish!(DDHType.SHA224),
 		&ddh_reset!(DDHType.SHA224)
 	},
 	{
 		DDHType.SHA256, DGSTSZ!(DDHType.SHA256),
-		"SHA-2-256", "sha256",
+		"SHA-2-256", "sha256", "SHA256",
 		&ddh_compute!(DDHType.SHA256),
 		&ddh_finish!(DDHType.SHA256),
 		&ddh_reset!(DDHType.SHA256)
 	},
 	{
 		DDHType.SHA384, DGSTSZ!(DDHType.SHA384),
-		"SHA-2-384", "sha384",
+		"SHA-2-384", "sha384", "SHA384",
 		&ddh_compute!(DDHType.SHA384),
 		&ddh_finish!(DDHType.SHA384),
 		&ddh_reset!(DDHType.SHA384)
 	},
 	{
 		DDHType.SHA512, DGSTSZ!(DDHType.SHA512),
-		"SHA-2-512", "sha512",
+		"SHA-2-512", "sha512", "SHA512",
 		&ddh_compute!(DDHType.SHA512),
 		&ddh_finish!(DDHType.SHA512),
 		&ddh_reset!(DDHType.SHA512)
 	},
 	{
 		DDHType.SHA3_224, DGSTSZ!(DDHType.SHA3_224),
-		"SHA-3-224", "sha3-224",
+		"SHA-3-224", "sha3-224", "SHA3_224",
 		&ddh_compute!(DDHType.SHA3_224),
 		&ddh_finish!(DDHType.SHA3_224),
 		&ddh_reset!(DDHType.SHA3_224)
 	},
 	{
 		DDHType.SHA3_256, DGSTSZ!(DDHType.SHA3_256),
-		"SHA-3-256", "sha3-256",
+		"SHA-3-256", "sha3-256", "SHA3_256",
 		&ddh_compute!(DDHType.SHA3_256),
 		&ddh_finish!(DDHType.SHA3_256),
 		&ddh_reset!(DDHType.SHA3_256)
 	},
 	{
 		DDHType.SHA3_384, DGSTSZ!(DDHType.SHA3_384),
-		"SHA-3-384", "sha3-384",
+		"SHA-3-384", "sha3-384", "SHA3_384",
 		&ddh_compute!(DDHType.SHA3_384),
 		&ddh_finish!(DDHType.SHA3_384),
 		&ddh_reset!(DDHType.SHA3_384)
 	},
 	{
 		DDHType.SHA3_512, DGSTSZ!(DDHType.SHA3_512),
-		"SHA-3-512", "sha3-512",
+		"SHA-3-512", "sha3-512", "SHA3_512",
 		&ddh_compute!(DDHType.SHA3_512),
 		&ddh_finish!(DDHType.SHA3_512),
 		&ddh_reset!(DDHType.SHA3_512)
 	},
 	{
 		DDHType.SHAKE128, DGSTSZ!(DDHType.SHAKE128),
-		"SHAKE-128", "shake128",
+		"SHAKE-128", "shake128", "SHAKE128",
 		&ddh_compute!(DDHType.SHAKE128),
 		&ddh_finish!(DDHType.SHAKE128),
 		&ddh_reset!(DDHType.SHAKE128)
 	},
 	{
 		DDHType.SHAKE256, DGSTSZ!(DDHType.SHAKE128),
-		"SHAKE-256", "shake256",
+		"SHAKE-256", "shake256", "SHAKE256",
 		&ddh_compute!(DDHType.SHAKE256),
 		&ddh_finish!(DDHType.SHAKE256),
 		&ddh_reset!(DDHType.SHAKE256)
@@ -330,9 +330,13 @@ bool ddh_init(ref DDH_T ddh, DDHType type)
 {
 	import core.stdc.stdlib : malloc;
 	
-	ddh.voidptr = malloc(DDH_INTERNALS_T.sizeof);
-	if (ddh.voidptr == null)
-		return true;
+	if (ddh.internalInit == false)
+	{
+		ddh.voidptr = malloc(DDH_INTERNALS_T.sizeof);
+		if (ddh.voidptr == null)
+			return true;
+		ddh.internalInit = true;
+	}
 	
 	size_t i = ddh.type = type;
 	ddh.compute = meta_info[i].fcomp;

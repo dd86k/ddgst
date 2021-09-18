@@ -14,11 +14,11 @@ import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
-import ddh.ddh;
+import ddh;
 
 private:
 
-enum PROJECT_VERSION = "1.0.0";
+enum PROJECT_VERSION = "1.1.0";
 enum PROJECT_NAME    = "ddh";
 
 // Leave GC enabled, but avoid cleanup on exit
@@ -37,7 +37,6 @@ Compiler: `~__VENDOR__~" FE v"~format("%u.%03u", version_major, version_minor);
 immutable string TEXT_HELP =
 `Usage:
   ddh page
-  ddh alias [-]
   ddh alias [options...] [{file|-}...]
 `;
 
@@ -83,6 +82,7 @@ struct Settings
 	SpanMode spanMode;
 	bool follow = true;
 	bool textMode;
+	bool tag;
 	
 	int function(ref Settings, string) hash = &hashFile;
 	
@@ -93,13 +93,14 @@ struct Settings
 		return 0;
 	}
 	
-	void setInputMode(string opt)
+	void setEntryMode(string opt)
 	{
 		final switch (opt)
 		{
 		case "F|file":   hash = &hashFile; break;
 		case "M|mmfile": hash = &hashMmfile; break;
-		case "a|arg":	 hash = &hashText; break;
+		case "a|arg":	 method = EntryMethod.text; break;
+		case "c|check":	 method = EntryMethod.list; break;
 		}
 	}
 	
@@ -142,6 +143,13 @@ struct Settings
 	}
 }
 
+version (Trace)
+void trace(string func = __FUNCTION__, A...)(string fmt, A args)
+{
+	write("TRACE:", func, ": ");
+	writefln(fmt, args);
+}
+
 int printError(string func = __FUNCTION__, A...)(string fmt, A args)
 {
 	stderr.write(func, ": ");
@@ -154,15 +162,19 @@ int printError(ref Exception ex, string func = __FUNCTION__)
 	else  stderr.writefln("%s: %s", func, ex.msg);
 	return 1;
 }
-void printResult(string fmt = "%s  %s")(char[] hash, in char[] file)
+void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
 {
-	writefln(fmt, hash, file);
-}
-version (Trace)
-void trace(string func = __FUNCTION__, A...)(string fmt, A args)
-{
-	write(func, ": ");
-	writefln(fmt, args);
+	if (settings.tag)
+	{
+		write(meta_info[settings.ddh.type].tagname, '(');
+		writef(fmt, file);
+		writeln(")= ", settings.result);
+	}
+	else
+	{
+		write(settings.result, "  ");
+		writefln(fmt, file);
+	}
 }
 
 // String to binary size
@@ -223,6 +235,7 @@ unittest
 int hashFile(ref Settings settings, string path)
 {
 	version (Trace) trace("path=%s", path);
+	
 	try
 	{
 		File f;	// Must never be void
@@ -300,6 +313,8 @@ int hashStdin(ref Settings settings, string)
 }
 int hashText(ref Settings settings, string text)
 {
+	version (Trace) trace("text='%s'", text);
+	
 	try
 	{
 		ddh_compute(settings.ddh, cast(ubyte[])text);
@@ -315,6 +330,8 @@ int hashText(ref Settings settings, string text)
 
 int entryFile(ref Settings settings, string path)
 {
+	version (Trace) trace("path=%s", path);
+	
 	uint count;
 	string dir  = dirName(path);  // "." if anything
 	string name = baseName(path); // Glob patterns are kept
@@ -333,7 +350,7 @@ int entryFile(ref Settings settings, string path)
 		{
 			continue;
 		}
-		printResult(settings.result, file);
+		printResult(settings, file);
 	}
 	if (count == 0)
 		printError("'%s': No such file", name);
@@ -341,123 +358,115 @@ int entryFile(ref Settings settings, string path)
 }
 int entryStdin(ref Settings settings)
 {
+	version (Trace) trace("stdin");
 	int e = hashStdin(settings, STDIN_NAME);
 	if (e == 0)
-		printResult(settings.result, STDIN_NAME);
+		printResult(settings, STDIN_NAME);
 	return e;
 }
 int entryText(ref Settings settings, string text)
 {
+	version (Trace) trace("text='%s'", text);
 	int e = hashText(settings, text);
 	if (e == 0)
-		printResult!`%s  "%s"`(settings.result, text);
+		printResult!`"%s"`(settings, text);
 	return e;
 }
 
 int entryList(ref Settings settings, string listPath)
 {
 	import std.file : readText;
-	import std.utf : UTFException;
-	import std.algorithm.iteration : splitter;
+	import std.string : lineSplitter;
+	
+	version (Trace) trace("list=%s", listPath);
 	
 	/// Number of characters the hash string.
 	size_t hashsize = ddh_digest_size(settings.ddh) << 1;
 	/// Minimum line length (hash + 1 spaces).
 	// Example: abcd1234  file.txt
-	size_t minsize = hashsize + 1;
-	
-	union text_t
-	{
-		string utf8;
-		wstring utf16;
-		dstring utf32;
-	}
-	text_t text = void;
+	deprecated size_t minsize = hashsize + 1;
+	uint currentLine, statMismatch, statErrors;
 	
 	try
 	{
-		text.utf8 = readText(listPath);
+		string text = readText(listPath);
+	
+		if (text.length == 0)
+			return printError("File '%s' is empty", listPath);
+		
+		string file = void, result = void, hash = void, lastHash;
+		foreach (string line; lineSplitter(text)) // doesn't allocate
+		{
+			++currentLine;
+			
+			if (line.length == 0) continue; // empty
+			if (line[0] == '#') continue; // comment
+			
+			if (settings.tag)
+			{
+				// Tested to work with and without spaces
+				if (formattedRead(line, "%s(%s) = %s", hash, file, result) != 3)
+				{
+					++statErrors;
+					printError("Formatting error at line %u", currentLine);
+					continue;
+				}
+				
+				if (hash == lastHash)
+					goto L_ENTRY_HASH;
+				
+				lastHash = hash;
+				
+				foreach (DDHInfo info ; meta_info)
+				{
+					if (info.tagname == hash)
+					{
+						settings.select(info.type);
+						goto L_ENTRY_HASH;
+					}
+				}
+				
+				printError("Hash tag not found at line %u", currentLine);
+				continue;
+			}
+			else
+			{
+				// Tested to work with one or many spaces
+				if (formattedRead(line, "%s %s", result, file) != 2)
+				{
+					++statErrors;
+					printError("Formatting error at line %u", currentLine);
+					continue;
+				}
+			}
+		
+L_ENTRY_HASH:
+			if (settings.hash(settings, file))
+			{
+				++statErrors;
+				continue;
+			}
+			
+			version (Trace) trace("r1=%s r2=%s", settings.result, result);
+			
+			if (settings.result != result)
+			{
+				++statMismatch;
+				writeln(file, ": FAILED");
+				continue;
+			}
+			
+			writeln(file, ": OK");
+		}
+		
 	}
 	catch (Exception ex)
 	{
 		return printError(ex);
 	}
 	
-	size_t len = text.utf8.length;
-	
-	if (len == 0)
-		return printError("File '%s' is empty", listPath);
-	
-	if (len < minsize)
-		return printError("File '%s' too small", listPath);
-	
-	// Newline detection
-	enum MAX = 1024;
-	string newline = "\n"; // default
-	size_t l = text.utf8.length - 1; // @suppress(dscanner.suspicious.length_subtraction)
-	loop: for (size_t i; i < l && i < MAX; ++i)
-	{
-		char c = text.utf8[i];
-		
-		switch (c)
-		{
-		case '\n':
-			newline = "\n";
-			break loop;
-		case '\r':
-			newline = text.utf8[i + 1] == '\n' ? "\r\n" : "\r";
-			break loop;
-		default: continue loop;
-		}
-	}
-	
-	// Treat every hash line
-	uint r_currline, r_mismatch, r_errors;
-	foreach (string line; text.utf8.splitter(newline))
-	{
-		++r_currline;
-		
-		// Skip:
-		// - Empty lines
-		// - Comments starting with '#'
-		if (line.length == 0 || line[0] == '#')
-			continue;
-		
-		// Line needs to at least be hash length + 2 spaces + 1 character
-		if (line.length <= minsize)
-		{
-			printError("Line %u invalid", r_currline);
-			++r_errors;
-			continue;
-		}
-		
-		import std.string : stripLeft;
-		
-		// FileArg.path is modified for the file function.
-		// There may be one or more spaces to its left.
-		string filepath = line[minsize..$].stripLeft; /// File path
-		
-		// Process file
-		int e = settings.hash(settings, filepath);
-		if (e)
-		{
-			++r_errors;
-			continue;
-		}
-		
-		// Compare hash/checksum
-		if (line[0..hashsize] != settings.result)
-		{
-			printError("%s: FAILED", filepath);
-			++r_mismatch;
-			continue;
-		}
-		
-		writeln(filepath, ": OK");
-	}
-	
-	if (r_mismatch || r_errors)
-		printError("%u file(s) mismatch, %u file(s) not read", r_mismatch, r_errors);
+	if (statErrors || statMismatch)
+		printError("%u mismatches, %u not read", statMismatch, statErrors);
 	
 	return 0;
 }
@@ -468,8 +477,8 @@ void showPage(string setting)
 	switch (setting)
 	{
 	case "ver": writeln(PROJECT_VERSION); break;
-	case "version": break;
-	case "license": break;
+	case "version": writeln(TEXT_VERSION); break;
+	case "license": writeln(TEXT_LICENSE); break;
 	default: assert(0);
 	}
 	exit(0);
@@ -483,18 +492,19 @@ int main(string[] args)
 	try
 	{
 		res = getopt(args, config.caseInsensitive, config.passThrough,
-		"F|file",     "Input mode: Regular file (default)", &settings.setInputMode,
-		"b|binary",   "  File: Set binary mode (default)", &settings.setFileModeText,
-		"t|text",     "  File: Set text mode", &settings.setFileModeBinary,
-		"M|mmfile",   "Input mode: Memory-map file (std.mmfile)", &settings.setInputMode,
-		"a|arg",      "Input mode: Command-line argument text (utf-8)", &settings.setInputMode,
-		"c|check",    "Check hashes list in this file", &settings.listPath,
-		"C|chunk",    "Set chunk size, affects file/mmfile/stdin (default=64K)", &settings.setBufferSize,
+		"F|file",     "Input mode: Regular file (default)", &settings.setEntryMode,
+		"b|binary",   "File: Set binary mode (default)", &settings.setFileModeText,
+		"t|text",     "File: Set text mode", &settings.setFileModeBinary,
+		"M|mmfile",   "Input mode: Memory-map file", &settings.setEntryMode,
+		"a|arg",      "Input mode: Command-line argument text, as UTF-8", &settings.setEntryMode,
+		"c|check",    "Check hashes list in this file", &settings.setEntryMode,
+		"C|chunk",    "Set buffer size, affects file/mmfile/stdin (default=64K)", &settings.setBufferSize,
 		"shallow",    "Depth: Same directory (default)", &settings.setSpanMode,
 		"s|depth",    "Depth: Deepest directories first", &settings.setSpanMode,
 		"breadth",    "Depth: Sub directories first", &settings.setSpanMode,
 		"follow",     "Links: Follow symbolic links (default)", &settings.setFollow,
 		"nofollow",   "Links: Do not follow symbolic links", &settings.setNofollow,
+		"tag",        "Create or read BSD-style checksums", &settings.tag,
 		"version",    "Show version page and quit", &showPage,
 		"ver",        "Show version and quit", &showPage,
 		"license",    "Show license page and quit", &showPage,
@@ -573,11 +583,11 @@ L_HELP:
 		return entryStdin(settings);
 	
 	int function(ref Settings, string) entry = void;
-	final switch (settings.method)
+	final switch (settings.method) with (EntryMethod)
 	{
-	case EntryMethod.file:  entry = &entryFile; break;
-	case EntryMethod.list:  entry = &entryList; break;
-	case EntryMethod.text:  entry = &entryText; break;
+	case file: entry = &entryFile; version(Trace) trace("entryFile"); break;
+	case list: entry = &entryList; version(Trace) trace("entryList"); break;
+	case text: entry = &entryText; version(Trace) trace("entryText"); break;
 	}
 	
 	foreach (string arg; args[2..$])
