@@ -78,7 +78,7 @@ struct Settings
 	DDH_T ddh;
 	char[] result;
 	string listPath;
-	ulong bufferSize = DEFAULT_CHUNK_SIZE;
+	size_t bufferSize = DEFAULT_CHUNK_SIZE;
 	SpanMode spanMode;
 	bool follow = true;
 	bool textMode;
@@ -119,7 +119,12 @@ struct Settings
 		ulong v = void;
 		if (strtobin(&v, val))
 			throw new GetOptException("Couldn't unformat buffer size");
-		bufferSize = v;
+		version (D_LP64) {}
+		else {
+			if (v >= uint.max)
+				throw new GetOptException("Buffer size overflows");
+		}
+		bufferSize = cast(size_t)v;
 	}
 	
 	void setSpanMode(string opt)
