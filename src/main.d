@@ -489,6 +489,11 @@ void showPage(string setting)
 	exit(0);
 }
 
+void printMeta(string baseName, string name, string tagName)
+{
+	writefln("%-12s  %-12s  %s", baseName, name, tagName);
+}
+
 int main(string[] args)
 {
 	const size_t argc = args.length;
@@ -558,9 +563,9 @@ L_HELP:
 		switch (action)
 		{
 		case "list":
-			writeln("Alias       Name");
+			printMeta("Alias", "Name", "Tag");
 			foreach (meta; meta_info)
-				writefln("%-12s%s", meta.basename, meta.name);
+				printMeta(meta.basename, meta.name, meta.tagname);
 			return 0;
 		case "ver":
 			showPage("ver");
