@@ -11,6 +11,7 @@ and more features than built-in OS tools.
 | Text mode | ✔️ | ✔️ | | |
 | Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
+| GNU-style checksums | ✔️ | ✔️ | | |
 | BSD-style checksums | ✔️ | ✔️ | ✔️ | |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
@@ -25,13 +26,10 @@ and more features than built-in OS tools.
 | BSD sum | | ✔️ (sum) | | |
 | System V sum | | ✔️ (sum -s) | | |
 | Ethernet CRC | | ✔️ (cksum) | | |
-| MDC-2-128 | | | ✔️ | |
 | CRC-32 | ✔️ | | | ✔️ |
 | CRC-64-ISO | ✔️ | | |
 | CRC-64-ECMA | ✔️ | | |
-| MD4 | | | ✔️ | |
 | MD5 | ✔️ | ✔️ (md5sum) | ✔️ | |
-| SM3 | | | ✔️ | |
 | RIPEMD-160 | ✔️ | | ✔️ | |
 | SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | |
 | SHA-2 | ✔️ | ✔️ [3] | ✔️ | |
@@ -39,7 +37,6 @@ and more features than built-in OS tools.
 | SHAKE | ✔️ | | ✔️ | |
 | BLAKE2 | | ✔️ (b2sum) | ✔️ | |
 | BLAKE3 | | ✔️ (b3sum) | | |
-| Whirlpool | | | ✔️ | |
 
 - [1] See `dgst` command
 - [2] From the Perl Archive::ZIP package
@@ -59,13 +56,15 @@ With no arguments, the help page is shown.
 
 To get a list of options available, use the `--help` argument.
 
+To get a list of supported checksums and hashes, use the `list` command.
+
 ## Standard Input (stdin)
 
 To use the standard input (stdin) method, either:
-- Omit the third parameter;
-- Or use the `-` character.
+- Omit the third parameter (e.g., `ddh md5`);
+- Or use the `-` character (e.g., `ddh md5 -`).
 
-## Globbing (`*` vs. `'*'`)
+## File Pattern Globbing (`*` vs. `'*'`)
 
 This utility supports file globbing out of the box using `std.file.dirEntries`.
 
@@ -94,9 +93,9 @@ The default parameters used in `dirEntries` are:
 The mmfile mode's performance may vary on systems. Generally, file (default)
 mode is faster on Windows, and mmfile mode is faster on Linux systems.
 
-## Checking against a list
+The default is file on all systems.
 
-**NOTE**: BSD-style tags are not supported.
+## Checking against a list
 
 To check hashes in a list, like for example:
 ```
@@ -106,7 +105,9 @@ To check hashes in a list, like for example:
 9a2fdb96ff77f4d71510b38c2f278ff6  ddh.exe
 ```
 
-Simply use the `-c` option: `ddh md5 -c LIST`
+Simply use the `-c` option: `ddh md5 -c LIST`.
+
+To use BSD-style tags, use option `--tag`.
 
 # Compiling
 
@@ -120,14 +121,4 @@ dub build
 Release recommendation with the LDC compiler:
 ```
 dub build -b release-nobounds --compiler=ldc2
-```
-
-# Contributing
-
-At the moment of writing, it's a bit messy.
-
-```
-man/      - Manual page
-src/      - Source code, entry point, generic stuff
-+- ddh/   - Reference implementations
 ```
