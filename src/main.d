@@ -32,7 +32,7 @@ else  enum BUILD_TYPE = "";
 
 immutable string TEXT_VERSION =
 PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (`~__TIMESTAMP__~`)
-Compiler: `~__VENDOR__~" FE v"~format("%u.%03u", version_major, version_minor);
+Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
 immutable string TEXT_HELP =
 `Usage:
