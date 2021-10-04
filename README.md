@@ -1,27 +1,24 @@
 # ddh, Generic hasher
 
 ddh is a generic hasher available cross-platform (Windows, macOS, Linux, BSDs)
-and more features than built-in OS tools.
+and comes with more features than built-in OS utilities.
 
 ## Feature Comparison
 
-| Feature | ddh | GNU coreutils | openssl | crc32(1) [1] |
+| Feature | ddh | GNU coreutils | openssl | crc32(1)[^1] |
 |---|---|---|---|---|
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | | |
-| Check support | ✔️ | ✔️[2] | ✔️ | ✔️ |
+| Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
 | GNU-style checksums | ✔️ | ✔️ | | |
 | BSD-style checksums | ✔️ | ✔️ | ✔️ | |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 
-- [1] From the Perl Archive::ZIP package
-- [2] All but cksum and sum
-
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | GNU coreutils | openssl [1] | crc32(1) [2] |
+| Checksum or Hash | ddh | GNU coreutils | openssl[^3] | crc32(1)[^1] |
 |---|---|---|---|---|
 | BSD sum | | ✔️ (sum) | | |
 | System V sum | | ✔️ (sum -s) | | |
@@ -32,21 +29,18 @@ and more features than built-in OS tools.
 | MD5 | ✔️ | ✔️ (md5sum) | ✔️ | |
 | RIPEMD-160 | ✔️ | | ✔️ | |
 | SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | |
-| SHA-2 | ✔️ | ✔️ [3] | ✔️ | |
+| SHA-2 | ✔️ | ✔️[^4] | ✔️ | |
 | SHA-3 | ✔️ | | ✔️ | |
 | SHAKE | ✔️ | | ✔️ | |
 | BLAKE2 | | ✔️ (b2sum) | ✔️ | |
 | BLAKE3 | | ✔️ (b3sum) | | |
 
-- [1] See `dgst` command
-- [2] From the Perl Archive::ZIP package
-- [3] sha224sum, sha256sum, sha384sum, sha512sum
-
 # Usage
 
 Typical usage looks like this:
 ```
-ddh md5 LICENSE
+$ ddh md5 LICENSE
+1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
 ```
 - `ddh`: Command;
 - `md5`: Select MD-5;
@@ -90,10 +84,10 @@ The default parameters used in `dirEntries` are:
 
 ## Memory-mapped Files
 
-The mmfile mode's performance may vary on systems. Generally, file (default)
+The mmfile mode's performance may vary on systems. Typically, file
 mode is faster on Windows, and mmfile mode is faster on Linux systems.
 
-The default is file on all systems.
+The default is file.
 
 ## Checking against a list
 
@@ -122,3 +116,8 @@ Release recommendation with the LDC compiler:
 ```
 dub build -b release-nobounds --compiler=ldc2
 ```
+
+[^1]: From the Perl Archive::ZIP package
+[^2]: All but cksum and sum
+[^3]: See `dgst` command
+[^4]: sha224sum, sha256sum, sha384sum, sha512sum
