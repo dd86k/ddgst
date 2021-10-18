@@ -12,7 +12,8 @@ and comes with more features than built-in OS utilities.
 | Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
 | GNU-style checksums | ✔️ | ✔️ | | |
-| BSD-style checksums | ✔️ | ✔️ | ✔️ | |
+| GNU-style checksums | ✔️ | ✔️ | | |
+| SRI-style checksums | ✔️ | | | |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 
@@ -51,6 +52,20 @@ With no arguments, the help page is shown.
 To get a list of options available, use the `--help` argument.
 
 To get a list of supported checksums and hashes, use the `list` command.
+
+## BSD or SRI hashes
+
+To select the BSD style, use `--tag`:
+```
+$ ddh md5 LICENSE
+MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53
+```
+
+To select the SRI style, use `--sri`:
+```
+$ ddh md5 LICENSE --sri
+md5-HSZ86zqNj3XxvjAR7ky/Uw==
+```
 
 ## Standard Input (stdin)
 
