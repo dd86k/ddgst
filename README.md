@@ -69,8 +69,6 @@ $ ddh md5 LICENSE --sri
 md5-HSZ86zqNj3XxvjAR7ky/Uw==
 ```
 
-Only the GNU and BSD (tag) styles can be used in file checks.
-
 ## Standard Input (stdin)
 
 To use the standard input (stdin) method, either:
@@ -120,7 +118,7 @@ To check hashes in a list, like for example:
 
 Simply use the `-c` option: `ddh md5 -c LIST`.
 
-To use BSD-style tags, use option `--tag`.
+Only the GNU and BSD (tag) styles can be used in file checks.
 
 # Compiling
 
