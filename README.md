@@ -38,11 +38,7 @@ and comes with more features than built-in OS utilities.
 
 # Usage
 
-Typical usage looks like this:
-```
-$ ddh md5 LICENSE
-1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
-```
+Typical usage looks like this: `ddh md5 LICENSE`
 - `ddh`: Command;
 - `md5`: Select MD-5;
 - `LICENSE`: File.
@@ -53,7 +49,13 @@ To get a list of options available, use the `--help` argument.
 
 To get a list of supported checksums and hashes, use the `list` command.
 
-## BSD or SRI hashes
+## Hash styles
+
+By default, the GNU style is used:
+```
+$ ddh md5 LICENSE
+1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
+```
 
 To select the BSD style, use `--tag`:
 ```
@@ -66,6 +68,8 @@ To select the SRI style, use `--sri`:
 $ ddh md5 LICENSE --sri
 md5-HSZ86zqNj3XxvjAR7ky/Uw==
 ```
+
+Only the GNU and BSD (tag) styles can be used in file checks.
 
 ## Standard Input (stdin)
 
