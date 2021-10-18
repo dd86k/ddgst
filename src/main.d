@@ -14,12 +14,16 @@ import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
+import std.base64;
 import ddh;
 
 private:
 
 enum PROJECT_VERSION = "1.1.0";
 enum PROJECT_NAME    = "ddh";
+enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
+enum EntryMethod { file, text, list }
+enum TagType { gnu, bsd, sri }
 
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
@@ -68,21 +72,17 @@ For more information, please refer to <http://unlicense.org/>`;
 
 immutable string STDIN_NAME = "-";
 
-enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
-
-enum EntryMethod { file, text, list }
-
 struct Settings
 {
 	EntryMethod method;
 	DDH_T ddh;
-	char[] result;
+	ubyte[] rawHash;
 	string listPath;
 	size_t bufferSize = DEFAULT_CHUNK_SIZE;
 	SpanMode spanMode;
 	bool follow = true;
 	bool textMode;
-	bool tag;
+	TagType type;
 	
 	int function(ref Settings, string) hash = &hashFile;
 	
@@ -148,6 +148,10 @@ struct Settings
 	}
 }
 
+char[] getString(ref Settings settings) {
+	return ddh_string(settings.ddh);
+}
+
 version (Trace)
 void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 {
@@ -169,16 +173,20 @@ int printError(ref Exception ex, string func = __FUNCTION__)
 }
 void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
 {
-	if (settings.tag)
+	final switch (settings.type) with (TagType)
 	{
+	case gnu:
+		write(getString(settings), "  ");
+		writefln(fmt, file);
+		break;
+	case bsd:
 		write(meta_info[settings.ddh.type].tagname, '(');
 		writef(fmt, file);
-		writeln(")= ", settings.result);
-	}
-	else
-	{
-		write(settings.result, "  ");
-		writefln(fmt, file);
+		writeln(")= ", getString(settings));
+		break;
+	case sri:
+		write(meta_info[settings.ddh.type].basename, '-', Base64.encode(settings.rawHash));
+		break;
 	}
 }
 
@@ -265,7 +273,7 @@ int hashFile(ref Settings settings, ref File file)
 		foreach (ubyte[] chunk; file.byChunk(settings.bufferSize))
 			ddh_compute(settings.ddh, chunk);
 		
-		settings.result = ddh_string(settings.ddh);
+		settings.rawHash = ddh_finish(settings.ddh);
 		ddh_reset(settings.ddh);
 		return 0;
 	}
@@ -302,7 +310,7 @@ int hashMmfile(ref Settings settings, string path)
 			ddh_compute(settings.ddh, cast(ubyte[])mmfile[start..flen]);
 		}
 		
-		settings.result = ddh_string(settings.ddh);
+		settings.rawHash = ddh_finish(settings.ddh);
 		ddh_reset(settings.ddh);
 		return 0;
 	}
@@ -323,7 +331,7 @@ int hashText(ref Settings settings, string text)
 	try
 	{
 		ddh_compute(settings.ddh, cast(ubyte[])text);
-		settings.result = ddh_string(settings.ddh);
+		settings.rawHash = ddh_finish(settings.ddh);
 		ddh_reset(settings.ddh);
 		return 0;
 	}
@@ -389,7 +397,6 @@ int entryList(ref Settings settings, string listPath)
 	size_t hashsize = ddh_digest_size(settings.ddh) << 1;
 	/// Minimum line length (hash + 1 spaces).
 	// Example: abcd1234  file.txt
-	deprecated size_t minsize = hashsize + 1;
 	uint currentLine, statMismatch, statErrors;
 	
 	try
@@ -407,8 +414,18 @@ int entryList(ref Settings settings, string listPath)
 			if (line.length == 0) continue; // empty
 			if (line[0] == '#') continue; // comment
 			
-			if (settings.tag)
+			final switch (settings.type) with (TagType)
 			{
+			case gnu:
+				// Tested to work with one or many spaces
+				if (formattedRead(line, "%s %s", result, file) != 2)
+				{
+					++statErrors;
+					printError("Formatting error at line %u", currentLine);
+					continue;
+				}
+				break;
+			case bsd:
 				// Tested to work with and without spaces
 				if (formattedRead(line, "%s(%s) = %s", hash, file, result) != 3)
 				{
@@ -433,16 +450,8 @@ int entryList(ref Settings settings, string listPath)
 				
 				printError("Hash tag not found at line %u", currentLine);
 				continue;
-			}
-			else
-			{
-				// Tested to work with one or many spaces
-				if (formattedRead(line, "%s %s", result, file) != 2)
-				{
-					++statErrors;
-					printError("Formatting error at line %u", currentLine);
-					continue;
-				}
+			case sri:
+				throw new Exception("SRI is not supported in file checks");
 			}
 		
 L_ENTRY_HASH:
@@ -454,7 +463,7 @@ L_ENTRY_HASH:
 			
 			version (Trace) trace("r1=%s r2=%s", settings.result, result);
 			
-			if (settings.result != result)
+			if (getString(settings) != result)
 			{
 				++statMismatch;
 				writeln(file, ": FAILED");
@@ -499,6 +508,9 @@ int main(string[] args)
 	const size_t argc = args.length;
 	Settings settings;	/// CLI arguments
 	GetoptResult res = void;
+	bool bsd;
+	bool sri;
+	
 	try
 	{
 		res = getopt(args, config.caseInsensitive, config.passThrough,
@@ -514,7 +526,8 @@ int main(string[] args)
 		"breadth",    "Depth: Sub directories first", &settings.setSpanMode,
 		"follow",     "Links: Follow symbolic links (default)", &settings.setFollow,
 		"nofollow",   "Links: Do not follow symbolic links", &settings.setNofollow,
-		"tag",        "Create or read BSD-style checksums", &settings.tag,
+		"tag",        "Create or read BSD-style hashes", &bsd,
+		"sri",        "Create or read SRI-style hashes", &sri,
 		"version",    "Show version page and quit", &showPage,
 		"ver",        "Show version and quit", &showPage,
 		"license",    "Show license page and quit", &showPage,
@@ -599,6 +612,11 @@ L_HELP:
 	case list: entry = &entryList; version(Trace) trace("entryList"); break;
 	case text: entry = &entryText; version(Trace) trace("entryText"); break;
 	}
+	
+	if (bsd)
+		settings.type = TagType.bsd;
+	else if (sri)
+		settings.type = TagType.sri;
 	
 	foreach (string arg; args[2..$])
 	{

@@ -388,8 +388,6 @@ char[] ddh_string(ref DDH_T ddh)
 {
 	import std.format : sformat;
 	
-	ddh_finish(ddh);
-	
 	switch (ddh.type)
 	{
 	case DDHType.CRC64ISO, DDHType.CRC64ECMA:	// 64 bits
