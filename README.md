@@ -51,23 +51,11 @@ To get a list of supported checksums and hashes, use the `list` command.
 
 ## Hash styles
 
-By default, the GNU style is used:
-```
-$ ddh md5 LICENSE
-1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
-```
-
-To select the BSD style, use `--tag`:
-```
-$ ddh md5 LICENSE
-MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53
-```
-
-To select the SRI style, use `--sri`:
-```
-$ ddh md5 LICENSE --sri
-md5-HSZ86zqNj3XxvjAR7ky/Uw==
-```
+| Style | Example |
+|---|---|
+| GNU (default) | `1d267ceb3a8d8f75f1be3011ee4cbf53` |
+| BSD (`--tag`) | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
+| SRI (`--sri`) | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
 
 ## Standard Input (stdin)
 

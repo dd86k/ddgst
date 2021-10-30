@@ -34,17 +34,17 @@ extern (C) __gshared bool rt_cmdline_enabled = false;
 debug enum BUILD_TYPE = "-debug";
 else  enum BUILD_TYPE = "";
 
-immutable string TEXT_VERSION =
+immutable string PAGE_VERSION =
 PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (`~__TIMESTAMP__~`)
 Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
-immutable string TEXT_HELP =
+immutable string PAGE_HELP =
 `Usage:
   ddh page
   ddh alias [options...] [{file|-}...]
 `;
 
-immutable string TEXT_LICENSE =
+immutable string PAGE_LICENSE =
 `This is free and unencumbered software released into the public domain.
 
 Anyone is free to copy, modify, publish, use, compile, sell, or
@@ -69,6 +69,17 @@ ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>`;
+
+immutable string PAGE_COFE =
+`
+    ) ) )
+   ( ( (
+   _____
+ _|     |
+/ |     |
+\_|     |
+  |_____|
+`;
 
 immutable string STDIN_NAME = "-";
 
@@ -485,14 +496,16 @@ L_ENTRY_HASH:
 	return 0;
 }
 
+// String since also used by getopt
 void showPage(string setting)
 {
 	import core.stdc.stdlib : exit;
 	switch (setting)
 	{
 	case "ver": writeln(PROJECT_VERSION); break;
-	case "version": writeln(TEXT_VERSION); break;
-	case "license": writeln(TEXT_LICENSE); break;
+	case "version": writeln(PAGE_VERSION); break;
+	case "license": writeln(PAGE_LICENSE); break;
+	case "cofe": writeln(PAGE_COFE); break;
 	default: assert(0);
 	}
 	exit(0);
@@ -508,8 +521,7 @@ int main(string[] args)
 	const size_t argc = args.length;
 	Settings settings;	/// CLI arguments
 	GetoptResult res = void;
-	bool bsd;
-	bool sri;
+	bool bsd, sri;
 	
 	try
 	{
@@ -541,7 +553,7 @@ int main(string[] args)
 	if (res.helpWanted)
 	{
 L_HELP:
-		writeln(TEXT_HELP);
+		writeln(PAGE_HELP);
 		foreach (Option opt; res.options)
 		{
 			with (opt) if (optShort)
@@ -549,6 +561,7 @@ L_HELP:
 			else
 				writefln("    %-12s  %s", optLong, help);
 		}
+		writeln("\nThis program has actual coffee-making abilities.");
 		return 0;
 	}
 	
@@ -580,16 +593,10 @@ L_HELP:
 			foreach (meta; meta_info)
 				printMeta(meta.basename, meta.name, meta.tagname);
 			return 0;
-		case "ver":
-			showPage("ver");
-			return 0;
 		case "help":
 			goto L_HELP;
-		case "version":
-			showPage("version");
-			return 0;
-		case "license":
-			showPage("license");
+		case "ver", "version", "license", "cofe":
+			showPage(action);
 			return 0;
 		default:
 			return printError("Unknown action '%s'", action);
