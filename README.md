@@ -11,9 +11,9 @@ and comes with more features than built-in OS utilities.
 | Text mode | ✔️ | ✔️ | | |
 | Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
-| GNU-style checksums | ✔️ | ✔️ | | |
-| GNU-style checksums | ✔️ | ✔️ | | |
-| SRI-style checksums | ✔️ | | | |
+| GNU-style checksums/hashes | ✔️ | ✔️ | | |
+| BSD-style checksums/hashes | ✔️ | ✔️ | | |
+| SRI-style checksums/hashes | ✔️ | | | |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 
