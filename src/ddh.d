@@ -9,7 +9,7 @@ module ddh;
 
 private import std.digest;
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
-private import sha3d.sha3;
+private import sha3d;
 
 enum HashType
 {
