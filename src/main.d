@@ -86,7 +86,7 @@ immutable string STDIN_NAME = "-";
 struct Settings
 {
 	EntryMethod method;
-	DDH_T ddh;
+	Ddh hasher;
 	ubyte[] rawHash;
 	string listPath;
 	size_t bufferSize = DEFAULT_CHUNK_SIZE;
@@ -97,10 +97,9 @@ struct Settings
 	
 	int function(ref Settings, string) hash = &hashFile;
 	
-	int select(DDHType type)
+	int select(HashType type)
 	{
-		if (ddh_init(ddh, type))
-			return 2;
+		hasher.initiate(type);
 		return 0;
 	}
 	
@@ -159,8 +158,8 @@ struct Settings
 	}
 }
 
-char[] getString(ref Settings settings) {
-	return ddh_string(settings.ddh);
+const(char)[] getString(ref Settings settings) {
+	return settings.hasher.toDigest();
 }
 
 version (Trace)
@@ -191,12 +190,12 @@ void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
 		writefln(fmt, file);
 		break;
 	case bsd:
-		write(meta_info[settings.ddh.type].tagname, '(');
+		write(settings.hasher.tagName(), '(');
 		writef(fmt, file);
 		writeln(")= ", getString(settings));
 		break;
 	case sri:
-		write(meta_info[settings.ddh.type].basename, '-', Base64.encode(settings.rawHash));
+		write(settings.hasher.aliasName(), '-', Base64.encode(settings.rawHash));
 		break;
 	}
 }
@@ -282,10 +281,10 @@ int hashFile(ref Settings settings, ref File file)
 	try
 	{
 		foreach (ubyte[] chunk; file.byChunk(settings.bufferSize))
-			ddh_compute(settings.ddh, chunk);
+			settings.hasher.put(chunk);
 		
-		settings.rawHash = ddh_finish(settings.ddh);
-		ddh_reset(settings.ddh);
+		settings.rawHash = settings.hasher.finish();
+		settings.hasher.reset();
 		return 0;
 	}
 	catch (Exception ex)
@@ -313,16 +312,16 @@ int hashMmfile(ref Settings settings, string path)
 			{
 				const ulong climit = flen - settings.bufferSize;
 				for (; start < climit; start += settings.bufferSize)
-					ddh_compute(settings.ddh,
+					settings.hasher.put(
 						cast(ubyte[])mmfile[start..start + settings.bufferSize]);
 			}
 			
 			// Compute remaining
-			ddh_compute(settings.ddh, cast(ubyte[])mmfile[start..flen]);
+			settings.hasher.put(cast(ubyte[])mmfile[start..flen]);
 		}
 		
-		settings.rawHash = ddh_finish(settings.ddh);
-		ddh_reset(settings.ddh);
+		settings.rawHash = settings.hasher.finish();
+		settings.hasher.reset();
 		return 0;
 	}
 	catch (Exception ex)
@@ -341,9 +340,9 @@ int hashText(ref Settings settings, string text)
 	
 	try
 	{
-		ddh_compute(settings.ddh, cast(ubyte[])text);
-		settings.rawHash = ddh_finish(settings.ddh);
-		ddh_reset(settings.ddh);
+		settings.hasher.put(cast(ubyte[])text);
+		settings.rawHash = settings.hasher.finish();
+		settings.hasher.reset();
 		return 0;
 	}
 	catch (Exception ex)
@@ -405,7 +404,7 @@ int entryList(ref Settings settings, string listPath)
 	version (Trace) trace("list=%s", listPath);
 	
 	/// Number of characters the hash string.
-	size_t hashsize = ddh_digest_size(settings.ddh) << 1;
+	size_t hashSize = settings.hasher.length() << 1;
 	/// Minimum line length (hash + 1 spaces).
 	// Example: abcd1234  file.txt
 	uint currentLine, statMismatch, statErrors;
@@ -450,9 +449,9 @@ int entryList(ref Settings settings, string listPath)
 				
 				lastHash = hash;
 				
-				foreach (DDHInfo info ; meta_info)
+				foreach (HashInfo info ; hashInfo)
 				{
-					if (info.tagname == hash)
+					if (hash == info.tagName)
 					{
 						settings.select(info.type);
 						goto L_ENTRY_HASH;
@@ -571,14 +570,14 @@ L_HELP:
 	}
 	
 	string action = args[1];
-	DDHType type = cast(DDHType)-1;
+	HashType type = cast(HashType)-1;
 	
 	// Aliases for hashes and checksums
-	foreach (meta; meta_info)
+	foreach (info; hashInfo)
 	{
-		if (meta.basename == action)
+		if (action == info.aliasName)
 		{
-			type = meta.type;
+			type = info.type;
 			break;
 		}
 	}
@@ -590,8 +589,8 @@ L_HELP:
 		{
 		case "list":
 			printMeta("Alias", "Name", "Tag");
-			foreach (meta; meta_info)
-				printMeta(meta.basename, meta.name, meta.tagname);
+			foreach (info; hashInfo)
+				printMeta(info.fullName, info.aliasName, info.tagName);
 			return 0;
 		case "help":
 			goto L_HELP;
