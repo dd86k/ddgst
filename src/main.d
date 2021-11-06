@@ -19,7 +19,7 @@ import ddh;
 
 private:
 
-enum PROJECT_VERSION = "1.1.0";
+enum PROJECT_VERSION = "1.2.0";
 enum PROJECT_NAME    = "ddh";
 enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
 enum EntryMethod { file, text, list }
