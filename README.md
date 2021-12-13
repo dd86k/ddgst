@@ -11,9 +11,9 @@ and comes with more features than built-in OS utilities.
 | Text mode | ✔️ | ✔️ | | |
 | Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
 | FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
-| GNU-style checksums/hashes | ✔️ | ✔️ | | |
-| BSD-style checksums/hashes | ✔️ | ✔️ | | |
-| SRI-style checksums/hashes | ✔️ | | | |
+| GNU style hashes | ✔️ | ✔️ | | |
+| BSD style hashes | ✔️ | ✔️ | | |
+| SRI style hashes | ✔️ | | | |
 | Memory-mapped file support | ✔️ | | | |
 | Standard Input support | ✔️ | ✔️ | ✔️ | |
 
@@ -38,22 +38,26 @@ and comes with more features than built-in OS utilities.
 
 # Usage
 
-Typical usage looks like this: `ddh md5 LICENSE`
-- `ddh`: Command;
-- `md5`: Select MD-5;
-- `LICENSE`: File.
+Format: `ddh HASH [OPTIONS...] FILE[...]`
 
 With no arguments, the help page is shown.
 
-To get a list of options available, use the `--help` argument.
+For a list of options available, use the `--help` argument.
 
-To get a list of supported checksums and hashes, use the `list` command.
+For a list of supported checksums and hashes, use the `list` command.
+
+## Example
+
+```
+$ ddh md5 LICENSE
+1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
+```
 
 ## Hash styles
 
 | Style | Example |
 |---|---|
-| GNU (default) | `1d267ceb3a8d8f75f1be3011ee4cbf53` |
+| GNU (default) | `1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE` |
 | BSD (`--tag`) | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
 | SRI (`--sri`) | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
 
