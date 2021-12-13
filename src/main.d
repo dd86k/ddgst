@@ -35,7 +35,10 @@ debug enum BUILD_TYPE = "-debug";
 else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
-PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (`~__TIMESTAMP__~`)
+PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+No Copyrights
+License: Unlicense
+Homepage: <https://git.dd86k.space/dd86k/ddh>
 Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
@@ -169,17 +172,17 @@ void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 	writefln(fmt, args);
 }
 
-int printError(string func = __FUNCTION__, A...)(string fmt, A args)
+int printError(string func = __FUNCTION__, A...)(int code, string fmt, A args)
 {
 	stderr.write(func, ": ");
 	stderr.writefln(fmt, args);
-	return 1;
+	return code;
 }
-int printError(ref Exception ex, string func = __FUNCTION__)
+int printError(int code, ref Exception ex, string func = __FUNCTION__)
 {
 	debug stderr.writeln(ex);
 	else  stderr.writefln("%s: %s", func, ex.msg);
-	return 1;
+	return code;
 }
 void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
 {
@@ -249,9 +252,9 @@ int strtobin(ulong *size, string input) {
 unittest
 {
 	ulong s = void;
-	strtobin(&s, "1K");
+	assert(strtobin(&s, "1K") == 0);
 	assert(s == 1024);
-	strtobin(&s, "1.1K");
+	assert(strtobin(&s, "1.1K") == 0);
 	assert(s == 1024 + 102); // 102.4
 }
 
@@ -273,7 +276,7 @@ int hashFile(ref Settings settings, string path)
 	}
 	catch (Exception ex)
 	{
-		return printError(ex);
+		return printError(6, ex);
 	}
 }
 int hashFile(ref Settings settings, ref File file)
@@ -289,7 +292,7 @@ int hashFile(ref Settings settings, ref File file)
 	}
 	catch (Exception ex)
 	{
-		return printError(ex);
+		return printError(7, ex);
 	}
 }
 int hashMmfile(ref Settings settings, string path)
@@ -326,7 +329,7 @@ int hashMmfile(ref Settings settings, string path)
 	}
 	catch (Exception ex)
 	{
-		return printError(ex);
+		return printError(8, ex);
 	}
 }
 int hashStdin(ref Settings settings, string)
@@ -347,7 +350,7 @@ int hashText(ref Settings settings, string text)
 	}
 	catch (Exception ex)
 	{
-		return printError(ex);
+		return printError(9, ex);
 	}
 }
 
@@ -366,7 +369,7 @@ int entryFile(ref Settings settings, string path)
 		++count;
 		if (entry.isDir)
 		{
-			printError("'%s': Is a directory", file);
+			printError(5, "'%s': Is a directory", file);
 			continue;
 		}
 		if (settings.hash(settings, file))
@@ -376,7 +379,7 @@ int entryFile(ref Settings settings, string path)
 		printResult(settings, file);
 	}
 	if (count == 0)
-		printError("'%s': No such file", name);
+		return printError(6, "'%s': No such file", name);
 	return 0;
 }
 int entryStdin(ref Settings settings)
@@ -414,7 +417,7 @@ int entryList(ref Settings settings, string listPath)
 		string text = readText(listPath);
 	
 		if (text.length == 0)
-			return printError("File '%s' is empty", listPath);
+			return printError(10, "File '%s' is empty", listPath);
 		
 		string file = void, result = void, hash = void, lastHash;
 		foreach (string line; lineSplitter(text)) // doesn't allocate
@@ -431,7 +434,7 @@ int entryList(ref Settings settings, string listPath)
 				if (formattedRead(line, "%s %s", result, file) != 2)
 				{
 					++statErrors;
-					printError("Formatting error at line %u", currentLine);
+					printError(11, "Formatting error at line %u", currentLine);
 					continue;
 				}
 				break;
@@ -440,7 +443,7 @@ int entryList(ref Settings settings, string listPath)
 				if (formattedRead(line, "%s(%s) = %s", hash, file, result) != 3)
 				{
 					++statErrors;
-					printError("Formatting error at line %u", currentLine);
+					printError(12, "Formatting error at line %u", currentLine);
 					continue;
 				}
 				
@@ -458,7 +461,7 @@ int entryList(ref Settings settings, string listPath)
 					}
 				}
 				
-				printError("Hash tag not found at line %u", currentLine);
+				printError(13, "Hash tag not found at line %u", currentLine);
 				continue;
 			case sri:
 				throw new Exception("SRI is not supported in file checks");
@@ -486,11 +489,11 @@ L_ENTRY_HASH:
 	}
 	catch (Exception ex)
 	{
-		return printError(ex);
+		return printError(15, ex);
 	}
 	
 	if (statErrors || statMismatch)
-		printError("%u mismatches, %u not read", statMismatch, statErrors);
+		return printError(0, "%u mismatches, %u not read", statMismatch, statErrors);
 	
 	return 0;
 }
@@ -546,7 +549,7 @@ int main(string[] args)
 	}
 	catch (Exception ex)
 	{
-		return printError(ex);
+		return printError(1, ex);
 	}
 	
 	if (res.helpWanted)
@@ -598,14 +601,13 @@ L_HELP:
 			showPage(action);
 			return 0;
 		default:
-			return printError("Unknown action '%s'", action);
+			return printError(1, "Unknown action '%s'", action);
 		}
 	}
 	
 	if (settings.select(type))
 	{
-		printError("Couldn't initiate hash module");
-		return 2;
+		return printError(2, "Couldn't initiate hash module");
 	}
 	
 	if (argc < 3)
