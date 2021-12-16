@@ -42,10 +42,18 @@ Homepage: <https://git.dd86k.space/dd86k/ddh>
 Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
-`Usage:
-  ddh page
-  ddh alias [options...] [{file|-}...]
-`;
+`
+ddh - 
+Usage:
+  ddh command [options...] [{file|-}...]
+
+Commands
+list     List all supported hashes and checksums.
+help     This help page and exit.
+ver      Only show version number and exit.
+version  Show version page and exit.
+
+Options`;
 
 immutable string PAGE_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -88,7 +96,6 @@ immutable string STDIN_NAME = "-";
 
 struct Settings
 {
-	EntryMethod method;
 	Ddh hasher;
 	ubyte[] rawHash;
 	string listPath;
@@ -97,6 +104,7 @@ struct Settings
 	bool follow = true;
 	bool textMode;
 	TagType type;
+	EntryMethod method;
 	
 	int function(ref Settings, string) hash = &hashFile;
 	
