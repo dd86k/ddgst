@@ -593,7 +593,7 @@ L_HELP:
 		case "list":
 			printMeta("Alias", "Name", "Tag");
 			foreach (info; hashInfo)
-				printMeta(info.fullName, info.aliasName, info.tagName);
+				printMeta(info.aliasName, info.fullName, info.tagName);
 			return 0;
 		case "help":
 			goto L_HELP;
