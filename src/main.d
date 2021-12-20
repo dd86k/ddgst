@@ -40,7 +40,8 @@ Using sha3-d 1.2.1
 No Copyrights
 License: Unlicense
 Homepage: <https://github.com/dd86k/ddh>
-Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
+Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor)~
+"\n";
 
 immutable string PAGE_HELP =
 `Usage: ddh command [options...] [files...] [-]
@@ -79,18 +80,19 @@ OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
-For more information, please refer to <http://unlicense.org/>`;
+For more information, please refer to <http://unlicense.org/>.
+`;
 
 immutable string PAGE_COFE =
-`
-    ) ) )
-   ( ( (
-   _____
- _|     |
-/ |     |
-\_|     |
-  |_____|
-`;
+q"SECRET
+      ) ) )
+     ( ( (
+    .......
+   _|     |
+  / |     |
+  \_|     |
+    `-----'
+SECRET";
 
 immutable string STDIN_NAME = "-";
 
@@ -505,18 +507,19 @@ L_ENTRY_HASH:
 	return 0;
 }
 
-// String since also used by getopt
-void showPage(string setting)
+// String for getopt
+void showPage(string page)
 {
 	import core.stdc.stdlib : exit;
-	switch (setting)
+	switch (page)
 	{
-	case "ver": writeln(PROJECT_VERSION); break;
-	case "version": writeln(PAGE_VERSION); break;
-	case "license": writeln(PAGE_LICENSE); break;
-	case "cofe": writeln(PAGE_COFE); break;
+	case "ver": page = PROJECT_VERSION; break;
+	case "version": page = PAGE_VERSION; break;
+	case "license": page = PAGE_LICENSE; break;
+	case "cofe": page = PAGE_COFE; break;
 	default: assert(0);
 	}
+	write(page);
 	exit(0);
 }
 
