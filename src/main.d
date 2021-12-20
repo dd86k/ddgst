@@ -43,18 +43,17 @@ Homepage: <https://github.com/dd86k/ddh>
 Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
-`
-ddh - 
-Usage:
-  ddh command [options...] [{file|-}...]
+`Usage: ddh command [options...] [files...] [-]
 
 Commands
-list     List all supported hashes and checksums.
-help     This help page and exit.
-ver      Only show version number and exit.
-version  Show version page and exit.
+list      List all supported hashes and checksums.
+help      This help page and exit.
+ver       Only show version number and exit.
+version   Show version page and exit.
 
-Options`;
+Options
+--                Stop processing options.
+-                 Input mode: Standard input (stdin).`;
 
 immutable string PAGE_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -536,23 +535,23 @@ int main(string[] args)
 	try
 	{
 		res = getopt(args, config.caseInsensitive, config.passThrough,
-		"F|file",     "Input mode: Regular file (default)", &settings.setEntryMode,
-		"b|binary",   "File: Set binary mode (default)", &settings.setFileModeText,
-		"t|text",     "File: Set text mode", &settings.setFileModeBinary,
-		"M|mmfile",   "Input mode: Memory-map file", &settings.setEntryMode,
-		"a|arg",      "Input mode: Command-line argument text, as UTF-8", &settings.setEntryMode,
-		"c|check",    "Check hashes list in this file", &settings.setEntryMode,
-		"C|chunk",    "Set buffer size, affects file/mmfile/stdin (default=64K)", &settings.setBufferSize,
-		"shallow",    "Depth: Same directory (default)", &settings.setSpanMode,
-		"s|depth",    "Depth: Deepest directories first", &settings.setSpanMode,
-		"breadth",    "Depth: Sub directories first", &settings.setSpanMode,
-		"follow",     "Links: Follow symbolic links (default)", &settings.setFollow,
-		"nofollow",   "Links: Do not follow symbolic links", &settings.setNofollow,
-		"tag",        "Create or read BSD-style hashes", &bsd,
-		"sri",        "Create or read SRI-style hashes", &sri,
-		"version",    "Show version page and quit", &showPage,
-		"ver",        "Show version and quit", &showPage,
-		"license",    "Show license page and quit", &showPage,
+		"F|file",     "Input mode: Regular file (default).", &settings.setEntryMode,
+		"b|binary",   "File: Set binary mode (default).", &settings.setFileModeText,
+		"t|text",     "File: Set text mode.", &settings.setFileModeBinary,
+		"M|mmfile",   "Input mode: Memory-map file.", &settings.setEntryMode,
+		"a|arg",      "Input mode: Command-line argument is text data (UTF-8).", &settings.setEntryMode,
+		"c|check",    "Check hashes list in this file.", &settings.setEntryMode,
+		"C|chunk",    "Set buffer size, affects file/mmfile/stdin (default=64K).", &settings.setBufferSize,
+		"shallow",    "Depth: Same directory (default).", &settings.setSpanMode,
+		"s|depth",    "Depth: Deepest directories first.", &settings.setSpanMode,
+		"breadth",    "Depth: Sub directories first.", &settings.setSpanMode,
+		"follow",     "Links: Follow symbolic links (default).", &settings.setFollow,
+		"nofollow",   "Links: Do not follow symbolic links.", &settings.setNofollow,
+		"tag",        "Create or read BSD-style hashes.", &bsd,
+		"sri",        "Create or read SRI-style hashes.", &sri,
+		"version",    "Show version page and quit.", &showPage,
+		"ver",        "Show version and quit.", &showPage,
+		"license",    "Show license page and quit.", &showPage,
 		);
 	}
 	catch (Exception ex)
