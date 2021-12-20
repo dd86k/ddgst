@@ -194,19 +194,18 @@ int printError(int code, ref Exception ex, string func = __FUNCTION__)
 }
 void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
 {
+	enum fmtgnu = fmt ~ "  %s";
+	enum fmtbsd = "%s(" ~ fmt ~ ")= %s";
 	final switch (settings.type) with (TagType)
 	{
 	case gnu:
-		write(getString(settings), "  ");
-		writefln(fmt, file);
+		writefln(fmtgnu, getString(settings), file);
 		break;
 	case bsd:
-		write(settings.hasher.tagName(), '(');
-		writef(fmt, file);
-		writeln(")= ", getString(settings));
+		writefln(fmtbsd, settings.hasher.tagName(), file, getString(settings));
 		break;
 	case sri:
-		write(settings.hasher.aliasName(), '-', Base64.encode(settings.rawHash));
+		writeln(settings.hasher.aliasName(), '-', Base64.encode(settings.rawHash));
 		break;
 	}
 }
