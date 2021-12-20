@@ -39,7 +39,7 @@ PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
 Using sha3-d 1.2.1
 No Copyrights
 License: Unlicense
-Homepage: <https://git.dd86k.space/dd86k/ddh>
+Homepage: <https://github.com/dd86k/ddh>
 Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
