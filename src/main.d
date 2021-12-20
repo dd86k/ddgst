@@ -19,7 +19,7 @@ import ddh;
 
 private:
 
-enum PROJECT_VERSION = "1.2.0";
+enum PROJECT_VERSION = "1.2.1";
 enum PROJECT_NAME    = "ddh";
 enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
 enum EntryMethod { file, text, list }
@@ -36,6 +36,7 @@ else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
 PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+Using sha3-d 1.2.1
 No Copyrights
 License: Unlicense
 Homepage: <https://git.dd86k.space/dd86k/ddh>
