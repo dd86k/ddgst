@@ -184,14 +184,16 @@ void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 
 int printError(string func = __FUNCTION__, A...)(int code, string fmt, A args)
 {
-	stderr.write(func, ": ");
+	stderr.writef("error: (code %d) ", code);
+	debug stderr.write("[", func, "] ");
 	stderr.writefln(fmt, args);
 	return code;
 }
-int printError(int code, ref Exception ex, string func = __FUNCTION__)
+int printError(int code, Exception ex)
 {
+	stderr.writef("error: (code %d) ", code);
 	debug stderr.writeln(ex);
-	else  stderr.writefln("%s: %s", func, ex.msg);
+	else  stderr.writeln(ex.msg);
 	return code;
 }
 void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
