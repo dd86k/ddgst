@@ -118,28 +118,13 @@ struct Ddh
 	
 	const(char)[] toDigest()
 	{
-		import std.format : sformat;
-		
-		__gshared char[HASH_LARGEST_STRING] dgst;
-		
-		ubyte *src = result.ptr;
-		
+		//TODO: Test if endianness messes results with checksums
 		switch (type) with (HashType)
 		{
-		case CRC64ISO, CRC64ECMA:	// 64 bits
-			return sformat(dgst, "%016x", *cast(ulong*)src);
-		case CRC32:	// 32 bits
-			return sformat(dgst, "%08x", *cast(uint*)src);
-		default:	// Of any length
-			const size_t len = hash.length();
-			char  *dst = dgst.ptr;
-			for (size_t i; i < len; ++i) {
-				ubyte v = src[i];
-				dst[1] = fasthexchar(v & 0xF);
-				dst[0] = fasthexchar(v >> 4);
-				dst += 2;
-			}
-			return dgst[0..len << 1];
+		case CRC32, CRC64ISO, CRC64ECMA:
+			return toHexString!(LetterCase.lower, Order.decreasing)(result);
+		default:
+			return toHexString!(LetterCase.lower)(result);
 		}
 	}
 	
@@ -157,12 +142,6 @@ struct Ddh
 	{
 		return hashInfo[type].tagName;
 	}
-}
-
-pragma(inline, true)
-char fasthexchar(ubyte v) nothrow pure @nogc @safe
-{
-	return cast(char)(v <= 9 ? v + 48 : v + 87);
 }
 
 /// 

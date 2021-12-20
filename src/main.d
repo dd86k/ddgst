@@ -120,10 +120,10 @@ struct Settings
 	{
 		final switch (opt)
 		{
-		case "F|file":   hash = &hashFile; break;
-		case "M|mmfile": hash = &hashMmfile; break;
-		case "a|arg":	 method = EntryMethod.text; break;
-		case "c|check":	 method = EntryMethod.list; break;
+		case "F|file":   hash = &hashFile; return;
+		case "M|mmfile": hash = &hashMmfile; return;
+		case "a|arg":	 method = EntryMethod.text; return;
+		case "c|check":	 method = EntryMethod.list; return;
 		}
 	}
 	
@@ -156,7 +156,7 @@ struct Settings
 		{
 		case "s|depth": spanMode = SpanMode.depth; return;
 		case "shallow": spanMode = SpanMode.shallow; return;
-		case "breath": spanMode = SpanMode.breadth; return;
+		case "breath":  spanMode = SpanMode.breadth; return;
 		}
 	}
 	
