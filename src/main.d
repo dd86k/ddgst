@@ -19,7 +19,7 @@ import ddh;
 
 private:
 
-enum PROJECT_VERSION = "1.2.1\n";
+enum PROJECT_VERSION = "1.2.1";
 enum PROJECT_NAME    = "ddh";
 enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
 enum EntryMethod { file, text, list }
@@ -40,8 +40,7 @@ Using sha3-d 1.2.1
 No Copyrights
 License: Unlicense
 Homepage: <https://github.com/dd86k/ddh>
-Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor)~
-"\n";
+Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
 `Usage: ddh command [options...] [files...] [-]
@@ -80,11 +79,11 @@ OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
 ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 OTHER DEALINGS IN THE SOFTWARE.
 
-For more information, please refer to <http://unlicense.org/>.
-`;
+For more information, please refer to <http://unlicense.org/>.`;
 
 immutable string PAGE_COFE =
 q"SECRET
+
       ) ) )
      ( ( (
     .......
@@ -521,7 +520,7 @@ void showPage(string page)
 	case "cofe": page = PAGE_COFE; break;
 	default: assert(0);
 	}
-	write(page);
+	writeln(page);
 	exit(0);
 }
 
