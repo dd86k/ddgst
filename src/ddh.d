@@ -68,9 +68,11 @@ struct Ddh
 	Digest hash;
 	HashType type;
 	ubyte[] result;
+	immutable(HashInfo) *info;
 	
 	int initiate(HashType t)
 	{
+		//TODO: Maybe I can get the .ctor into the table
 		final switch (t) with (HashType)
 		{
 		case CRC32:	hash = new CRC32Digest(); break;
@@ -92,6 +94,7 @@ struct Ddh
 		}
 		
 		type = t;
+		info = &hashInfo[t];
 		
 		return 0;
 	}
@@ -130,17 +133,17 @@ struct Ddh
 	
 	string fullName()
 	{
-		return hashInfo[type].fullName;
+		return info.fullName;
 	}
 	
 	string aliasName()
 	{
-		return hashInfo[type].aliasName;
+		return info.aliasName;
 	}
 	
 	string tagName()
 	{
-		return hashInfo[type].tagName;
+		return info.tagName;
 	}
 }
 
