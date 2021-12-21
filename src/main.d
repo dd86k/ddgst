@@ -28,7 +28,7 @@ enum TagType { gnu, bsd, sri }
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 
-// The DRT CLI is pretty useless
+// Disables the Druntime GC command-line interface
 extern (C) __gshared bool rt_cmdline_enabled = false;
 
 debug enum BUILD_TYPE = "-debug";

@@ -4,15 +4,15 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." If you're missing groff_man.7, install groff. Solid documentation.
 ."
-.TH ddh 1 "September 2021" dd86k "User manual"
+.TH ddh 1 "December 2021" dd86k "User manual"
 .SH NAME
 ddh \(em Generic hasher
 
 .SH SYNOPSIS
 .SY ddh
-.B  {list|ver|help|version|license}
+.B  {list|ver|help|version|license|HASH}
 .SY ddh
-.B  alias
+.B  HASH
 .OP options...
 .B  {files|-}...
 .YS
@@ -23,8 +23,12 @@ is a generic hasher. The main goal of this utility is to centralize
 the various options into one package for multiple systems.
 
 By default, the GNU-style checksums are used. You can use
-.I --tag
+.B --tag
 to switch to the BSD-style checksums. This affects reading lists.
+
+There is also
+.B --sri
+for a Sub-Resource Integrity style hash. This is not supported in lists.
 
 The default entry mode is File for being the best case scenario for
 behaving better on zero-length files, network shares, and on most
@@ -45,12 +49,12 @@ Shows version screen and exit.
 List supported checksum and hash algorithms and exit.
 
 .TP
-.BI ddh \ sha1
+.BI echo\ "test"\ |\ ddh \ sha1
 Use SHA-1 to read from the standard input file handle and digest a result.
 
 .TP
-.BI ddh\ sha1 \ essay.txt
-Use SHA-1 to hash
+.BI ddh\ sha3-256 \ essay.txt
+Use SHA-3-256 to hash
 .I essay.txt
 .R .
 
@@ -159,7 +163,9 @@ Option	Description
 .T&
 lB l.
 _
---tag	Create or read BSD-style checksums.
+--tag	Create or read BSD-style hashes.
+--sri	Create SRI-style hashes.
+-C, --chunk	Set buffer size, affects file/mmfile/stdin (default=64K).
 --	Stop parsing arguments.
 .TE
 
@@ -170,7 +176,8 @@ None for the moment!
 .SH NOTES
 
 UNIX-like shells use their own globbing mechanism. To use the embedded
-globbing mechanism, use '*' or \\*.
+globbing mechanism, use '*' or \\*. You can disable it with the --
+switch.
 
 Release versions of this utility has the druntime GC command-line
 interface disabled.
