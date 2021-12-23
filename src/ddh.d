@@ -40,6 +40,9 @@ struct HashInfo
 	string fullName, aliasName, tagName;
 }
 
+// Full name: Should be based on their full specification name
+// Alias: Should be based on a simple lowercase name. See `openssl dgst -list` for examples.
+// Tag name: Should be based on an full uppercase name. See openssl dgst output for examples.
 immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.CRC32,	"CRC-32", "crc32", "CRC32", },
 	{ HashType.CRC64ISO,	"CRC-64-ISO", "crc64iso", "CRC64ISO", },
@@ -156,8 +159,8 @@ struct Ddh
 	
 	ddh.initiate(HashType.SHA3_256);
 	ddh.put(cast(ubyte[])"abc");
-	assert(ddh.finish() ==
-		cast(ubyte[]) hexString!"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
+	assert(ddh.finish() == cast(ubyte[]) hexString!(
+		"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"));
 	assert(ddh.toDigest() ==
 		"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
 }

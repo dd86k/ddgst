@@ -10,27 +10,24 @@ and comes with more features than built-in OS utilities.
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | | |
 | Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
-| FILE support | ✔️ | ✔️ | ✔️ | ✔️ |
-| GNU style hashes | ✔️ | ✔️ | | |
-| BSD style hashes | ✔️ | ✔️ | | |
-| SRI style hashes | ✔️ | | | |
+| File support | ✔️ | ✔️ | ✔️ | ✔️ |
 | Memory-mapped file support | ✔️ | | | |
-| Standard Input support | ✔️ | ✔️ | ✔️ | |
+| Standard input (stdin) support | ✔️ | ✔️ | ✔️ | |
+| GNU style hashes | ✔️ | ✔️ | | |
+| BSD style hashes | ✔️ | ✔️ | ✔️ | |
+| [SRI style](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hashes | ✔️ | | | |
 
 ## Algorithm Availability
 
 | Checksum or Hash | ddh | GNU coreutils | openssl[^3] | crc32(1)[^1] |
 |---|---|---|---|---|
-| BSD sum | | ✔️ (sum) | | |
-| System V sum | | ✔️ (sum -s) | | |
-| Ethernet CRC | | ✔️ (cksum) | | |
 | CRC-32 | ✔️ | | | ✔️ |
 | CRC-64-ISO | ✔️ | | |
 | CRC-64-ECMA | ✔️ | | |
 | MD5 | ✔️ | ✔️ (md5sum) | ✔️ | |
 | RIPEMD-160 | ✔️ | | ✔️ | |
 | SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | |
-| SHA-2 | ✔️ | ✔️[^4] | ✔️ | |
+| SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | |
 | SHA-3 | ✔️ | | ✔️ | |
 | SHAKE | ✔️ | | ✔️ | |
 | BLAKE2b | ✔️ | ✔️ (b2sum) | ✔️ | |
@@ -130,4 +127,3 @@ dub build -b release-nobounds --compiler=ldc2
 [^1]: From the Perl Archive::ZIP package
 [^2]: All but cksum and sum
 [^3]: See `dgst` command
-[^4]: sha224sum, sha256sum, sha384sum, sha512sum
