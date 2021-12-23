@@ -9,7 +9,7 @@ module ddh;
 
 private import std.digest;
 private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
-private import sha3d;
+private import sha3d, blake2d;
 
 enum HashType
 {
@@ -29,7 +29,10 @@ enum HashType
 	SHA3_512,
 	SHAKE128,
 	SHAKE256,
+	BLAKE2b512,
+	BLAKE2s256,
 }
+enum HashCount = HashType.max + 1;
 
 struct HashInfo
 {
@@ -37,7 +40,7 @@ struct HashInfo
 	string fullName, aliasName, tagName;
 }
 
-immutable HashInfo[16] hashInfo = [
+immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.CRC32,	"CRC-32", "crc32", "CRC32", },
 	{ HashType.CRC64ISO,	"CRC-64-ISO", "crc64iso", "CRC64ISO", },
 	{ HashType.CRC64ECMA,	"CRC-64-ECMA", "crc64ecma", "CRC64ECMA", },
@@ -54,6 +57,8 @@ immutable HashInfo[16] hashInfo = [
 	{ HashType.SHA3_512,	"SHA-3-512", "sha3-512", "SHA3_512", },
 	{ HashType.SHAKE128,	"SHAKE-128", "shake128", "SHAKE128", },
 	{ HashType.SHAKE256,	"SHAKE-256", "shake256", "SHAKE256", },
+	{ HashType.BLAKE2b512,	"BLAKE2b-512", "blake2b512", "BLAKE2b512", },
+	{ HashType.BLAKE2s256,	"BLAKE2s-256", "blake2s256", "BLAKE2s256", },
 ];
 
 private enum
@@ -91,6 +96,8 @@ struct Ddh
 		case SHA3_512:	hash = new SHA3_512Digest(); break;
 		case SHAKE128:	hash = new SHAKE128Digest(); break;
 		case SHAKE256:	hash = new SHAKE256Digest(); break;
+		case BLAKE2b512:	hash = new BLAKE2b512Digest(); break;
+		case BLAKE2s256:	hash = new BLAKE2s256Digest(); break;
 		}
 		
 		type = t;
@@ -131,20 +138,9 @@ struct Ddh
 		}
 	}
 	
-	string fullName()
-	{
-		return info.fullName;
-	}
-	
-	string aliasName()
-	{
-		return info.aliasName;
-	}
-	
-	string tagName()
-	{
-		return info.tagName;
-	}
+	string fullName()  { return info.fullName; }
+	string aliasName() { return info.aliasName; }
+	string tagName()   { return info.tagName; }
 }
 
 /// 

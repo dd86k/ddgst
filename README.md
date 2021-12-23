@@ -33,7 +33,8 @@ and comes with more features than built-in OS utilities.
 | SHA-2 | ✔️ | ✔️[^4] | ✔️ | |
 | SHA-3 | ✔️ | | ✔️ | |
 | SHAKE | ✔️ | | ✔️ | |
-| BLAKE2 | | ✔️ (b2sum) | ✔️ | |
+| BLAKE2b | ✔️ | ✔️ (b2sum) | ✔️ | |
+| BLAKE2s | ✔️ | | ✔️ | |
 | BLAKE3 | | ✔️ (b3sum) | | |
 
 # Usage
