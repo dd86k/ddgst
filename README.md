@@ -1,11 +1,11 @@
-# ddh, Generic hasher
+# ddh, DD's Hashing command utility
 
-ddh is a generic hasher available cross-platform (Windows, macOS, Linux, BSDs)
+ddh is a simple hasher available cross-platform (Windows, macOS, Linux, BSDs)
 and comes with more features than built-in OS utilities.
 
 ## Feature Comparison
 
-| Feature | ddh | GNU coreutils | openssl | crc32(1)[^1] |
+| Feature | ddh | GNU coreutils | OpenSSL | crc32(1)[^1] |
 |---|---|---|---|---|
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | | |
@@ -13,13 +13,13 @@ and comes with more features than built-in OS utilities.
 | File support | ✔️ | ✔️ | ✔️ | ✔️ |
 | Memory-mapped file support | ✔️ | | | |
 | Standard input (stdin) support | ✔️ | ✔️ | ✔️ | |
-| GNU style hashes | ✔️ | ✔️ | | |
+| GNU style hashes | ✔️ | ✔️ | ✔️[^4] | |
 | BSD style hashes | ✔️ | ✔️ | ✔️ | |
-| [SRI style](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hashes | ✔️ | | | |
+| [SRI style](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hashes | ✔️ | [^5] | [^5] | |
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | GNU coreutils | openssl[^3] | crc32(1)[^1] |
+| Checksum or Hash | ddh | GNU coreutils | OpenSSL[^3] | crc32(1)[^1] |
 |---|---|---|---|---|
 | CRC-32 | ✔️ | | | ✔️ |
 | CRC-64-ISO | ✔️ | | |
@@ -127,3 +127,5 @@ dub build -b release-nobounds --compiler=ldc2
 [^1]: From the Perl Archive::ZIP package
 [^2]: All but cksum and sum
 [^3]: See `dgst` command
+[^4]: For unknown reasons, openssl prepends filenames with `*`
+[^5]: Possible to do with a [chain of commands](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity#tools_for_generating_sri_hashes), but good luck remembering them.
