@@ -130,4 +130,4 @@ dub build -b release-nobounds --compiler=ldc2
 [^4]: For unknown reasons, openssl prepends filenames with `*`
 [^5]: Possible to do with a [chain of commands](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity#tools_for_generating_sri_hashes), but good luck remembering them.
 [^6]: Turns out there is a b3sum, but that's coming from the official BLAKE3 team, not GNU.
-[^7] As of 0.0.8.
+[^7]: As of 0.0.8.
