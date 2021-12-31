@@ -7,9 +7,12 @@
  */
 module ddh;
 
-private import std.digest;
-private import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc;
-private import sha3d, blake2d;
+import std.digest;
+import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc, std.digest.murmurhash;
+import sha3d, blake2d;
+
+private alias MurmurHash3_32Digest = WrapperDigest!(MurmurHash3!32);
+private alias MurmurHash3_128Digest = WrapperDigest!(MurmurHash3!(128, 64));
 
 enum HashType
 {
@@ -31,6 +34,8 @@ enum HashType
 	SHAKE256,
 	BLAKE2b512,
 	BLAKE2s256,
+	MurMurHash3_32,
+	MurMurHash3_128,
 }
 enum HashCount = HashType.max + 1;
 
@@ -62,6 +67,8 @@ immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.SHAKE256,	"SHAKE-256", "shake256", "SHAKE-256", },
 	{ HashType.BLAKE2b512,	"BLAKE2b-512", "blake2b512", "BLAKE2B-512", },
 	{ HashType.BLAKE2s256,	"BLAKE2s-256", "blake2s256", "BLAKE2S-256", },
+	{ HashType.MurMurHash3_32,	"MurmurHash3-32",  "murmurhash3-32",  "MURMURHASH3-32", },
+	{ HashType.MurMurHash3_128,	"MurmurHash3-128", "murmurhash3-128", "MURMURHASH3-128", },
 ];
 
 private enum
@@ -77,6 +84,7 @@ struct Ddh
 	HashType type;
 	ubyte[] result;
 	immutable(HashInfo) *info;
+	bool checksum;
 	
 	int initiate(HashType t)
 	{
@@ -101,10 +109,13 @@ struct Ddh
 		case SHAKE256:	hash = new SHAKE256Digest(); break;
 		case BLAKE2b512:	hash = new BLAKE2b512Digest(); break;
 		case BLAKE2s256:	hash = new BLAKE2s256Digest(); break;
+		case MurMurHash3_32:	hash = new MurmurHash3_32Digest(); break;
+		case MurMurHash3_128:	hash = new MurmurHash3_128Digest(); break;
 		}
 		
 		type = t;
 		info = &hashInfo[t];
+		checksum = t < HashType.MD5;
 		
 		return 0;
 	}
@@ -132,13 +143,9 @@ struct Ddh
 	const(char)[] toDigest()
 	{
 		//TODO: Test if endianness messes results with checksums
-		switch (type) with (HashType)
-		{
-		case CRC32, CRC64ISO, CRC64ECMA:
-			return toHexString!(LetterCase.lower, Order.decreasing)(result);
-		default:
-			return toHexString!(LetterCase.lower)(result);
-		}
+		return checksum ?
+			toHexString!(LetterCase.lower, Order.decreasing)(result) :
+			toHexString!(LetterCase.lower)(result);
 	}
 	
 	string fullName()  { return info.fullName; }

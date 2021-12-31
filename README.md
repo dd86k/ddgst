@@ -15,7 +15,7 @@ and comes with more features than built-in OS utilities.
 | Standard input (stdin) support | ✔️ | ✔️ | ✔️ | ✔️ | |
 | GNU style hashes | ✔️ | ✔️ | ✔️[^4] | ✔️ | |
 | BSD style hashes | ✔️ | ✔️ | ✔️ | ✔️ | |
-| [SRI style](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) hashes | ✔️ | [^5] | [^5] | [^5] | |
+| [SRI style hashes](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) | ✔️ | [^5] | [^5] | [^5] | |
 
 ## Algorithm Availability
 
@@ -33,6 +33,7 @@ and comes with more features than built-in OS utilities.
 | BLAKE2b | ✔️ | ✔️ (b2sum) | | ✔️ | |
 | BLAKE2s | ✔️ | | | ✔️ | |
 | BLAKE3 | | [^6] | | | | |
+| MurmurHash3 | ✔️ | | | | | |
 
 # Usage
 
@@ -63,7 +64,7 @@ $ ddh md5 LICENSE
 
 To use the standard input (stdin) method, either:
 - Omit the third parameter (e.g., `ddh md5`);
-- Or use the `-` character (e.g., `ddh md5 -`).
+- Or use the `-` switch (e.g., `ddh md5 -`).
 
 ## File Pattern Globbing (`*` vs. `'*'`)
 
@@ -124,10 +125,10 @@ Release recommendation with the LDC compiler:
 dub build -b release-nobounds --compiler=ldc2
 ```
 
-[^1]: From the Perl Archive::ZIP package
-[^2]: All but cksum and sum
-[^3]: See `dgst` command
-[^4]: For unknown reasons, openssl prepends filenames with `*`
+[^1]: From the Perl Archive::ZIP package.
+[^2]: All but cksum and sum.
+[^3]: See `dgst` command.
+[^4]: For unknown reasons, openssl prepends filenames with `*`.
 [^5]: Possible to do with a [chain of commands](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity#tools_for_generating_sri_hashes), but good luck remembering them.
 [^6]: Turns out there is a b3sum, but that's coming from the official BLAKE3 team, not GNU.
 [^7]: As of 0.0.8.

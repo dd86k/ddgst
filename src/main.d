@@ -81,8 +81,7 @@ OTHER DEALINGS IN THE SOFTWARE.
 
 For more information, please refer to <http://unlicense.org/>.`;
 
-immutable string PAGE_COFE =
-q"SECRET
+immutable string PAGE_COFE = q"SECRET
 
       ) ) )
      ( ( (
@@ -526,7 +525,7 @@ void showPage(string page)
 
 void printMeta(string baseName, string name, string tagName)
 {
-	writefln("%-12s  %-12s  %s", baseName, name, tagName);
+	writefln("%-18s  %-18s  %s", baseName, name, tagName);
 }
 
 int main(string[] args)
