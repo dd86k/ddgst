@@ -485,7 +485,8 @@ L_ENTRY_HASH:
 			
 			version (Trace) trace("r1=%s r2=%s", settings.result, result);
 			
-			if (getString(settings) != result)
+			import std.digest : secureEqual;
+			if (secureEqual(settings.getString, result) == false)
 			{
 				++statMismatch;
 				writeln(file, ": FAILED");
