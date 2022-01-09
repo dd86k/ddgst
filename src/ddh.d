@@ -10,6 +10,7 @@ module ddh;
 import std.digest;
 import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc, std.digest.murmurhash;
 import sha3d, blake2d;
+import std.base64;
 
 private alias MurmurHash3_32Digest = WrapperDigest!(MurmurHash3!32);
 private alias MurmurHash3_128Digest = WrapperDigest!(MurmurHash3!(128, 64));
@@ -140,12 +141,17 @@ struct Ddh
 		return (result = hash.finish());
 	}
 	
-	const(char)[] toDigest()
+	const(char)[] toHex()
 	{
 		//TODO: Test if endianness messes results with checksums
 		return checksum ?
 			toHexString!(LetterCase.lower, Order.decreasing)(result) :
 			toHexString!(LetterCase.lower)(result);
+	}
+	
+	const(char)[] toBase64()
+	{
+		return Base64.encode(result);
 	}
 	
 	string fullName()  { return info.fullName; }

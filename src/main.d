@@ -14,7 +14,6 @@ import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
-import std.base64;
 import ddh;
 
 private:
@@ -169,10 +168,6 @@ struct Settings
 	}
 }
 
-const(char)[] getString(ref Settings settings) {
-	return settings.hasher.toDigest();
-}
-
 version (Trace)
 void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 {
@@ -201,13 +196,13 @@ void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
 	final switch (settings.type) with (TagType)
 	{
 	case gnu:
-		writefln(fmtgnu, getString(settings), file);
+		writefln(fmtgnu, settings.hasher.toHex, file);
 		break;
 	case bsd:
-		writefln(fmtbsd, settings.hasher.tagName(), file, getString(settings));
+		writefln(fmtbsd, settings.hasher.tagName(), file, settings.hasher.toHex);
 		break;
 	case sri:
-		writeln(settings.hasher.aliasName(), '-', Base64.encode(settings.rawHash));
+		writeln(settings.hasher.aliasName(), '-', settings.hasher.toBase64);
 		break;
 	}
 }
@@ -486,7 +481,7 @@ L_ENTRY_HASH:
 			version (Trace) trace("r1=%s r2=%s", settings.result, result);
 			
 			import std.digest : secureEqual;
-			if (secureEqual(settings.getString, result) == false)
+			if (secureEqual(settings.hasher.toHex, result) == false)
 			{
 				++statMismatch;
 				writeln(file, ": FAILED");
@@ -495,7 +490,6 @@ L_ENTRY_HASH:
 			
 			writeln(file, ": OK");
 		}
-		
 	}
 	catch (Exception ex)
 	{
