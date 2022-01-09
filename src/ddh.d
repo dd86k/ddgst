@@ -168,12 +168,12 @@ struct Ddh
 	ddh.initiate(HashType.CRC32);
 	ddh.put(cast(ubyte[])"abc");
 	assert(ddh.finish() == cast(ubyte[]) hexString!"c2412435");
-	assert(ddh.toDigest() == "352441c2");
+	assert(ddh.toHex() == "352441c2");
 	
 	ddh.initiate(HashType.SHA3_256);
 	ddh.put(cast(ubyte[])"abc");
 	assert(ddh.finish() == cast(ubyte[]) hexString!(
 		"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"));
-	assert(ddh.toDigest() ==
+	assert(ddh.toHex() ==
 		"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
 }
