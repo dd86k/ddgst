@@ -35,7 +35,7 @@ else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
 PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
-Using sha3-d 1.2.1, blake2-d 0.1.0
+Using sha3-d 1.2.1, blake2-d 0.2.0
 No Copyrights
 License: Unlicense
 Homepage: <https://github.com/dd86k/ddh>
