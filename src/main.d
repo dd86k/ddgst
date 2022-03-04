@@ -262,6 +262,12 @@ unittest
 	assert(s == 1024 + 102); // 102.4
 }
 
+bool compareHash(const(char)[] h1, const(char)[] h2) {
+	import std.digest : secureEqual;
+	import std.uni : asLowerCase;
+	return secureEqual(h1.asLowerCase, h2.asLowerCase);
+}
+
 int hashFile(ref Settings settings, string path)
 {
 	version (Trace) trace("path=%s", path);
@@ -480,8 +486,7 @@ L_ENTRY_HASH:
 			
 			version (Trace) trace("r1=%s r2=%s", settings.result, result);
 			
-			import std.digest : secureEqual;
-			if (secureEqual(settings.hasher.toHex, result) == false)
+			if (compareHash(settings.hasher.toHex, result) == false)
 			{
 				++statMismatch;
 				writeln(file, ": FAILED");
