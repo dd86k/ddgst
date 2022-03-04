@@ -240,14 +240,9 @@ int strtobin(ulong *size, string input) {
 	default: return 4;
 	}
 	
-	// limit
-	version (D_LP64) {
-		if (u > (4L * G))
-			return 5;
-	} else {
-		if (u > (2 * G))
-			return 5;
-	}
+	enum LIMIT = 2 * G; /// Buffer read limit
+	if (u > LIMIT)
+		return 5;
 	
 	*size = u;
 	return 0;
@@ -279,7 +274,10 @@ int hashFile(ref Settings settings, string path)
 		f.open(path, settings.textMode ? "r" : "rb");
 		
 		if (f.size())
-			hashFile(settings, f);
+		{
+			int e = hashFile(settings, f);
+			if (e) return e;
+		}
 		
 		f.close();
 		return 0;
@@ -532,29 +530,29 @@ int main(string[] args)
 {
 	const size_t argc = args.length;
 	Settings settings;	/// CLI arguments
-	GetoptResult res = void;
 	bool bsd, sri;
 	
+	GetoptResult res = void;
 	try
 	{
 		res = getopt(args, config.caseInsensitive, config.passThrough,
-		"F|file",     "Input mode: Regular file (default).", &settings.setEntryMode,
-		"b|binary",   "File: Set binary mode (default).", &settings.setFileModeText,
-		"t|text",     "File: Set text mode.", &settings.setFileModeBinary,
-		"M|mmfile",   "Input mode: Memory-map file.", &settings.setEntryMode,
-		"a|arg",      "Input mode: Command-line argument is text data (UTF-8).", &settings.setEntryMode,
-		"c|check",    "Check hashes list in this file.", &settings.setEntryMode,
-		"C|chunk",    "Set buffer size, affects file/mmfile/stdin (default=64K).", &settings.setBufferSize,
-		"shallow",    "Depth: Same directory (default).", &settings.setSpanMode,
-		"s|depth",    "Depth: Deepest directories first.", &settings.setSpanMode,
-		"breadth",    "Depth: Sub directories first.", &settings.setSpanMode,
-		"follow",     "Links: Follow symbolic links (default).", &settings.setFollow,
-		"nofollow",   "Links: Do not follow symbolic links.", &settings.setNofollow,
-		"tag",        "Create or read BSD-style hashes.", &bsd,
-		"sri",        "Create or read SRI-style hashes.", &sri,
-		"version",    "Show version page and quit.", &showPage,
-		"ver",        "Show version and quit.", &showPage,
-		"license",    "Show license page and quit.", &showPage,
+		"f|file",       "Input mode: Regular file (default).", &settings.setEntryMode,
+		"b|binary",     "File: Set binary mode (default).", &settings.setFileModeText,
+		"t|text",       "File: Set text mode.", &settings.setFileModeBinary,
+		"m|mmfile",     "Input mode: Memory-map file.", &settings.setEntryMode,
+		"a|arg",        "Input mode: Command-line argument is text data (UTF-8).", &settings.setEntryMode,
+		"c|check",      "Check hashes list in this file.", &settings.setEntryMode,
+		"B|buffersize", "Set buffer size, affects file/mmfile/stdin (default=64K).", &settings.setBufferSize,
+		"shallow",      "Depth: Same directory (default).", &settings.setSpanMode,
+		"r|depth",      "Depth: Deepest directories first.", &settings.setSpanMode,
+		"breadth",      "Depth: Sub directories first.", &settings.setSpanMode,
+		"follow",       "Links: Follow symbolic links (default).", &settings.setFollow,
+		"nofollow",     "Links: Do not follow symbolic links.", &settings.setNofollow,
+		"tag",          "Create or read BSD-style hashes.", &bsd,
+		"sri",          "Create or read SRI-style hashes.", &sri,
+		"version",      "Show version page and quit.", &showPage,
+		"ver",          "Show version and quit.", &showPage,
+		"license",      "Show license page and quit.", &showPage,
 		);
 	}
 	catch (Exception ex)
@@ -577,9 +575,10 @@ L_HELP:
 		return 0;
 	}
 	
-	if (argc < 2)
+	if (argc < 2) // Missing hash type or action
 	{
-		goto L_HELP;
+		return printError(1,
+			"Missing hash type or action. Invoke with --help for more information.");
 	}
 	
 	string action = args[1];
@@ -620,6 +619,7 @@ L_HELP:
 		return printError(2, "Couldn't initiate hash module");
 	}
 	
+	//TODO: This should simply be if there are no arguments left in slice
 	if (argc < 3)
 		return entryStdin(settings);
 	
@@ -631,6 +631,7 @@ L_HELP:
 	case text: entry = &entryText; version(Trace) trace("entryText"); break;
 	}
 	
+	//TODO: This really could just be a custom CLI handler
 	if (bsd)
 		settings.type = TagType.bsd;
 	else if (sri)
