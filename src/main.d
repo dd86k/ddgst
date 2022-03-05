@@ -17,9 +17,8 @@ import ddh;
 
 private:
 
-enum PROJECT_VERSION = "1.3.0";
-enum PROJECT_NAME    = "ddh";
-enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
+enum PROJECT_VERSION    = "1.3.0";
+enum DEFAULT_CHUNK_SIZE = 4 * 1024;
 enum TagType { gnu, bsd, sri }
 
 // Leave GC enabled, but avoid cleanup on exit
@@ -32,7 +31,7 @@ debug enum BUILD_TYPE = "-debug";
 else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
-PROJECT_NAME~` `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+`ddh `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
 Using sha3-d 1.2.1, blake2-d 0.2.0
 No Copyrights
 License: Unlicense

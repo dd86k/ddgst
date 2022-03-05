@@ -16,15 +16,18 @@ ddh-test-*
 *.lst
 dub.selections.json
 
+# Compiler-specific
+## LDC2?
+.fuse_*
+## GDC probes
+*.s
+
 # Archives
 *.zip
 *.xz
 *.gz
 *.bzip2
 *.tar
-
-# GDC probes
-*.s
 
 # Personal stuff
 perso
