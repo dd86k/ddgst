@@ -617,7 +617,7 @@ L_HELP:
 		case "help":
 			goto L_HELP;
 		case OPT_VER, OPT_VERSION, OPT_LICENSE, OPT_COFE:
-			showPage(action);
+			option(action);
 			return 0;
 		default:
 			return printError(1, "Unknown action '%s'", action);
