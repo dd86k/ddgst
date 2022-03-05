@@ -17,6 +17,7 @@ private alias MurmurHash3_128Digest = WrapperDigest!(MurmurHash3!(128, 64));
 
 enum HashType
 {
+	none,
 	CRC32,
 	CRC64ISO,
 	CRC64ECMA,
@@ -89,8 +90,7 @@ struct Ddh
 	
 	int initiate(HashType t)
 	{
-		//TODO: Maybe I can get the .ctor into the table
-		final switch (t) with (HashType)
+		switch (t) with (HashType)
 		{
 		case CRC32:	hash = new CRC32Digest(); break;
 		case CRC64ISO:	hash = new CRC64ISODigest(); break;
@@ -112,10 +112,11 @@ struct Ddh
 		case BLAKE2s256:	hash = new BLAKE2s256Digest(); break;
 		case MurMurHash3_32:	hash = new MurmurHash3_32Digest(); break;
 		case MurMurHash3_128:	hash = new MurmurHash3_128Digest(); break;
+		default:
 		}
 		
 		type = t;
-		info = &hashInfo[t];
+		info = &hashInfo[t-1];
 		checksum = t < HashType.MD5;
 		
 		return 0;

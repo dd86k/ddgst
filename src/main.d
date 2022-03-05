@@ -7,7 +7,6 @@
  */
 module main;
 
-import std.conv : text;
 import std.compiler : version_major, version_minor;
 import std.file : dirEntries, DirEntry, SpanMode;
 import std.format : format, formattedRead;
@@ -21,7 +20,6 @@ private:
 enum PROJECT_VERSION = "1.3.0";
 enum PROJECT_NAME    = "ddh";
 enum DEFAULT_CHUNK_SIZE = 64 * 1024; // Seemed the best in benchmarks at least
-enum EntryMethod { file, text, list }
 enum TagType { gnu, bsd, sri }
 
 // Leave GC enabled, but avoid cleanup on exit
@@ -93,6 +91,9 @@ SECRET";
 
 immutable string STDIN_NAME = "-";
 
+immutable string FILE_MODE_TEXT = "r";
+immutable string FILE_MODE_BIN  = "rb";
+
 struct Settings
 {
 	Ddh hasher;
@@ -103,70 +104,19 @@ struct Settings
 	bool follow = true;
 	bool textMode;
 	TagType type;
-	EntryMethod method;
+	string fileMode = FILE_MODE_BIN;
 	
-	int function(ref Settings, string) hash = &hashFile;
+	int function(string) hash = &hashFile;
+	int function(string) process = &processFile;
 	
 	int select(HashType type)
 	{
 		hasher.initiate(type);
 		return 0;
 	}
-	
-	void setEntryMode(string opt)
-	{
-		final switch (opt)
-		{
-		case "F|file":   hash = &hashFile; return;
-		case "M|mmfile": hash = &hashMmfile; return;
-		case "a|arg":	 method = EntryMethod.text; return;
-		case "c|check":	 method = EntryMethod.list; return;
-		}
-	}
-	
-	void setFileModeText()
-	{
-		textMode = true;
-	}
-	
-	void setFileModeBinary()
-	{
-		textMode = false;
-	}
-	
-	void setBufferSize(string, string val)
-	{
-		ulong v = void;
-		if (strtobin(&v, val))
-			throw new GetOptException("Couldn't unformat buffer size");
-		version (D_LP64) {}
-		else {
-			if (v >= uint.max)
-				throw new GetOptException("Buffer size overflows");
-		}
-		bufferSize = cast(size_t)v;
-	}
-	
-	void setSpanMode(string opt)
-	{
-		final switch (opt)
-		{
-		case "s|depth": spanMode = SpanMode.depth; return;
-		case "shallow": spanMode = SpanMode.shallow; return;
-		case "breath":  spanMode = SpanMode.breadth; return;
-		}
-	}
-	
-	void setFollow()
-	{
-		follow = true;
-	}
-	
-	void setNofollow()
-	{
-		follow = false;
-	}
 }
+
+__gshared Settings settings;
 
 version (Trace)
 void trace(string func = __FUNCTION__, A...)(string fmt, A args)
@@ -189,10 +139,12 @@ int printError(int code, Exception ex)
 	else  stderr.writeln(ex.msg);
 	return code;
 }
-void printResult(string fmt = "%s")(ref Settings settings, in char[] file)
+
+void printResult(string fmt = "%s")(in char[] file)
 {
 	enum fmtgnu = fmt ~ "  %s";
 	enum fmtbsd = "%s(" ~ fmt ~ ")= %s";
+	
 	final switch (settings.type) with (TagType)
 	{
 	case gnu:
@@ -263,7 +215,7 @@ bool compareHash(const(char)[] h1, const(char)[] h2) {
 	return secureEqual(h1.asLowerCase, h2.asLowerCase);
 }
 
-int hashFile(ref Settings settings, string path)
+int hashFile(string path)
 {
 	version (Trace) trace("path=%s", path);
 	
@@ -275,7 +227,7 @@ int hashFile(ref Settings settings, string path)
 		
 		if (f.size())
 		{
-			int e = hashFile(settings, f);
+			int e = hashFile(f);
 			if (e) return e;
 		}
 		
@@ -287,7 +239,7 @@ int hashFile(ref Settings settings, string path)
 		return printError(6, ex);
 	}
 }
-int hashFile(ref Settings settings, ref File file)
+int hashFile(ref File file)
 {
 	try
 	{
@@ -303,7 +255,7 @@ int hashFile(ref Settings settings, ref File file)
 		return printError(7, ex);
 	}
 }
-int hashMmfile(ref Settings settings, string path)
+int hashMmfile(string path)
 {
 	import std.typecons : scoped;
 	import std.mmfile : MmFile;
@@ -340,12 +292,12 @@ int hashMmfile(ref Settings settings, string path)
 		return printError(8, ex);
 	}
 }
-int hashStdin(ref Settings settings, string)
+int hashStdin(string)
 {
 	version (Trace) trace("stdin");
-	return hashFile(settings, stdin);
+	return hashFile(stdin);
 }
-int hashText(ref Settings settings, string text)
+int hashText(string text)
 {
 	version (Trace) trace("text='%s'", text);
 	
@@ -362,7 +314,7 @@ int hashText(ref Settings settings, string text)
 	}
 }
 
-int entryFile(ref Settings settings, string path)
+int processFile(string path)
 {
 	version (Trace) trace("path=%s", path);
 	
@@ -380,42 +332,40 @@ int entryFile(ref Settings settings, string path)
 			printError(5, "'%s': Is a directory", file);
 			continue;
 		}
-		if (settings.hash(settings, file))
+		if (settings.hash(file))
 		{
 			continue;
 		}
-		printResult(settings, file);
+		printResult(file);
 	}
 	if (count == 0)
 		return printError(6, "'%s': No such file", name);
 	return 0;
 }
-int entryStdin(ref Settings settings)
+int processStdin()
 {
 	version (Trace) trace("stdin");
-	int e = hashStdin(settings, STDIN_NAME);
+	int e = hashStdin(STDIN_NAME);
 	if (e == 0)
-		printResult(settings, STDIN_NAME);
+		printResult(STDIN_NAME);
 	return e;
 }
-int entryText(ref Settings settings, string text)
+int processText(string text)
 {
 	version (Trace) trace("text='%s'", text);
-	int e = hashText(settings, text);
+	int e = hashText(text);
 	if (e == 0)
-		printResult!`"%s"`(settings, text);
+		printResult!`"%s"`(text);
 	return e;
 }
 
-int entryList(ref Settings settings, string listPath)
+int processList(string listPath)
 {
 	import std.file : readText;
 	import std.string : lineSplitter;
 	
 	version (Trace) trace("list=%s", listPath);
 	
-	/// Number of characters the hash string.
-	size_t hashSize = settings.hasher.length() << 1;
 	/// Minimum line length (hash + 1 spaces).
 	// Example: abcd1234  file.txt
 	uint currentLine, statMismatch, statErrors;
@@ -427,7 +377,7 @@ int entryList(ref Settings settings, string listPath)
 		if (text.length == 0)
 			return printError(10, "File '%s' is empty", listPath);
 		
-		string file = void, result = void, hash = void, lastHash;
+		string file = void, expected = void, hash = void, lastHash;
 		foreach (string line; lineSplitter(text)) // doesn't allocate
 		{
 			++currentLine;
@@ -439,7 +389,7 @@ int entryList(ref Settings settings, string listPath)
 			{
 			case gnu:
 				// Tested to work with one or many spaces
-				if (formattedRead(line, "%s %s", result, file) != 2)
+				if (formattedRead(line, "%s %s", expected, file) != 2)
 				{
 					++statErrors;
 					printError(11, "Formatting error at line %u", currentLine);
@@ -448,7 +398,7 @@ int entryList(ref Settings settings, string listPath)
 				break;
 			case bsd:
 				// Tested to work with and without spaces
-				if (formattedRead(line, "%s(%s) = %s", hash, file, result) != 3)
+				if (formattedRead(line, "%s(%s) = %s", hash, file, expected) != 3)
 				{
 					++statErrors;
 					printError(12, "Formatting error at line %u", currentLine);
@@ -476,15 +426,17 @@ int entryList(ref Settings settings, string listPath)
 			}
 		
 L_ENTRY_HASH:
-			if (settings.hash(settings, file))
+			if (settings.hash(file))
 			{
 				++statErrors;
 				continue;
 			}
 			
-			version (Trace) trace("r1=%s r2=%s", settings.result, result);
+			const(char)[] result = settings.hasher.toHex;
 			
-			if (compareHash(settings.hasher.toHex, result) == false)
+			version (Trace) trace("r1=%s r2=%s", result, expected);
+			
+			if (compareHash(result, expected) == false)
 			{
 				++statMismatch;
 				writeln(file, ": FAILED");
@@ -505,54 +457,112 @@ L_ENTRY_HASH:
 	return 0;
 }
 
-// String for getopt
-void showPage(string page)
-{
-	import core.stdc.stdlib : exit;
-	switch (page)
-	{
-	case "ver": page = PROJECT_VERSION; break;
-	case "version": page = PAGE_VERSION; break;
-	case "license": page = PAGE_LICENSE; break;
-	case "cofe": page = PAGE_COFE; break;
-	default: assert(0);
-	}
-	writeln(page);
-	exit(0);
-}
-
 void printMeta(string baseName, string name, string tagName)
 {
 	writefln("%-18s  %-18s  %s", baseName, name, tagName);
 }
 
+immutable string OPT_FILE	= "f|file";
+immutable string OPT_MMFILE	= "m|mmfile";
+immutable string OPT_ARG	= "a|arg";
+immutable string OPT_CHECK	= "c|check";
+immutable string OPT_TEXT	= "t|text";
+immutable string OPT_BINARY	= "b|binary";
+immutable string OPT_BUFFERSIZE	= "B|buffersize";
+immutable string OPT_GNU	= "gnu";
+immutable string OPT_TAG	= "tag";
+immutable string OPT_SRI	= "sri";
+immutable string OPT_FOLLOW	= "follow";
+immutable string OPT_NOFOLLOW	= "nofollow";
+immutable string OPT_DEPTH	= "r|depth";
+immutable string OPT_SHALLOW	= "shallow";
+immutable string OPT_BREATH	= "breath";
+immutable string OPT_VER	= "ver";
+immutable string OPT_VERSION	= "version";
+immutable string OPT_LICENSE	= "license";
+immutable string OPT_COFE	= "cofe";
+
+void option(string arg)
+{
+	import core.stdc.stdlib : exit;
+	
+	version (Trace) trace(arg);
+	
+	with (settings) final switch (arg)
+	{
+	// input modes
+	case OPT_ARG:   process = &processText; return;
+	case OPT_CHECK: process = &processList; return;
+	// file input mode
+	case OPT_FILE:   hash = &hashFile; return;
+	case OPT_MMFILE: hash = &hashMmfile; return;
+	case OPT_TEXT:   fileMode = FILE_MODE_TEXT; return;
+	case OPT_BINARY: fileMode = FILE_MODE_BIN; return;
+	// hash style
+	case OPT_TAG: type = TagType.bsd; return;
+	case OPT_SRI: type = TagType.sri; return;
+	case OPT_GNU: type = TagType.gnu; return;
+	// globber: symlink
+	case OPT_NOFOLLOW: follow = false; return;
+	case OPT_FOLLOW:   follow = true; return;
+	// globber: directory
+	case OPT_DEPTH:   spanMode = SpanMode.depth; return;
+	case OPT_SHALLOW: spanMode = SpanMode.shallow; return;
+	case OPT_BREATH:  spanMode = SpanMode.breadth; return;
+	// pages
+	case OPT_VER:     arg = PROJECT_VERSION; break;
+	case OPT_VERSION: arg = PAGE_VERSION; break;
+	case OPT_LICENSE: arg = PAGE_LICENSE; break;
+	case OPT_COFE:    arg = PAGE_COFE; break;
+	}
+	writeln(arg);
+	exit(0);
+}
+
+void option2(string arg, string val)
+{
+	with (settings) final switch (arg)
+	{
+	case OPT_BUFFERSIZE:
+		ulong v = void;
+		if (strtobin(&v, val))
+			throw new GetOptException("Couldn't unformat buffer size");
+		version (D_LP64) {}
+		else {
+			if (v >= uint.max)
+				throw new GetOptException("Buffer size overflows");
+		}
+		bufferSize = cast(size_t)v;
+		return;
+	}
+}
+
 int main(string[] args)
 {
-	const size_t argc = args.length;
-	Settings settings;	/// CLI arguments
-	bool bsd, sri;
+//	bool compare;
 	
 	GetoptResult res = void;
 	try
 	{
 		res = getopt(args, config.caseInsensitive, config.passThrough,
-		"f|file",       "Input mode: Regular file (default).", &settings.setEntryMode,
-		"b|binary",     "File: Set binary mode (default).", &settings.setFileModeText,
-		"t|text",       "File: Set text mode.", &settings.setFileModeBinary,
-		"m|mmfile",     "Input mode: Memory-map file.", &settings.setEntryMode,
-		"a|arg",        "Input mode: Command-line argument is text data (UTF-8).", &settings.setEntryMode,
-		"c|check",      "Check hashes list in this file.", &settings.setEntryMode,
-		"B|buffersize", "Set buffer size, affects file/mmfile/stdin (default=64K).", &settings.setBufferSize,
-		"shallow",      "Depth: Same directory (default).", &settings.setSpanMode,
-		"r|depth",      "Depth: Deepest directories first.", &settings.setSpanMode,
-		"breadth",      "Depth: Sub directories first.", &settings.setSpanMode,
-		"follow",       "Links: Follow symbolic links (default).", &settings.setFollow,
-		"nofollow",     "Links: Do not follow symbolic links.", &settings.setNofollow,
-		"tag",          "Create or read BSD-style hashes.", &bsd,
-		"sri",          "Create or read SRI-style hashes.", &sri,
-		"version",      "Show version page and quit.", &showPage,
-		"ver",          "Show version and quit.", &showPage,
-		"license",      "Show license page and quit.", &showPage,
+		OPT_FILE,       "Input mode: Regular file (default).", &option,
+		OPT_BINARY,     "File: Set binary mode (default).", &option,
+		OPT_TEXT,       "File: Set text mode.", &option,
+		OPT_MMFILE,     "Input mode: Memory-map file.", &option,
+		OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
+		OPT_CHECK,      "Check hashes list in this file.", &option,
+//		"C|compare",    "Compares all file entries.", &compare,
+		OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=64K).", &option2,
+		OPT_SHALLOW,    "Depth: Same directory (default).", &option,
+		OPT_DEPTH,      "Depth: Deepest directories first.", &option,
+		OPT_BREATH,     "Depth: Sub directories first.", &option,
+		OPT_FOLLOW,     "Links: Follow symbolic links (default).", &option,
+		OPT_NOFOLLOW,   "Links: Do not follow symbolic links.", &option,
+		OPT_TAG,        "Create or read BSD-style hashes.", &option,
+		OPT_SRI,        "Create or read SRI-style hashes.", &option,
+		OPT_VERSION,    "Show version page and quit.", &option,
+		OPT_VER,        "Show version and quit.", &option,
+		OPT_LICENSE,    "Show license page and quit.", &option,
 		);
 	}
 	catch (Exception ex)
@@ -575,14 +585,14 @@ L_HELP:
 		return 0;
 	}
 	
-	if (argc < 2) // Missing hash type or action
+	if (args.length < 2) // Missing hash type or action
 	{
 		return printError(1,
 			"Missing hash type or action. Invoke with --help for more information.");
 	}
 	
 	string action = args[1];
-	HashType type = cast(HashType)-1;
+	HashType type;
 	
 	// Aliases for hashes and checksums
 	foreach (info; hashInfo)
@@ -595,7 +605,7 @@ L_HELP:
 	}
 	
 	// Pages
-	if (type == -1)
+	if (type == HashType.none)
 	{
 		switch (action)
 		{
@@ -606,7 +616,7 @@ L_HELP:
 			return 0;
 		case "help":
 			goto L_HELP;
-		case "ver", "version", "license", "cofe":
+		case OPT_VER, OPT_VERSION, OPT_LICENSE, OPT_COFE:
 			showPage(action);
 			return 0;
 		default:
@@ -619,34 +629,22 @@ L_HELP:
 		return printError(2, "Couldn't initiate hash module");
 	}
 	
-	//TODO: This should simply be if there are no arguments left in slice
-	if (argc < 3)
-		return entryStdin(settings);
+	string[] entries = args[2..$];
 	
-	int function(ref Settings, string) entry = void;
-	final switch (settings.method) with (EntryMethod)
+	if (entries.length == 0)
+		return processStdin();
+	
+	foreach (string entry; entries)
 	{
-	case file: entry = &entryFile; version(Trace) trace("entryFile"); break;
-	case list: entry = &entryList; version(Trace) trace("entryList"); break;
-	case text: entry = &entryText; version(Trace) trace("entryText"); break;
-	}
-	
-	//TODO: This really could just be a custom CLI handler
-	if (bsd)
-		settings.type = TagType.bsd;
-	else if (sri)
-		settings.type = TagType.sri;
-	
-	foreach (string arg; args[2..$])
-	{
-		if (arg == STDIN_NAME) // stdin
+		//TODO: stdin name only to be checked in default mode (files)
+		if (entry == STDIN_NAME) // stdin
 		{
-			if (entryStdin(settings))
+			if (processStdin())
 				return 2;
-			continue;
+			continue; // Should it really continue, though?
 		}
 		
-		entry(settings, arg);
+		settings.process(entry);
 	}
 	
 	return 0;
