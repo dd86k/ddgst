@@ -13,6 +13,7 @@ import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
+import std.typecons : scoped;
 import ddh;
 
 private:
@@ -256,7 +257,7 @@ int hashFile(ref File file)
 }
 int hashMmfile(string path)
 {
-	import std.typecons : scoped;
+	import std.range : chunks;
 	import std.mmfile : MmFile;
 	
 	version (Trace) trace("path=%s", path);
@@ -268,18 +269,10 @@ int hashMmfile(string path)
 		
 		if (flen)
 		{
-			ulong start;
-			
-			if (flen > settings.bufferSize)
+			foreach (chunk; chunks(cast(ubyte[])mmfile[], settings.bufferSize))
 			{
-				const ulong climit = flen - settings.bufferSize;
-				for (; start < climit; start += settings.bufferSize)
-					settings.hasher.put(
-						cast(ubyte[])mmfile[start..start + settings.bufferSize]);
+				settings.hasher.put(chunk);
 			}
-			
-			// Compute remaining
-			settings.hasher.put(cast(ubyte[])mmfile[start..flen]);
 		}
 		
 		settings.rawHash = settings.hasher.finish();
@@ -456,6 +449,85 @@ L_ENTRY_HASH:
 	return 0;
 }
 
+//TODO: Consider making a foreach-compatible function for this
+//      popFront returning T[2] (or tuple)
+// A -> no-op
+// AB
+//   1: AB
+// ABC:
+//   1: AB, BC
+//   2: AC
+// ABCD:
+//   1: AB, BC, CD
+//   2: AC, BD
+//   3: AD
+// ABCDE:
+//   1: AB, BC, CD, DE
+//   2: AC, BD, CE
+//   3: AD, BE
+//   4: AE
+// ABCDEF:
+//   1: AB, BC, CD, DE, EF
+//   2: AC, BD, CE, DF
+//   3: AD, BE, CF
+//   4: AE, BF
+//   5: AF
+/// Compare all file entries against each other.
+/// BigO: O(n * log(n)) (according to friend)
+/// Params: entries: List of files
+/// Returns: Error code.
+int processCompare(string[] entries)
+{
+	const size_t size = entries.length;
+	
+	if (size < 2)
+		return printError(1, "Comparison needs 2 or more files");
+	
+	//TODO: Consider an associated array
+	//      Would remove duplicates, but at the same time, this removes
+	//      all user-supplied positions and may confuse people.
+	string[] hashes = new string[size];
+	
+	for (size_t index; index < size; ++index)
+	{
+		int e = hashFile(entries[index]);
+		if (e) return e;
+		
+		hashes[index] = settings.hasher.toHex.idup;
+	}
+	
+	uint mismatch;	/// Number of mismatching files
+	size_t distance = 1;	/// Item selection distance
+	
+	L_CONTINUE: for (size_t index; index < size; ++index)
+	{
+		size_t index2 = index + distance;
+		
+		if (index2 >= size)
+			break;
+		
+		if (compareHash(hashes[index], hashes[index2]))
+			continue;
+		
+		++mismatch;
+		
+		string entry1 = entries[index];
+		string entry2 = entries[index2];
+		
+		writeln("Files '", entry1, "' and '", entry2, "' are different");
+	}
+	
+	++distance;
+	
+	if (distance < size)
+		goto L_CONTINUE;
+
+	if (mismatch == 0)
+		writefln("All files identical");
+	
+	return 0;
+}
+
 void printMeta(string baseName, string name, string tagName)
 {
 	writefln("%-18s  %-18s  %s", baseName, name, tagName);
@@ -538,7 +610,7 @@ void option2(string arg, string val)
 
 int main(string[] args)
 {
-//	bool compare;
+	bool compare;
 	
 	GetoptResult res = void;
 	try
@@ -550,8 +622,8 @@ int main(string[] args)
 		OPT_MMFILE,     "Input mode: Memory-map file.", &option,
 		OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
 		OPT_CHECK,      "Check hashes list in this file.", &option,
-//		"C|compare",    "Compares all file entries.", &compare,
-		OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=64K).", &option2,
+		"C|compare",    "Compares all file entries.", &compare,
+		OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=4K).", &option2,
 		OPT_SHALLOW,    "Depth: Same directory (default).", &option,
 		OPT_DEPTH,      "Depth: Deepest directories first.", &option,
 		OPT_BREATH,     "Depth: Sub directories first.", &option,
@@ -632,6 +704,9 @@ L_HELP:
 	
 	if (entries.length == 0)
 		return processStdin();
+	
+	if (compare)
+		return processCompare(entries);
 	
 	foreach (string entry; entries)
 	{
