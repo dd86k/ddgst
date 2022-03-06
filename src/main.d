@@ -497,30 +497,27 @@ int processCompare(string[] entries)
 	}
 	
 	uint mismatch;	/// Number of mismatching files
-	size_t distance = 1;	/// Item selection distance
 	
-	L_CONTINUE: for (size_t index; index < size; ++index)
+	for (size_t distance = 1; distance < size; ++distance)
 	{
-		size_t index2 = index + distance;
-		
-		if (index2 >= size)
-			break;
-		
-		if (compareHash(hashes[index], hashes[index2]))
-			continue;
-		
-		++mismatch;
-		
-		string entry1 = entries[index];
-		string entry2 = entries[index2];
-		
-		writeln("Files '", entry1, "' and '", entry2, "' are different");
+		for (size_t index; index < size; ++index)
+		{
+			size_t index2 = index + distance;
+			
+			if (index2 >= size)
+				break;
+			
+			if (compareHash(hashes[index], hashes[index2]))
+				continue;
+			
+			++mismatch;
+			
+			string entry1 = entries[index];
+			string entry2 = entries[index2];
+			
+			writeln("Files '", entry1, "' and '", entry2, "' are different");
+		}
 	}
-	
-	++distance;
-	
-	if (distance < size)
-		goto L_CONTINUE;
 
 	if (mismatch == 0)
 		writefln("All files identical");
