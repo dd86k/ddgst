@@ -105,15 +105,10 @@ struct Settings
 	bool textMode;
 	TagType type;
 	string fileMode = FILE_MODE_BIN;
+	string against;	/// Hash to check against (-a/--against)
 	
 	int function(string) hash = &hashFile;
 	int function(string) process = &processFile;
-	
-	int select(HashType type)
-	{
-		hasher.initiate(type);
-		return 0;
-	}
 }
 
 __gshared Settings settings;
@@ -324,11 +319,23 @@ int processFile(string path)
 			printError(5, "'%s': Is a directory", file);
 			continue;
 		}
+		
 		if (settings.hash(file))
 		{
 			continue;
 		}
-		printResult(file);
+		
+		if (settings.against)
+		{
+			const(char)[] h = settings.hasher.toHex;
+			if (compareHash(h, settings.against))
+				writeln("File '", file, "' matches hash");
+			else
+				return printError(2,
+					"File '", file, "' with '", h, "' is different");
+		}
+		else
+			printResult(file);
 	}
 	if (count == 0)
 		return printError(6, "'%s': No such file", name);
@@ -406,7 +413,7 @@ int processList(string listPath)
 				{
 					if (hash == info.tagName)
 					{
-						settings.select(info.type);
+						settings.hasher.initiate(info.type);
 						goto L_ENTRY_HASH;
 					}
 				}
@@ -612,7 +619,7 @@ int main(string[] args)
 	GetoptResult res = void;
 	try
 	{
-		res = getopt(args, config.caseInsensitive, config.passThrough,
+		res = getopt(args, config.caseSensitive, config.passThrough,
 		OPT_FILE,       "Input mode: Regular file (default).", &option,
 		OPT_BINARY,     "File: Set binary mode (default).", &option,
 		OPT_TEXT,       "File: Set text mode.", &option,
@@ -620,6 +627,7 @@ int main(string[] args)
 		OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
 		OPT_CHECK,      "Check hashes list in this file.", &option,
 		"C|compare",    "Compares all file entries.", &compare,
+		"A|against",    "Compare files against hash.", &settings.against,
 		OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=4K).", &option2,
 		OPT_SHALLOW,    "Depth: Same directory (default).", &option,
 		OPT_DEPTH,      "Depth: Deepest directories first.", &option,
@@ -692,7 +700,7 @@ L_HELP:
 		}
 	}
 	
-	if (settings.select(type))
+	if (settings.hasher.initiate(type))
 	{
 		return printError(2, "Couldn't initiate hash module");
 	}
