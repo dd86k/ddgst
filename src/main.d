@@ -14,11 +14,12 @@ import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
 import std.typecons : scoped;
+import blake2d : BLAKE2D_VERSION_STRING;
 import ddh;
 
 private:
 
-enum PROJECT_VERSION    = "1.3.0";
+enum PROJECT_VERSION    = "1.4.0";
 enum DEFAULT_CHUNK_SIZE = 4 * 1024;
 enum TagType { gnu, bsd, sri }
 
@@ -33,7 +34,7 @@ else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
 `ddh `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
-Using sha3-d 1.2.1, blake2-d 0.2.0
+Using sha3-d 1.2.1, blake2-d `~BLAKE2D_VERSION_STRING~`
 No Copyrights
 License: Unlicense
 Homepage: <https://github.com/dd86k/ddh>
@@ -102,7 +103,7 @@ struct Settings
 	size_t bufferSize = DEFAULT_CHUNK_SIZE;
 	SpanMode spanMode;
 	bool follow = true;
-	bool textMode;
+	bool skipArgs;
 	TagType type;
 	string fileMode = FILE_MODE_BIN;
 	string against;	/// Hash to check against (-a/--against)
@@ -218,7 +219,7 @@ int hashFile(string path)
 	{
 		File f;	// Must never be void
 		// BUG: Using opAssign with LDC2 crashes at runtime
-		f.open(path, settings.textMode ? "r" : "rb");
+		f.open(path, settings.fileMode);
 		
 		if (f.size())
 		{
@@ -332,7 +333,7 @@ int processFile(string path)
 				writeln("File '", file, "' matches hash");
 			else
 				return printError(2,
-					"File '", file, "' with '", h, "' is different");
+					"File '", file, "' differs with '", h, "'");
 		}
 		else
 			printResult(file);
@@ -668,6 +669,7 @@ L_HELP:
 	}
 	
 	string action = args[1];
+	
 	HashType type;
 	
 	// Aliases for hashes and checksums
