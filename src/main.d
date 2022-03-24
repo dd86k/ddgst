@@ -15,6 +15,7 @@ import std.path : baseName, dirName;
 import std.stdio;
 import std.typecons : scoped;
 import blake2d : BLAKE2D_VERSION_STRING;
+import sha3d : SHA3D_VERSION_STRING;
 import ddh;
 
 private:
@@ -34,7 +35,7 @@ else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
 `ddh `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
-Using sha3-d 1.2.1, blake2-d `~BLAKE2D_VERSION_STRING~`
+Using sha3-d `~SHA3D_VERSION_STRING~`, blake2-d `~BLAKE2D_VERSION_STRING~`
 No Copyrights
 License: Unlicense
 Homepage: <https://github.com/dd86k/ddh>
