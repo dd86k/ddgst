@@ -5,35 +5,34 @@ and comes with more features than built-in OS utilities.
 
 ## Feature Comparison
 
-| Feature | ddh | GNU coreutils | uutils/coreutils[^7] | OpenSSL | crc32(1)[^1] |
-|---|---|---|---|---|---|
-| Binary mode | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| Text mode | ✔️ | ✔️ | ✔️ | | |
-| Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ | ✔️ |
-| File support | ✔️ | ✔️ | ✔️ | ✔️ | ✔️ |
-| Memory-mapped file support | ✔️ | | | | |
-| Standard input (stdin) support | ✔️ | ✔️ | ✔️ | ✔️ | |
-| GNU style hashes | ✔️ | ✔️ | ✔️[^4] | ✔️ | |
-| BSD style hashes | ✔️ | ✔️ | ✔️ | ✔️ | |
-| [SRI style hashes](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) | ✔️ | [^5] | [^5] | [^5] | |
+| Feature | ddh | GNU coreutils | uutils/coreutils[^7] | OpenSSL [^1] |
+|---|---|---|---|---|
+| Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
+| Text mode | ✔️ | ✔️ | ✔️ | |
+| Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
+| File support | ✔️ | ✔️ | ✔️ | ✔️ |
+| Memory-mapped file support | ✔️ | | | |
+| Standard input (stdin) support | ✔️ | ✔️ | ✔️ | ✔️ |
+| GNU style hashes | ✔️ | ✔️ | ✔️[^4] | ✔️ |
+| BSD style hashes | ✔️ | ✔️ | ✔️ | ✔️ |
+| [SRI style hashes](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) | ✔️ | [^5] | [^5] | [^5] |
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | GNU coreutils | uutils/coreutils[^7] | OpenSSL[^3] | crc32(1)[^1] |
-|---|---|---|---|---|---|
-| CRC-32 | ✔️ | | | | ✔️ |
-| CRC-64-ISO | ✔️ | | | |
-| CRC-64-ECMA | ✔️ | | | |
-| MD5 | ✔️ | ✔️ (md5sum) | ✔️ | ✔️ | |
-| RIPEMD-160 | ✔️ | | ✔️ | ✔️ | |
-| SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | ✔️ | |
-| SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | ✔️ | |
-| SHA-3 | ✔️ | | ✔️ | ✔️ | |
-| SHAKE | ✔️ | | ✔️ | ✔️ | |
-| BLAKE2b | ✔️ | ✔️ (b2sum) | | ✔️ | |
-| BLAKE2s | ✔️ | | | ✔️ | |
-| BLAKE3 | | [^6] | | | | |
-| MurmurHash3 | ✔️ | | | | | |
+| Checksum or Hash | ddh | GNU coreutils | uutils/coreutils[^7] | OpenSSL[^3] |
+|---|---|---|---|---|
+| CRC-32 | ✔️ | | | |
+| CRC-64-ISO | ✔️ | | |
+| CRC-64-ECMA | ✔️ | | |
+| MD5 | ✔️ | ✔️ (md5sum) | ✔️ | ✔️ |
+| RIPEMD-160 | ✔️ | | ✔️ | ✔️ |
+| SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | ✔️ |
+| SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | ✔️ |
+| SHA-3/SHAKE | ✔️ | | ✔️ | ✔️ |
+| BLAKE2b | ✔️ | ✔️ (b2sum) | | ✔️ |
+| BLAKE2s | ✔️ | | | ✔️ |
+| BLAKE3 | | [^6] | | | |
+| MurmurHash3 | ✔️ | | | | |
 
 # Usage
 
@@ -125,7 +124,6 @@ Release recommendation with the LDC compiler:
 dub build -b release-nobounds --compiler=ldc2
 ```
 
-[^1]: From the Perl Archive::ZIP package.
 [^2]: All but cksum and sum.
 [^3]: See `dgst` command.
 [^4]: For unknown reasons, openssl prepends filenames with `*`.
