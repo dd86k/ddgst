@@ -5,7 +5,7 @@ and comes with more features than built-in OS utilities.
 
 ## Feature Comparison
 
-| Feature | ddh | GNU coreutils | uutils/coreutils[^7] | OpenSSL [^1] |
+| Feature | ddh | GNU coreutils | uutils/coreutils | OpenSSL [^1] |
 |---|---|---|---|---|
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | ✔️ | |
@@ -19,7 +19,7 @@ and comes with more features than built-in OS utilities.
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | GNU coreutils | uutils/coreutils[^7] | OpenSSL[^3] |
+| Checksum or Hash | ddh | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
 |---|---|---|---|---|
 | CRC-32 | ✔️ | | | |
 | CRC-64-ISO | ✔️ | | |
@@ -29,9 +29,9 @@ and comes with more features than built-in OS utilities.
 | SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | ✔️ |
 | SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | ✔️ |
 | SHA-3/SHAKE | ✔️ | | ✔️ | ✔️ |
-| BLAKE2b | ✔️ | ✔️ (b2sum) | | ✔️ |
+| BLAKE2b | ✔️ | ✔️ (b2sum) | ✔️[^9] | ✔️ |
 | BLAKE2s | ✔️ | | | ✔️ |
-| BLAKE3 | | [^6] | | | |
+| BLAKE3 | | [^6] | ✔️[^9] | | [^8] |
 | MurmurHash3 | ✔️ | | | | |
 
 # Usage
@@ -126,7 +126,8 @@ dub build -b release-nobounds --compiler=ldc2
 
 [^2]: All but cksum and sum.
 [^3]: See `dgst` command.
-[^4]: For unknown reasons, openssl prepends filenames with `*`.
+[^4]: `*` prepended to filename.
 [^5]: Possible to do with a [chain of commands](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity#tools_for_generating_sri_hashes), but good luck remembering them.
-[^6]: Turns out there is a b3sum, but that's coming from the official BLAKE3 team, not GNU.
-[^7]: As of 0.0.8.
+[^6]: While the official BLAKE3 team has a b3sum, GNU does not.
+[^8]: The OpenSSL team is waiting for BLAKE3 to be standardized.
+[^9]: As of 0.0.13
