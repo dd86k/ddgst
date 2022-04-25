@@ -103,14 +103,16 @@ struct Settings
 	string listPath;
 	size_t bufferSize = DEFAULT_CHUNK_SIZE;
 	SpanMode spanMode;
-	bool follow = true;
-	bool skipArgs;
 	TagType type;
 	string fileMode = FILE_MODE_BIN;
 	string against;	/// Hash to check against (-a/--against)
 	
 	int function(string) hash = &hashFile;
 	int function(string) process = &processFile;
+	
+	bool follow = true;
+	bool skipArgs;
+	bool modeStdin;
 }
 
 __gshared Settings settings;
@@ -541,6 +543,7 @@ void printMeta(string baseName, string name, string tagName)
 
 immutable string OPT_FILE	= "f|file";
 immutable string OPT_MMFILE	= "m|mmfile";
+immutable string OPT_STDIN	= "stdin";
 immutable string OPT_ARG	= "a|arg";
 immutable string OPT_CHECK	= "c|check";
 immutable string OPT_TEXT	= "t|text";
@@ -570,6 +573,7 @@ void option(string arg)
 	// input modes
 	case OPT_ARG:   process = &processText; return;
 	case OPT_CHECK: process = &processList; return;
+	case OPT_STDIN: settings.modeStdin = true; return;
 	// file input mode
 	case OPT_FILE:   hash = &hashFile; return;
 	case OPT_MMFILE: hash = &hashMmfile; return;
@@ -621,12 +625,13 @@ int main(string[] args)
 	GetoptResult res = void;
 	try
 	{
-		res = getopt(args, config.caseSensitive, config.passThrough,
+		res = getopt(args, config.caseSensitive,
 		OPT_FILE,       "Input mode: Regular file (default).", &option,
 		OPT_BINARY,     "File: Set binary mode (default).", &option,
 		OPT_TEXT,       "File: Set text mode.", &option,
 		OPT_MMFILE,     "Input mode: Memory-map file.", &option,
 		OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
+		OPT_STDIN,      "Input mode: Standard input (stdin)", &option,
 		OPT_CHECK,      "Check hashes list in this file.", &option,
 		"C|compare",    "Compares all file entries.", &compare,
 		"A|against",    "Compare files against hash.", &settings.against,
@@ -708,6 +713,11 @@ L_HELP:
 		return printError(2, "Couldn't initiate hash module");
 	}
 	
+	if (settings.modeStdin)
+	{
+		return processStdin;
+	}
+	
 	string[] entries = args[2..$];
 	
 	if (entries.length == 0)
@@ -718,14 +728,6 @@ L_HELP:
 	
 	foreach (string entry; entries)
 	{
-		//TODO: stdin name only to be checked in default mode (files)
-		if (entry == STDIN_NAME) // stdin
-		{
-			if (processStdin())
-				return 2;
-			continue; // Should it really continue, though?
-		}
-		
 		settings.process(entry);
 	}
 	
