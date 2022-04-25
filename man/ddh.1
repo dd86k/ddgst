@@ -4,7 +4,7 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." If you're missing groff_man.7, install groff. Solid documentation.
 ."
-.TH ddh 1 "December 2021" dd86k "User manual"
+.TH ddh 1 "April 2022" dd86k "User manual"
 .SH NAME
 ddh \(em Generic hasher
 
@@ -110,6 +110,8 @@ shake128	SHAKE-128	SHAKE-128
 shake256	SHAKE-256	SHAKE-256
 blake2b512	BLAKE2b-512	BLAKE2B-512
 blake2s256	BLAKE2s-256	BLAKE2S-256
+mmhash3-32	MurmurHash3-32	MURMURHASH3-32
+mmhash3-128	MurmurHash3-128	MURMURHASH3-128
 .TE
 
 .SH OPTIONS
@@ -128,7 +130,9 @@ Option	Description
 lB l.
 -a, --arg	Hash argument text as UTF-8.
 -c, --check	Check hashes against a file.
--	Set input mode to stdin.
+-C, --compare	Compare all files.
+-A, --againt	Check hashes against this hash.
+--stdin	Set input mode to stdin.
 .TE
 
 .SS File input modes
@@ -165,15 +169,18 @@ Option	Description
 .T&
 lB l.
 _
+--gnu	Create or read GNU-style hashes. (default)
 --tag	Create or read BSD-style hashes.
 --sri	Create SRI-style hashes.
--C, --chunk	Set buffer size, affects file/mmfile/stdin (default=64K).
+-B, --buffersize	Set real buffer size for file/mmfile/stdin (default=4K).
 --	Stop parsing arguments.
 .TE
 
 .SH WARNINGS
 
-None for the moment!
+The murmurhash3 hash may be in a different orientation on big-endian machines,
+because it has only been tested on a x86-64 machine. If this is the case,
+open up an Issue on the GitHub tracker.
 
 .SH NOTES
 
