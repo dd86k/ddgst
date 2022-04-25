@@ -453,7 +453,7 @@ L_ENTRY_HASH:
 	}
 	
 	if (statErrors || statMismatch)
-		return printError(0, "%u mismatches, %u not read", statMismatch, statErrors);
+		writefln("%u mismatches, %u not read", statMismatch, statErrors);
 	
 	return 0;
 }
