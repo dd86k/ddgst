@@ -69,8 +69,8 @@ immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.SHAKE256,	"SHAKE-256", "shake256", "SHAKE-256", },
 	{ HashType.BLAKE2b512,	"BLAKE2b-512", "blake2b512", "BLAKE2B-512", },
 	{ HashType.BLAKE2s256,	"BLAKE2s-256", "blake2s256", "BLAKE2S-256", },
-	{ HashType.MurMurHash3_32,	"MurmurHash3-32",  "murmurhash3-32",  "MURMURHASH3-32", },
-	{ HashType.MurMurHash3_128,	"MurmurHash3-128", "murmurhash3-128", "MURMURHASH3-128", },
+	{ HashType.MurMurHash3_32,	"MurmurHash3-32",  "mmhash3-32",  "MURMURHASH3-32", },
+	{ HashType.MurMurHash3_128,	"MurmurHash3-128", "mmhash3-128", "MURMURHASH3-128", },
 ];
 
 private enum
