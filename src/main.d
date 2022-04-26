@@ -124,6 +124,12 @@ void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 	writefln(fmt, args);
 }
 
+void printWarning(string func = __FUNCTION__, A...)(string fmt, A args)
+{
+	stderr.write("warning: ");
+	debug stderr.write("[", func, "] ");
+	stderr.writefln(fmt, args);
+}
 int printError(string func = __FUNCTION__, A...)(int code, string fmt, A args)
 {
 	stderr.writef("error: (code %d) ", code);
@@ -208,7 +214,8 @@ unittest
 	assert(s == 1024 + 102); // 102.4
 }
 
-bool compareHash(const(char)[] h1, const(char)[] h2) {
+bool compareHash(const(char)[] h1, const(char)[] h2)
+{
 	import std.digest : secureEqual;
 	import std.uni : asLowerCase;
 	return secureEqual(h1.asLowerCase, h2.asLowerCase);
@@ -320,7 +327,7 @@ int processFile(string path)
 		++count;
 		if (entry.isDir)
 		{
-			printError(5, "'%s': Is a directory", file);
+			printWarning("'%s': Is a directory", file);
 			continue;
 		}
 		
@@ -395,7 +402,7 @@ int processList(string listPath)
 				if (formattedRead(line, "%s %s", expected, file) != 2)
 				{
 					++statErrors;
-					printError(11, "Formatting error at line %u", currentLine);
+					printWarning("Could not get hash at line %u", currentLine);
 					continue;
 				}
 				break;
@@ -404,7 +411,7 @@ int processList(string listPath)
 				if (formattedRead(line, "%s(%s) = %s", hash, file, expected) != 3)
 				{
 					++statErrors;
-					printError(12, "Formatting error at line %u", currentLine);
+					printWarning("Could not get hash at line %u", currentLine);
 					continue;
 				}
 				
@@ -422,10 +429,10 @@ int processList(string listPath)
 					}
 				}
 				
-				printError(13, "Hash tag not found at line %u", currentLine);
+				printWarning("Unknown hash tag at line %u", currentLine);
 				continue;
 			case sri:
-				throw new Exception("SRI is not supported in file checks");
+				return printError(15, "SRI is not supported in file checks");
 			}
 		
 L_ENTRY_HASH:
