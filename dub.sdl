@@ -5,6 +5,7 @@ authors "dd86k <dd@dax.moe>"
 license "public domain"
 dependency "sha3-d" version="~>1.2.2"
 dependency "blake2-d" version="~>0.2.0"
+preBuildCommands "rdmd setup.d version"
 
 buildType "trace" {
 	versions "Trace"

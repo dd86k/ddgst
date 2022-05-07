@@ -17,10 +17,10 @@ import std.typecons : scoped;
 import blake2d : BLAKE2D_VERSION_STRING;
 import sha3d : SHA3D_VERSION_STRING;
 import ddh;
+import gitinfo;
 
 private:
 
-enum PROJECT_VERSION    = "1.4.0";
 enum DEFAULT_CHUNK_SIZE = 4 * 1024;
 enum TagType { gnu, bsd, sri }
 
@@ -30,11 +30,11 @@ extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 // Disables the Druntime GC command-line interface
 extern (C) __gshared bool rt_cmdline_enabled = false;
 
-debug enum BUILD_TYPE = "-debug";
+debug enum BUILD_TYPE = "#debug";
 else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
-`ddh `~PROJECT_VERSION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+`ddh `~GIT_DESCRIPTION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
 Using sha3-d `~SHA3D_VERSION_STRING~`, blake2-d `~BLAKE2D_VERSION_STRING~`
 No Copyrights
 License: Unlicense
@@ -602,7 +602,7 @@ void option(string arg)
 	case OPT_SHALLOW: spanMode = SpanMode.shallow; return;
 	case OPT_BREATH:  spanMode = SpanMode.breadth; return;
 	// pages
-	case OPT_VER:     arg = PROJECT_VERSION; break;
+	case OPT_VER:     arg = GIT_DESCRIPTION; break;
 	case OPT_VERSION: arg = PAGE_VERSION; break;
 	case OPT_LICENSE: arg = PAGE_LICENSE; break;
 	case OPT_COFE:    arg = PAGE_COFE; break;

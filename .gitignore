@@ -15,6 +15,7 @@ ddh-test-*
 *.obj
 *.lst
 dub.selections.json
+src/gitinfo.d
 
 # Compiler-specific
 ## LDC2?
