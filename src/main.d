@@ -30,7 +30,7 @@ extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 // Disables the Druntime GC command-line interface
 extern (C) __gshared bool rt_cmdline_enabled = false;
 
-debug enum BUILD_TYPE = "#debug";
+debug enum BUILD_TYPE = "+debug";
 else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
