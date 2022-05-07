@@ -163,6 +163,12 @@ void printResult(string fmt = "%s")(in char[] file)
 		break;
 	}
 }
+void printStatus(in char[] file, bool match) {
+	if (match)
+		writeln(file, ": OK");
+	else
+		stderr.writeln(file, ": FAILED");
+}
 
 // String to binary size
 int strtobin(ulong *size, string input) {
@@ -339,11 +345,9 @@ int processFile(string path)
 		if (settings.against)
 		{
 			const(char)[] h = settings.hasher.toHex;
-			if (compareHash(h, settings.against))
-				writeln("File '", file, "' matches hash");
-			else
-				return printError(2,
-					"File '", file, "' differs with '", h, "'");
+			bool succ = compareHash(h, settings.against);
+			printStatus(file, succ);
+			if (succ) return 2;
 		}
 		else
 			printResult(file);
@@ -385,7 +389,7 @@ int processList(string listPath)
 		string text = readText(listPath);
 	
 		if (text.length == 0)
-			return printError(10, "File '%s' is empty", listPath);
+			return printError(10, "%s: Empty", listPath);
 		
 		string file = void, expected = void, hash = void, lastHash;
 		foreach (string line; lineSplitter(text)) // doesn't allocate
@@ -449,11 +453,11 @@ L_ENTRY_HASH:
 			if (compareHash(result, expected) == false)
 			{
 				++statMismatch;
-				writeln(file, ": FAILED");
+				printStatus(file, false);
 				continue;
 			}
 			
-			writeln(file, ": OK");
+			printStatus(file, true);
 		}
 	}
 	catch (Exception ex)
