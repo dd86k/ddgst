@@ -11,11 +11,14 @@ enum GITINFO_PATH = "src" ~ SEP ~ "gitinfo.d";
 int main(string[] args) {
 	final switch (args[1]) {
 	case "version":
-		auto describe = executeShell("git describe --dirty --tags");
-		if (describe.status)
-			return describe.status;
+		string git_path = environment.get("GIT_PATH", "git");
+		args = [ git_path, "describe", "--dirty", "--tags" ];
 		
-		string ver = stripRight(describe.output);
+		auto git = execute(args);
+		if (git.status)
+			return git.status;
+		
+		string ver = stripRight(git.output);
 		write(GITINFO_PATH,
 		`// NOTE: This file was automatically generated.
 		module gitinfo;
