@@ -11,10 +11,7 @@ enum GITINFO_PATH = "src" ~ SEP ~ "gitinfo.d";
 int main(string[] args) {
 	final switch (args[1]) {
 	case "version":
-		string git_path = environment.get("GIT_PATH", "git");
-		args = [ git_path, "describe", "--dirty", "--tags" ];
-		
-		auto git = execute(args);
+		auto git = execute([ "git", "describe", "--dirty", "--tags" ]);
 		if (git.status)
 			return git.status;
 		
