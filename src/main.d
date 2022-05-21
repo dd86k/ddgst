@@ -21,20 +21,22 @@ import gitinfo;
 
 private:
 
-enum DEFAULT_CHUNK_SIZE = 4 * 1024;
+enum DEFAULT_READ_SIZE = 4 * 1024;
 enum TagType { gnu, bsd, sri }
 
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 
 // Disables the Druntime GC command-line interface
+// except for debug builds
+debug {} else
 extern (C) __gshared bool rt_cmdline_enabled = false;
 
 debug enum BUILD_TYPE = "+debug";
 else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
-`ddh `~GIT_DESCRIPTION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+`ddh `~GIT_DESCRIPTION[1..$]~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
 Using sha3-d `~SHA3D_VERSION_STRING~`, blake2-d `~BLAKE2D_VERSION_STRING~`
 No Copyrights
 License: Unlicense
@@ -101,7 +103,7 @@ struct Settings
 	Ddh hasher;
 	ubyte[] rawHash;
 	string listPath;
-	size_t bufferSize = DEFAULT_CHUNK_SIZE;
+	size_t bufferSize = DEFAULT_READ_SIZE;
 	SpanMode spanMode;
 	TagType type;
 	string fileMode = FILE_MODE_BIN;
