@@ -475,27 +475,6 @@ L_ENTRY_HASH:
 
 //TODO: Consider making a foreach-compatible function for this
 //      popFront returning T[2] (or tuple)
-// A -> no-op
-// AB
-//   1: AB
-// ABC:
-//   1: AB, BC
-//   2: AC
-// ABCD:
-//   1: AB, BC, CD
-//   2: AC, BD
-//   3: AD
-// ABCDE:
-//   1: AB, BC, CD, DE
-//   2: AC, BD, CE
-//   3: AD, BE
-//   4: AE
-// ABCDEF:
-//   1: AB, BC, CD, DE, EF
-//   2: AC, BD, CE, DF
-//   3: AD, BE, CF
-//   4: AE, BF
-//   5: AF
 /// Compare all file entries against each other.
 /// BigO: O(n * log(n)) (according to friend)
 /// Params: entries: List of files
@@ -707,7 +686,9 @@ L_HELP:
 		switch (action)
 		{
 		case "list":
+			static immutable sep = "-------";
 			printMeta("Alias", "Name", "Tag");
+			printMeta(sep, sep, sep);
 			foreach (info; hashInfo)
 				printMeta(info.aliasName, info.fullName, info.tagName);
 			return 0;
