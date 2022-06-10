@@ -44,14 +44,40 @@ For a list of options available, use the `--help` argument.
 
 For a list of supported checksums and hashes, use the `list` command.
 
-## Example
+## Hashing a file
 
-```
+```text
 $ ddh md5 LICENSE
 1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
 ```
 
-## Hash styles
+## Check list using hash
+
+```text
+$ ddh sha256 -c list
+file1: OK
+file2: OK
+```
+
+To select the BSD style tags, use `--tag`.
+
+## Check files against a string
+
+```text
+$ ddh sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
+LICENSE: OK
+```
+
+## Compare files using hash
+
+```text
+$ ddh sha512 --compare LICENSE README.md dub.sdl 
+Files 'LICENSE' and 'README.md' are different
+Files 'README.md' and 'dub.sdl' are different
+Files 'LICENSE' and 'dub.sdl' are different
+```
+
+# Hash styles
 
 | Style | Example |
 |---|---|
@@ -59,13 +85,7 @@ $ ddh md5 LICENSE
 | BSD (`--tag`) | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
 | SRI (`--sri`) | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
 
-## Standard Input (stdin)
-
-To use the standard input (stdin) method, either:
-- Omit the third parameter (e.g., `ddh md5`);
-- Or use the `-` switch (e.g., `ddh md5 -`).
-
-## File Pattern Globbing (`*` vs. `'*'`)
+# File Pattern Globbing (`*` vs. `'*'`)
 
 This utility supports file globbing out of the box using `std.file.dirEntries`.
 
@@ -95,20 +115,6 @@ The mmfile mode's performance may vary on systems. Typically, file
 mode is faster on Windows, and mmfile mode is faster on Linux systems.
 
 The default is file.
-
-## Checking against a list
-
-To check hashes in a list, like for example:
-```
-34f53abbdbc66ebdb969c5a77f0f8902  .gitignore
-301dff35a1c11b231b67aaaed0e7be46  ddh
-38605d99f2cd043879c401ff1fe292cf  ddh-test-library.exe
-9a2fdb96ff77f4d71510b38c2f278ff6  ddh.exe
-```
-
-Simply use the `-c` option: `ddh md5 -c LIST`.
-
-Only the GNU and BSD (tag) styles can be used in file checks.
 
 # Compiling
 
