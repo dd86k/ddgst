@@ -22,7 +22,7 @@ import gitinfo;
 private:
 
 enum DEFAULT_READ_SIZE = 4 * 1024;
-enum TagType { gnu, bsd, sri }
+enum TagType { gnu, bsd, sri, plain }
 
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
@@ -47,6 +47,7 @@ immutable string PAGE_HELP =
 `Usage: ddh command [options...] [files...] [-]
 
 Commands
+check     Automatically check hash list depending on file extension.
 list      List all supported hashes and checksums.
 help      This help page and exit.
 ver       Only show version number and exit.
@@ -54,7 +55,7 @@ version   Show version page and exit.
 
 Options
 --                Stop processing options.
--                 Input mode: Standard input (stdin).`;
+--stdin           Input mode: Standard input (stdin).`;
 
 immutable string PAGE_LICENSE =
 `This is free and unencumbered software released into the public domain.
@@ -105,12 +106,12 @@ struct Settings
 	string listPath;
 	size_t bufferSize = DEFAULT_READ_SIZE;
 	SpanMode spanMode;
-	TagType type;
+	TagType tag;
 	string fileMode = FILE_MODE_BIN;
 	string against;	/// Hash to check against (-a/--against)
 	
-	int function(string) hash = &hashFile;
-	int function(string) process = &processFile;
+	int function(const(char)[]) hash = &hashFile;
+	int function(const(char)[]) process = &processFile;
 	
 	bool follow = true;
 	bool skipArgs;
@@ -152,7 +153,7 @@ void printResult(string fmt = "%s")(in char[] file)
 	enum fmtgnu = fmt ~ "  %s";
 	enum fmtbsd = "%s(" ~ fmt ~ ")= %s";
 	
-	final switch (settings.type) with (TagType)
+	final switch (settings.tag) with (TagType)
 	{
 	case gnu:
 		writefln(fmtgnu, settings.hasher.toHex, file);
@@ -162,6 +163,9 @@ void printResult(string fmt = "%s")(in char[] file)
 		break;
 	case sri:
 		writeln(settings.hasher.aliasName(), '-', settings.hasher.toBase64);
+		break;
+	case plain:
+		writeln(settings.hasher.toHex);
 		break;
 	}
 }
@@ -229,7 +233,7 @@ bool compareHash(const(char)[] h1, const(char)[] h2)
 	return secureEqual(h1.asLowerCase, h2.asLowerCase);
 }
 
-int hashFile(string path)
+int hashFile(const(char)[] path)
 {
 	version (Trace) trace("path=%s", path);
 	
@@ -237,7 +241,7 @@ int hashFile(string path)
 	{
 		File f;	// Must never be void
 		// BUG: Using opAssign with LDC2 crashes at runtime
-		f.open(path, settings.fileMode);
+		f.open(cast(string)path, settings.fileMode);
 		
 		if (f.size())
 		{
@@ -269,7 +273,7 @@ int hashFile(ref File file)
 		return printError(7, ex);
 	}
 }
-int hashMmfile(string path)
+int hashMmfile(const(char)[] path)
 {
 	import std.range : chunks;
 	import std.mmfile : MmFile;
@@ -278,7 +282,7 @@ int hashMmfile(string path)
 	
 	try
 	{
-		auto mmfile = scoped!MmFile(path);
+		auto mmfile = scoped!MmFile(cast(string)path);
 		ulong flen = mmfile.length;
 		
 		if (flen)
@@ -303,7 +307,7 @@ int hashStdin(string)
 	version (Trace) trace("stdin");
 	return hashFile(stdin);
 }
-int hashText(string text)
+int hashText(const(char)[] text)
 {
 	version (Trace) trace("text='%s'", text);
 	
@@ -320,13 +324,13 @@ int hashText(string text)
 	}
 }
 
-int processFile(string path)
+int processFile(const(char)[] path)
 {
 	version (Trace) trace("path=%s", path);
 	
 	uint count;
-	string dir  = dirName(path);  // "." if anything
-	string name = baseName(path); // Glob patterns are kept
+	string dir  = cast(string)dirName(path);  // "." if anything
+	string name = cast(string)baseName(path); // Glob patterns are kept
 	const bool same = dir == "."; // same directory name from dirName
 	foreach (DirEntry entry; dirEntries(dir, name, settings.spanMode, settings.follow))
 	{
@@ -346,10 +350,22 @@ int processFile(string path)
 		
 		if (settings.against)
 		{
-			const(char)[] h = settings.hasher.toHex;
-			bool succ = compareHash(h, settings.against);
+			bool succ = void;
+			if (settings.tag == TagType.sri)
+			{
+				const(char)[] type = void, hash = void;
+				if (readSRILine(settings.against, type, hash))
+					return printError(18, "Could not unformat SRI tag");
+				settings.hasher.toBase64;
+				succ = compareHash(settings.hasher.toBase64, hash);
+			}
+			else
+			{
+				succ = compareHash(
+					settings.hasher.toHex, settings.against);
+			}
 			printStatus(file, succ);
-			if (succ) return 2;
+			if (succ == false) return 2;
 		}
 		else
 			printResult(file);
@@ -366,7 +382,7 @@ int processStdin()
 		printResult(STDIN_NAME);
 	return e;
 }
-int processText(string text)
+int processText(const(char)[] text)
 {
 	version (Trace) trace("text='%s'", text);
 	int e = hashText(text);
@@ -375,7 +391,7 @@ int processText(string text)
 	return e;
 }
 
-int processList(string listPath)
+int processList(const(char)[] listPath)
 {
 	import std.file : readText;
 	import std.string : lineSplitter;
@@ -393,42 +409,45 @@ int processList(string listPath)
 		if (text.length == 0)
 			return printError(10, "%s: Empty", listPath);
 		
-		string file = void, expected = void, hash = void, lastHash;
+		const(char)[] file = void, expected = void, type = void, lastType;
 		foreach (string line; lineSplitter(text)) // doesn't allocate
 		{
 			++currentLine;
 			
-			if (line.length == 0) continue; // empty
-			if (line[0] == '#') continue; // comment
+			if (line.length == 0) // empty
+				continue;
+			if (line[0] == '#') // comment
+				continue;
 			
-			final switch (settings.type) with (TagType)
+			final switch (settings.tag) with (TagType)
 			{
 			case gnu:
 				// Tested to work with one or many spaces
-				if (formattedRead(line, "%s %s", expected, file) != 2)
+				if (readGNULine(line, expected, file))
 				{
 					++statErrors;
-					printWarning("Could not get hash at line %u", currentLine);
+					printWarning("Unobtainable hash at line %u", currentLine);
 					continue;
 				}
 				break;
 			case bsd:
 				// Tested to work with and without spaces
-				if (formattedRead(line, "%s(%s) = %s", hash, file, expected) != 3)
+				//if (formattedRead(line, "%s(%s) = %s", type, file, expected) != 3)
+				if (readBSDLine(line, type, file, expected))
 				{
 					++statErrors;
-					printWarning("Could not get hash at line %u", currentLine);
+					printWarning("Unobtainable hash at line %u", currentLine);
 					continue;
 				}
 				
-				if (hash == lastHash)
+				if (type == lastType)
 					goto L_ENTRY_HASH;
 				
-				lastHash = hash;
+				lastType = type;
 				
 				foreach (HashInfo info ; hashInfo)
 				{
-					if (hash == info.tagName)
+					if (type == info.tagName)
 					{
 						settings.hasher.initiate(info.type);
 						goto L_ENTRY_HASH;
@@ -438,7 +457,9 @@ int processList(string listPath)
 				printWarning("Unknown hash tag at line %u", currentLine);
 				continue;
 			case sri:
-				return printError(15, "SRI is not supported in file checks");
+				return printError(15, "SRI format is not supported in file checks");
+			case plain:
+				return printError(15, "Plain format is not supported in file checks");
 			}
 		
 L_ENTRY_HASH:
@@ -544,6 +565,7 @@ immutable string OPT_BUFFERSIZE	= "B|buffersize";
 immutable string OPT_GNU	= "gnu";
 immutable string OPT_TAG	= "tag";
 immutable string OPT_SRI	= "sri";
+immutable string OPT_PLAIN	= "plain";
 immutable string OPT_FOLLOW	= "follow";
 immutable string OPT_NOFOLLOW	= "nofollow";
 immutable string OPT_DEPTH	= "r|depth";
@@ -572,9 +594,10 @@ void option(string arg)
 	case OPT_TEXT:   fileMode = FILE_MODE_TEXT; return;
 	case OPT_BINARY: fileMode = FILE_MODE_BIN; return;
 	// hash style
-	case OPT_TAG: type = TagType.bsd; return;
-	case OPT_SRI: type = TagType.sri; return;
-	case OPT_GNU: type = TagType.gnu; return;
+	case OPT_TAG:   tag = TagType.bsd; return;
+	case OPT_SRI:   tag = TagType.sri; return;
+	case OPT_GNU:   tag = TagType.gnu; return;
+	case OPT_PLAIN: tag = TagType.plain; return;
 	// globber: symlink
 	case OPT_NOFOLLOW: follow = false; return;
 	case OPT_FOLLOW:   follow = true; return;
@@ -635,6 +658,7 @@ int main(string[] args)
 		OPT_NOFOLLOW,   "Links: Do not follow symbolic links.", &option,
 		OPT_TAG,        "Create or read BSD-style hashes.", &option,
 		OPT_SRI,        "Create or read SRI-style hashes.", &option,
+		OPT_PLAIN,      "Create or read plain hashes.", &option,
 		OPT_VERSION,    "Show version page and quit.", &option,
 		OPT_VER,        "Show version and quit.", &option,
 		OPT_LICENSE,    "Show license page and quit.", &option,
@@ -668,38 +692,48 @@ L_HELP:
 	
 	string action = args[1];
 	
-	HashType type;
+	HashType type = InvalidHash;
 	
-	// Aliases for hashes and checksums
-	foreach (info; hashInfo)
+	switch (action)
 	{
-		if (action == info.aliasName)
+	case "check":
+		if (args.length == 0)
+			return printError(1, "Missing SUM file");
+		
+		type = guessHashExt(args[2]);
+		if (type == InvalidHash)
+			return printError(2, "Could not determine hash type");
+		
+		settings.process = &processList;
+		
+		break;
+	case "list":
+		static immutable sep = "--------";
+		printMeta("Alias", "Name", "Tag");
+		printMeta(sep, sep, sep);
+		foreach (info; hashInfo)
+			printMeta(info.aliasName, info.fullName, info.tagName);
+		return 0;
+	case "help":
+		goto L_HELP;
+	case OPT_VER, OPT_VERSION, OPT_LICENSE, OPT_COFE:
+		option(action);
+		return 0;
+	default:
+		foreach (info; hashInfo)
 		{
-			type = info.type;
-			break;
+			if (action == info.aliasName)
+			{
+				type = info.type;
+				break;
+			}
 		}
 	}
 	
 	// Pages
-	if (type == HashType.none)
+	if (type == InvalidHash)
 	{
-		switch (action)
-		{
-		case "list":
-			static immutable sep = "-------";
-			printMeta("Alias", "Name", "Tag");
-			printMeta(sep, sep, sep);
-			foreach (info; hashInfo)
-				printMeta(info.aliasName, info.fullName, info.tagName);
-			return 0;
-		case "help":
-			goto L_HELP;
-		case OPT_VER, OPT_VERSION, OPT_LICENSE, OPT_COFE:
-			option(action);
-			return 0;
-		default:
-			return printError(1, "Unknown action '%s'", action);
-		}
+		return printError(1, "Unknown action or hash '%s'", action);
 	}
 	
 	if (settings.hasher.initiate(type))
@@ -711,7 +745,7 @@ L_HELP:
 	{
 		return processStdin;
 	}
-	
+
 	string[] entries = args[2..$];
 	
 	if (entries.length == 0)

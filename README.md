@@ -84,6 +84,7 @@ Files 'LICENSE' and 'dub.sdl' are different
 | GNU (default) | `1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE` |
 | BSD (`--tag`) | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
 | SRI (`--sri`) | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
+| Plain (`--plain`) | `1d267ceb3a8d8f75f1be3011ee4cbf53` |
 
 # File Pattern Globbing (`*` vs. `'*'`)
 

@@ -11,13 +11,13 @@ import std.digest;
 import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc, std.digest.murmurhash;
 import sha3d, blake2d;
 import std.base64;
+import std.format : formattedRead;
 
 private alias MurmurHash3_32Digest = WrapperDigest!(MurmurHash3!32);
 private alias MurmurHash3_128Digest = WrapperDigest!(MurmurHash3!(128, 64));
 
 enum HashType
 {
-	none,
 	CRC32,
 	CRC64ISO,
 	CRC64ECMA,
@@ -40,6 +40,8 @@ enum HashType
 	MurMurHash3_128,
 }
 enum HashCount = HashType.max + 1;
+enum InvalidHash = cast(HashType)-1;
+enum HashTypeInvalid = cast(HashType)-1;
 
 struct HashInfo
 {
@@ -50,7 +52,11 @@ struct HashInfo
 // Full name: Should be based on their full specification name
 // Alias: Should be based on a simple lowercase name. See `openssl dgst -list` for examples.
 // Tag name: Should be based on an full uppercase name. See openssl dgst output for examples.
+//TODO: Alternative Tag name
+//      NetBSD seems to be using other names such as
+//      RMD160, SHA512, etc.
 immutable HashInfo[HashCount] hashInfo = [
+	// HashType	Full	Alias	Tag
 	{ HashType.CRC32,	"CRC-32", "crc32", "CRC32", },
 	{ HashType.CRC64ISO,	"CRC-64-ISO", "crc64iso", "CRC64ISO", },
 	{ HashType.CRC64ECMA,	"CRC-64-ECMA", "crc64ecma", "CRC64ECMA", },
@@ -90,7 +96,7 @@ struct Ddh
 	
 	int initiate(HashType t)
 	{
-		switch (t) with (HashType)
+		final switch (t) with (HashType)
 		{
 		case CRC32:	hash = new CRC32Digest(); break;
 		case CRC64ISO:	hash = new CRC64ISODigest(); break;
@@ -112,11 +118,10 @@ struct Ddh
 		case BLAKE2s256:	hash = new BLAKE2s256Digest(); break;
 		case MurMurHash3_32:	hash = new MurmurHash3_32Digest(); break;
 		case MurMurHash3_128:	hash = new MurmurHash3_128Digest(); break;
-		default:
 		}
 		
 		type = t;
-		info = &hashInfo[t-1];
+		info = &hashInfo[t];
 		checksum = t < HashType.MD5;
 		
 		return 0;
@@ -177,4 +182,118 @@ struct Ddh
 		"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532"));
 	assert(ddh.toHex() ==
 		"3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
+}
+
+bool readGNULine(string line, ref const(char)[] hash, ref const(char)[] file)
+{
+	// Tested to work with one or many spaces
+	return formattedRead(line, "%s %s", hash, file) != 2;
+}
+
+unittest
+{
+	string line = "f6067df486cbdbb0aac026b799b26261c92734a3  LICENSE";
+	const(char)[] hash, file;
+	assert(readGNULine(line, hash, file) == false);
+	assert(hash == "f6067df486cbdbb0aac026b799b26261c92734a3");
+	assert(file == "LICENSE");
+}
+
+bool readBSDLine(string line,
+	ref const(char)[] type, ref const(char)[] file, ref const(char)[] hash)
+{
+	// Tested to work with and without spaces
+	return formattedRead(line, "%s (%s) = %s", type, file, hash) != 3;
+}
+
+unittest
+{
+	string line =
+		"SHA256 (Fedora-Workstation-Live-x86_64-36-1.5.iso) = "~
+		"80169891cb10c679cdc31dc035dab9aae3e874395adc5229f0fe5cfcc111cc8c";
+	const(char)[] type, file, hash;
+	assert(readBSDLine(line, type, file, hash) == false);
+	assert(type == "SHA256");
+	assert(file == "Fedora-Workstation-Live-x86_64-36-1.5.iso");
+	assert(hash == "80169891cb10c679cdc31dc035dab9aae3e874395adc5229f0fe5cfcc111cc8c");
+}
+
+bool readSRILine(string line, ref const(char)[] type, ref const(char)[] hash)
+{
+	return formattedRead(line, "%s-%s", type, hash) != 2;
+}
+
+unittest
+{
+	string line = "sha1-9gZ99IbL27CqwCa3mbJiYcknNKM=";
+	const(char)[] type, hash;
+	assert(readSRILine(line, type, hash) == false);
+	assert(type == "sha1");
+	assert(hash == "9gZ99IbL27CqwCa3mbJiYcknNKM=");
+}
+
+/+bool readPGPMessage(string line)
+{
+	/* PGP Message example:
+	-----BEGIN PGP SIGNED MESSAGE-----
+	Hash: SHA256
+
+	# Fedora-Workstation-Live-x86_64-36-1.5.iso: 2018148352 bytes
+	SHA256 (Fedora-Workstation-Live-x86_64-36-1.5.iso) = 80169891cb10c679cdc31dc035dab9aae3e874395adc5229f0fe5cfcc111cc8c
+	-----BEGIN PGP SIGNATURE-----
+	...*/
+}+/
+
+// Check by extension
+HashType guessHashExt(string path) @safe
+{
+	import std.string : toLower, indexOf;
+	import std.path : extension, CaseSensitive;
+	import std.algorithm.searching : canFind, startsWith;
+	
+	string ext = extension(path);
+	if (ext == null || ext == ".")
+		ext = path.toLower;
+	else
+		ext = ext[1..$].toLower;
+	
+	foreach (info; hashInfo) {
+		if (indexOf(ext, info.aliasName) >= 0)
+		//if (ext.startsWith(info.aliasName))
+		//if (canFind(ext, info.aliasName))
+			return info.type;
+		/*size_t al = info.aliasName.length;
+		if (ext.length < al)
+			continue;
+		if (ext[0..al] != info.aliasName)
+			continue;
+		return info.type;*/
+	}
+	
+	if (indexOf(ext, "sha3") >= 0)
+		return HashType.SHA3_256;
+	
+	return InvalidHash;
+}
+
+@safe unittest
+{
+	assert(guessHashExt("sha1sum") == HashType.SHA1);
+	assert(guessHashExt("SHA512SUM") == HashType.SHA512);
+	assert(guessHashExt("test.crc32") == HashType.CRC32);
+	assert(guessHashExt("test.sha256") == HashType.SHA256);
+	assert(guessHashExt("test.md5sum") == HashType.MD5);
+	assert(guessHashExt("test.sha3sums") == HashType.SHA3_256);
+}
+
+// Check by context
+// This can be a GNU list, BSD list, or PGP signed message with tag
+/*HashType guessHashFile(string content) @safe
+{
+	
+	
+}*/
+
+@safe unittest
+{
 }
