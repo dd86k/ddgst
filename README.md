@@ -5,7 +5,7 @@ and comes with more features than built-in OS utilities.
 
 ## Feature Comparison
 
-| Feature | ddh | GNU coreutils | uutils/coreutils | OpenSSL [^1] |
+| Feature | ddh | GNU coreutils | uutils/coreutils | OpenSSL [^3] |
 |---|---|---|---|---|
 | Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
 | Text mode | ✔️ | ✔️ | ✔️ | |
@@ -29,9 +29,9 @@ and comes with more features than built-in OS utilities.
 | SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | ✔️ |
 | SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | ✔️ |
 | SHA-3/SHAKE | ✔️ | | ✔️ | ✔️ |
-| BLAKE2b | ✔️ | ✔️ (b2sum) | ✔️[^9] | ✔️ |
-| BLAKE2s | ✔️ | | | ✔️ |
-| BLAKE3 | | [^6] | ✔️[^9] | | [^8] |
+| [BLAKE2b](https://www.blake2.net/) | ✔️ | ✔️ (b2sum) | ✔️[^9] | ✔️ |
+| [BLAKE2s](https://www.blake2.net/) | ✔️ | | | ✔️ |
+| [BLAKE3](https://github.com/BLAKE3-team/BLAKE3/) | | [^6] | ✔️[^9] | | [^8] |
 | MurmurHash3 | ✔️ | | | | |
 
 # Usage
