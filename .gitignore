@@ -11,6 +11,7 @@ ddh.a
 ddh.lib
 ddh-test-*
 *.exe
+*.pdb
 *.o
 *.obj
 *.lst
