@@ -20,7 +20,7 @@ int main(string[] args) {
 		write(GITINFO_PATH,
 		"// NOTE: This file was automatically generated.\n"~
 		"module gitinfo;\n"~
-		"enum GIT_DESCRIPTION = "~ver~";");
+		"enum GIT_DESCRIPTION = \""~ver~"\";");
 		return 0;
 	}
 }
