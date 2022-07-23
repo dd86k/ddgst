@@ -41,20 +41,22 @@ enum HashType
 }
 enum HashCount = HashType.max + 1;
 enum InvalidHash = cast(HashType)-1;
-enum HashTypeInvalid = cast(HashType)-1;
 
 struct HashInfo
 {
 	HashType type;
-	string fullName, aliasName, tagName;
+	string fullName, alias_, alias2, tagName;
 }
 
 // Full name: Should be based on their full specification name
 // Alias: Should be based on a simple lowercase name. See `openssl dgst -list` for examples.
 // Tag name: Should be based on an full uppercase name. See openssl dgst output for examples.
+//TODO: Alternative Alias name
+//      Some aliases, like sha3-256 and ripemd160, are a little long to type
+//      "sha3" and "rmd160" fit better.
 //TODO: Alternative Tag name
-//      NetBSD seems to be using other names such as
-//      RMD160, SHA512, etc.
+//      For some reason, NetBSD seems to be using other names such as RMD160,
+//      SHA512, etc. under OpenSSL. Is this a GNU/BSD thing?
 immutable HashInfo[HashCount] hashInfo = [
 	// HashType	Full	Alias	Tag
 	{ HashType.CRC32,	"CRC-32", "crc32", "CRC32", },
@@ -78,13 +80,6 @@ immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.MurMurHash3_32,	"MurmurHash3-32",  "mmhash3-32",  "MURMURHASH3-32", },
 	{ HashType.MurMurHash3_128,	"MurmurHash3-128", "mmhash3-128", "MURMURHASH3-128", },
 ];
-
-private enum
-{
-	HASH_LARGEST = 512,	// in bits
-	HASH_LARGEST_SIZE = HASH_LARGEST / 8,	// in bytes
-	HASH_LARGEST_STRING = HASH_LARGEST_SIZE * 2,	// in chars
-}
 
 struct Ddh
 {
@@ -161,7 +156,7 @@ struct Ddh
 	}
 	
 	string fullName()  { return info.fullName; }
-	string aliasName() { return info.aliasName; }
+	string aliasName() { return info.alias_; }
 	string tagName()   { return info.tagName; }
 }
 
@@ -258,16 +253,8 @@ HashType guessHashExt(string path) @safe
 		ext = ext[1..$].toLower;
 	
 	foreach (info; hashInfo) {
-		if (indexOf(ext, info.aliasName) >= 0)
-		//if (ext.startsWith(info.aliasName))
-		//if (canFind(ext, info.aliasName))
+		if (indexOf(ext, info.alias_) >= 0)
 			return info.type;
-		/*size_t al = info.aliasName.length;
-		if (ext.length < al)
-			continue;
-		if (ext[0..al] != info.aliasName)
-			continue;
-		return info.type;*/
 	}
 	
 	if (indexOf(ext, "sha3") >= 0)

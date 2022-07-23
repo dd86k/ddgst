@@ -131,6 +131,8 @@ Release recommendation with the LDC compiler:
 dub build -b release-nobounds --compiler=ldc2
 ```
 
+To compile with GDC, you'll also need gdmd installed.
+
 [^2]: All but cksum and sum.
 [^3]: See `dgst` command.
 [^4]: `*` prepended to filename.

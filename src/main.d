@@ -809,7 +809,7 @@ L_HELP:
 		printMeta("Alias", "Name", "Tag");
 		printMeta(sep, sep, sep);
 		foreach (info; hashInfo)
-			printMeta(info.aliasName, info.fullName, info.tagName);
+			printMeta(info.alias_, info.fullName, info.tagName);
 		return 0;
 	case "help":
 		goto L_HELP;
@@ -819,7 +819,7 @@ L_HELP:
 	default:
 		foreach (info; hashInfo)
 		{
-			if (action == info.aliasName)
+			if (action == info.alias_)
 			{
 				type = info.type;
 				break;
