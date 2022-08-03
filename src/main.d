@@ -47,6 +47,7 @@ immutable string PAGE_HELP =
 `Usage: ddh command [options...] [files...] [-]
 
 Commands
+[hash]    Hash or checksum. See list command for a list of hashes and checksums.
 check     Automatically check hash list depending on file extension.
 list      List all supported hashes and checksums.
 help      This help page and exit.
