@@ -3,8 +3,8 @@ description "dd's hashing utility"
 homepage "https://github.com/dd86k/ddh"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
-dependency "sha3-d" version="~>1.2.2"
-dependency "blake2-d" version="~>0.2.0"
+dependency "sha3-d" version="~>1.2.4"
+dependency "blake2-d" version="~>0.3.0"
 
 # NOTE: Somehow, the dmd package in the Alpine repo does not contain rdmd.
 preBuildCommands "dmd -run setup.d version" platform="dmd"
