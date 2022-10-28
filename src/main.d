@@ -211,7 +211,8 @@ struct Settings
 	TagType tag;
 	string fileMode = FILE_MODE_BIN;
 	string against;	/// Hash to check against (-a/--against)
-	ubyte[] key;
+	ubyte[] key;	/// Key for BLAKE2
+	uint seed;	/// Seed for Murmurhash3
 	
 	int function(const(char)[]) hash = &hashFile;
 	int function(const(char)[]) process = &processFile;
@@ -327,6 +328,17 @@ unittest
 	assert(s == 1024);
 	assert(strtobin(&s, "1.1K") == 0);
 	assert(s == 1024 + 102); // 102.4
+}
+
+// unformat any number
+uint unformat(string input)
+{
+	import core.stdc.stdio : sscanf;
+	import std.string : toStringz;
+	
+	int n = void;
+	sscanf(input.toStringz, "%i", &n);
+	return cast(uint)n;
 }
 
 bool compareHash(const(char)[] h1, const(char)[] h2)
@@ -677,6 +689,7 @@ immutable string OPT_BREATH	= "breath";
 immutable string OPT_KEY	= "key";
 //immutable string OPT_KEYFILE	= "keyfile";
 //immutable string OPT_KEYBIN	= "keyhex";
+immutable string OPT_SEED	= "seed";
 immutable string OPT_VER	= "ver";
 immutable string OPT_VERSION	= "version";
 immutable string OPT_LICENSE	= "license";
@@ -749,6 +762,10 @@ void option2(string arg, string val)
 			throw new GetOptException(ex.msg);
 		}
 		return;
+	// seeding
+	case OPT_SEED:
+		settings.seed = unformat(val);
+		return;
 	}
 }
 
@@ -778,9 +795,10 @@ int main(string[] args)
 		OPT_TAG,        "Create or read BSD-style hashes.", &option,
 		OPT_SRI,        "Create or read SRI-style hashes.", &option,
 		OPT_PLAIN,      "Create or read plain hashes.", &option,
-		OPT_KEY,        "Binary key file for supported hash.",  &option2,
+		OPT_KEY,        "Binary key file for BLAKE2 hashes.",  &option2,
 		//"keyhex",       "Hex text key file for supported hash.",  &option2,
 		//"keystr",       "Hex text argument for supported hash.",  &option2,
+		OPT_SEED,       "Seed literal argument for Murmurhash3 hashes.",  &option2,
 		OPT_VERSION,    "Show version page and quit.", &option,
 		OPT_VER,        "Show version and quit.", &option,
 		OPT_LICENSE,    "Show license page and quit.", &option,
@@ -830,7 +848,7 @@ L_HELP:
 		
 		break;
 	case "list":
-		static immutable sep = "--------";
+		static immutable sep = "-----------";
 		printMeta("Alias", "Name", "Tag");
 		printMeta(sep, sep, sep);
 		foreach (info; hashInfo)
@@ -868,6 +886,18 @@ L_HELP:
 		try
 		{
 			settings.hasher.key(settings.key);
+		}
+		catch (Exception ex)
+		{
+			return printError(3, "%s", ex.msg);
+		}
+	}
+	
+	if (settings.seed)
+	{
+		try
+		{
+			settings.hasher.seed(settings.seed);
 		}
 		catch (Exception ex)
 		{

@@ -13,14 +13,30 @@ import sha3d, blake2d;
 import std.base64;
 import std.format : formattedRead;
 
-private alias MurmurHash3_32Digest = WrapperDigest!(MurmurHash3!32);
-private alias MurmurHash3_128Digest = WrapperDigest!(MurmurHash3!(128, 64));
+private deprecated alias MurmurHash3_32Digest = WrapperDigest!(MurmurHash3!32);
+private deprecated alias MurmurHash3_128_32Digest = WrapperDigest!(MurmurHash3!(128, 32));
+private deprecated alias MurmurHash3_128_64Digest = WrapperDigest!(MurmurHash3!(128, 64));
+
+private class HashSeeded(T) if (isDigest!T) : WrapperDigest!T
+{
+	@trusted nothrow void seed(uint input)
+	{
+		_digest = T(input);
+	}
+}
+
+private alias MurmurHash3_32_SeededDigest = HashSeeded!(MurmurHash3!32);
+private alias MurmurHash3_128_32_SeededDigest = HashSeeded!(MurmurHash3!(128, 32));
+private alias MurmurHash3_128_64_SeededDigest = HashSeeded!(MurmurHash3!(128, 64));
 
 enum HashType
 {
 	CRC32,
 	CRC64ISO,
 	CRC64ECMA,
+	MurMurHash3_32,
+	MurMurHash3_128_32,
+	MurMurHash3_128_64,
 	MD5,
 	RIPEMD160,
 	SHA1,
@@ -36,8 +52,6 @@ enum HashType
 	SHAKE256,
 	BLAKE2b512,
 	BLAKE2s256,
-	MurMurHash3_32,
-	MurMurHash3_128,
 }
 enum HashCount = HashType.max + 1;
 enum InvalidHash = cast(HashType)-1;
@@ -62,6 +76,9 @@ immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.CRC32,	"CRC-32", "crc32", "CRC32", },
 	{ HashType.CRC64ISO,	"CRC-64-ISO", "crc64iso", "CRC64ISO", },
 	{ HashType.CRC64ECMA,	"CRC-64-ECMA", "crc64ecma", "CRC64ECMA", },
+	{ HashType.MurMurHash3_32,	"MurmurHash3-32",  "murmur3a",  "MURMURHASH3-32", },
+	{ HashType.MurMurHash3_128_32,	"MurmurHash3-128/32", "murmur3c", "MURMURHASH3-128-32", },
+	{ HashType.MurMurHash3_128_64,	"MurmurHash3-128/64", "murmur3f", "MURMURHASH3-128-64", },
 	{ HashType.MD5,	"MD5-128", "md5", "MD5", },
 	{ HashType.RIPEMD160,	"RIPEMD-160", "ripemd160", "RIPEMD160", },
 	{ HashType.SHA1,	"SHA-1-160", "sha1", "SHA1", },
@@ -77,8 +94,6 @@ immutable HashInfo[HashCount] hashInfo = [
 	{ HashType.SHAKE256,	"SHAKE-256", "shake256", "SHAKE-256", },
 	{ HashType.BLAKE2b512,	"BLAKE2b-512", "blake2b512", "BLAKE2B-512", },
 	{ HashType.BLAKE2s256,	"BLAKE2s-256", "blake2s256", "BLAKE2S-256", },
-	{ HashType.MurMurHash3_32,	"MurmurHash3-32",  "mmhash3-32",  "MURMURHASH3-32", },
-	{ HashType.MurMurHash3_128,	"MurmurHash3-128", "mmhash3-128", "MURMURHASH3-128", },
 ];
 
 struct Ddh
@@ -111,13 +126,14 @@ struct Ddh
 		case SHAKE256:	hash = new SHAKE256Digest(); break;
 		case BLAKE2b512:	hash = new BLAKE2b512Digest(); break;
 		case BLAKE2s256:	hash = new BLAKE2s256Digest(); break;
-		case MurMurHash3_32:	hash = new MurmurHash3_32Digest(); break;
-		case MurMurHash3_128:	hash = new MurmurHash3_128Digest(); break;
+		case MurMurHash3_32:	hash = new MurmurHash3_32_SeededDigest(); break;
+		case MurMurHash3_128_32:	hash = new MurmurHash3_128_32_SeededDigest(); break;
+		case MurMurHash3_128_64:	hash = new MurmurHash3_128_64_SeededDigest(); break;
 		}
 		
 		type = t;
 		info = &hashInfo[t];
-		checksum = t < HashType.MD5;
+		checksum = t <= HashType.CRC64ECMA;
 		
 		return 0;
 	}
@@ -136,6 +152,27 @@ struct Ddh
 			break;
 		default:
 			throw new Exception("Digest does not support keying.");
+		}
+	}
+	
+	void seed(uint input)
+	{
+		switch (type) with (HashType)
+		{
+		case MurMurHash3_32:
+			MurmurHash3_32_SeededDigest dgst = cast(MurmurHash3_32_SeededDigest)hash;
+			dgst.seed(input);
+			break;
+		case MurMurHash3_128_32:
+			MurmurHash3_128_32_SeededDigest dgst = cast(MurmurHash3_128_32_SeededDigest)hash;
+			dgst.seed(input);
+			break;
+		case MurMurHash3_128_64:
+			MurmurHash3_128_64_SeededDigest dgst = cast(MurmurHash3_128_64_SeededDigest)hash;
+			dgst.seed(input);
+			break;
+		default:
+			throw new Exception("Digest does not support seeding.");
 		}
 	}
 	

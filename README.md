@@ -17,13 +17,14 @@ and comes with more features than built-in OS utilities.
 | BSD style hashes | ✔️ | ✔️ | ✔️ | ✔️ |
 | [SRI style hashes](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) | ✔️ | [^5] | [^5] | [^5] |
 
-## Algorithm Availability
+## Algorithm Availability Comparison
 
 | Checksum/Hash | ddh | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
 |---|---|---|---|---|
 | CRC-32 | ✔️ | | | |
 | CRC-64-ISO | ✔️ | | |
 | CRC-64-ECMA | ✔️ | | |
+| MurmurHash3 | ✔️ | | | | |
 | MD5 | ✔️ | ✔️ | ✔️ | ✔️ |
 | RIPEMD-160 | ✔️ | | ✔️ | ✔️ |
 | SHA-1 | ✔️ | ✔️ | ✔️ | ✔️ |
@@ -32,7 +33,24 @@ and comes with more features than built-in OS utilities.
 | [BLAKE2b](https://www.blake2.net/) | ✔️ | ✔️ | ✔️[^9] | ✔️ |
 | [BLAKE2s](https://www.blake2.net/) | ✔️ | | | ✔️ |
 | [BLAKE3](https://github.com/BLAKE3-team/BLAKE3/) | | [^6] | ✔️[^9] | | [^8] |
-| MurmurHash3 | ✔️ | | | | |
+
+## Algorithm Security
+
+| Checksum/Hash | Type | Secure |
+|---|---|---|
+| CRC-32 | Checksum | No |
+| CRC-64-ISO | Checksum | No |
+| CRC-64-ECMA | Checksum | No |
+| Murmurhash-32 | Hash | No |
+| Murmurhash-128-32 | Hash | No |
+| Murmurhash-128-64 | Hash | No |
+| MD5 | Hash | No |
+| RIPEMD-160 | Hash | Yes |
+| SHA-1 | Hash | No |
+| SHA-2 | Hash | Yes |
+| SHA-3/SHAKE | Hash | Yes |
+| [BLAKE2b](https://www.blake2.net/) | Hash | Yes |
+| [BLAKE2s](https://www.blake2.net/) | Hash | Yes |
 
 # Usage
 
@@ -76,6 +94,13 @@ Files 'LICENSE' and 'README.md' are different
 Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different
 ```
+
+## Hash parameters
+
+Some hashes may take optional parameters.
+
+- BLAKE2: The `--key` option takes a binary file for keying the hash.
+- Murmurhash3: The `--seed` option takes an argument literal for seeding the hash.
 
 # Hash styles
 
