@@ -45,7 +45,7 @@ enum InvalidHash = cast(HashType)-1;
 struct HashInfo
 {
 	HashType type;
-	string fullName, alias_, alias2, tagName;
+	string fullName, alias_, tagName;
 }
 
 // Full name: Should be based on their full specification name
@@ -120,6 +120,23 @@ struct Ddh
 		checksum = t < HashType.MD5;
 		
 		return 0;
+	}
+	
+	void key(const(ubyte)[] input...)
+	{
+		switch (type) with (HashType)
+		{
+		case BLAKE2b512:
+			BLAKE2b512Digest dgst = cast(BLAKE2b512Digest)hash;
+			dgst.key(input);
+			break;
+		case BLAKE2s256:
+			BLAKE2s256Digest dgst = cast(BLAKE2s256Digest)hash;
+			dgst.key(input);
+			break;
+		default:
+			throw new Exception("Digest does not support keying.");
+		}
 	}
 	
 	void reset()
@@ -266,7 +283,7 @@ HashType guessHashExt(string path) @safe
 @safe unittest
 {
 	assert(guessHashExt("sha1sum") == HashType.SHA1);
-	assert(guessHashExt("SHA512SUM") == HashType.SHA512);
+	assert(guessHashExt(".SHA512SUM") == HashType.SHA512);
 	assert(guessHashExt("test.crc32") == HashType.CRC32);
 	assert(guessHashExt("test.sha256") == HashType.SHA256);
 	assert(guessHashExt("test.md5sum") == HashType.MD5);

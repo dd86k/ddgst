@@ -8,7 +8,7 @@
 module main;
 
 import std.compiler : version_major, version_minor;
-import std.file : dirEntries, DirEntry, SpanMode;
+import std.file : dirEntries, DirEntry, SpanMode, read;
 import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
@@ -21,25 +21,29 @@ import gitinfo;
 
 private:
 
+alias readAll = read;
+
 enum DEFAULT_READ_SIZE = 4 * 1024;
 enum TagType { gnu, bsd, sri, plain }
 
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 
-// Disables the Druntime GC command-line interface
-// except for debug builds
 debug {} else
-extern (C) __gshared bool rt_cmdline_enabled = false;
+{
+	// Disables the Druntime GC command-line interface
+	// except for debug builds
+	extern (C) __gshared bool rt_cmdline_enabled = false;
+}
 
 debug enum BUILD_TYPE = "+debug";
 else  enum BUILD_TYPE = "";
 
 immutable string PAGE_VERSION =
-`ddh `~GIT_DESCRIPTION[1..$]~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+`ddh `~GIT_DESCRIPTION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
 Using sha3-d `~SHA3D_VERSION_STRING~`, blake2-d `~BLAKE2D_VERSION_STRING~`
-No Copyrights
-License: Unlicense
+No rights reserved
+License: CC0
 Homepage: <https://github.com/dd86k/ddh>
 Compiler: `~__VENDOR__~" v"~format("%u.%03u", version_major, version_minor);
 
@@ -207,6 +211,7 @@ struct Settings
 	TagType tag;
 	string fileMode = FILE_MODE_BIN;
 	string against;	/// Hash to check against (-a/--against)
+	ubyte[] key;
 	
 	int function(const(char)[]) hash = &hashFile;
 	int function(const(char)[]) process = &processFile;
@@ -669,11 +674,15 @@ immutable string OPT_NOFOLLOW	= "nofollow";
 immutable string OPT_DEPTH	= "r|depth";
 immutable string OPT_SHALLOW	= "shallow";
 immutable string OPT_BREATH	= "breath";
+immutable string OPT_KEY	= "key";
+//immutable string OPT_KEYFILE	= "keyfile";
+//immutable string OPT_KEYBIN	= "keyhex";
 immutable string OPT_VER	= "ver";
 immutable string OPT_VERSION	= "version";
 immutable string OPT_LICENSE	= "license";
 immutable string OPT_COFE	= "cofe";
 
+// special settings that getopts cannot simply set directly
 void option(string arg)
 {
 	import core.stdc.stdlib : exit;
@@ -715,6 +724,7 @@ void option(string arg)
 
 void option2(string arg, string val)
 {
+	
 	with (settings) final switch (arg)
 	{
 	case OPT_BUFFERSIZE:
@@ -727,6 +737,17 @@ void option2(string arg, string val)
 				throw new GetOptException("Buffer size overflows");
 		}
 		bufferSize = cast(size_t)v;
+		return;
+	// key
+	case OPT_KEY:
+		try
+		{
+			settings.key = cast(ubyte[])readAll(val);
+		}
+		catch (Exception ex)
+		{
+			throw new GetOptException(ex.msg);
+		}
 		return;
 	}
 }
@@ -757,6 +778,9 @@ int main(string[] args)
 		OPT_TAG,        "Create or read BSD-style hashes.", &option,
 		OPT_SRI,        "Create or read SRI-style hashes.", &option,
 		OPT_PLAIN,      "Create or read plain hashes.", &option,
+		OPT_KEY,        "Binary key file for supported hash.",  &option2,
+		//"keyhex",       "Hex text key file for supported hash.",  &option2,
+		//"keystr",       "Hex text argument for supported hash.",  &option2,
 		OPT_VERSION,    "Show version page and quit.", &option,
 		OPT_VER,        "Show version and quit.", &option,
 		OPT_LICENSE,    "Show license page and quit.", &option,
@@ -837,6 +861,18 @@ L_HELP:
 	if (settings.hasher.initiate(type))
 	{
 		return printError(2, "Couldn't initiate hash module");
+	}
+	
+	if (settings.key != settings.key.init)
+	{
+		try
+		{
+			settings.hasher.key(settings.key);
+		}
+		catch (Exception ex)
+		{
+			return printError(3, "%s", ex.msg);
+		}
 	}
 	
 	if (settings.modeStdin)
