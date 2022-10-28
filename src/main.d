@@ -54,7 +54,7 @@ Homepage: <https://github.com/dd86k/ddh>
 Compiler: ` ~ __VENDOR__ ~ " v" ~ format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
-    `Usage: ddh command [options...] [files...] [-]
+`Usage: ddh command [options...] [files...] [-]
 
 Commands
 [hash]    Hash or checksum. See list command for a list of hashes and checksums.
@@ -65,8 +65,7 @@ ver       Only show version number and exit.
 version   Show version page and exit.
 
 Options
---                Stop processing options.
---stdin           Input mode: Standard input (stdin).`;
+--                Stop processing options.`;
 
 immutable string PAGE_LICENSE =
 `Creative Commons Legal Code
@@ -237,7 +236,6 @@ struct Settings
 {
     Ddh hasher;
     ubyte[] rawHash;
-    string listPath;
     size_t bufferSize = DEFAULT_READ_SIZE;
     SpanMode spanMode;
     TagType tag;
@@ -250,7 +248,6 @@ struct Settings
     int function(const(char)[]) process = &processFile;
 
     bool follow = true;
-    bool skipArgs;
     bool modeStdin;
 }
 
@@ -344,22 +341,12 @@ int strtobin(ulong* size, string input)
     ulong u = cast(ulong) f;
     switch (c)
     {
-    case 'T', 't':
-        u *= T;
-        break;
-    case 'G', 'g':
-        u *= G;
-        break;
-    case 'M', 'm':
-        u *= M;
-        break;
-    case 'K', 'k':
-        u *= K;
-        break;
-    case 'B', 'b':
-        break;
-    default:
-        return 4;
+    case 'T', 't': u *= T; break;
+    case 'G', 'g': u *= G; break;
+    case 'M', 'm': u *= M; break;
+    case 'K', 'k': u *= K; break;
+    case 'B', 'b': break;
+    default: return 4;
     }
 
     enum LIMIT = 2 * G; /// Buffer read limit
@@ -400,22 +387,21 @@ bool compareHash(const(char)[] h1, const(char)[] h2)
 
 int hashFile(const(char)[] path)
 {
-    version (Trace)
-        trace("path=%s", path);
+    version (Trace) trace("path=%s", path);
 
     try
     {
-        File f; // Must never be void
+        File f; // Must be init
         // BUG: Using opAssign with LDC2 crashes at runtime
-        f.open(cast(string) path, settings.fileMode);
-
+        f.open(cast(string)path, settings.fileMode);
+        
         if (f.size())
         {
             int e = hashFile(f);
             if (e)
                 return e;
         }
-
+        
         f.close();
         return 0;
     }
@@ -447,8 +433,7 @@ int hashMmfile(const(char)[] path)
     import std.range : chunks;
     import std.mmfile : MmFile;
 
-    version (Trace)
-        trace("path=%s", path);
+    version (Trace) trace("path=%s", path);
 
     try
     {
@@ -475,15 +460,13 @@ int hashMmfile(const(char)[] path)
 
 int hashStdin(string)
 {
-    version (Trace)
-        trace("stdin");
+    version (Trace) trace("stdin");
     return hashFile(stdin);
 }
 
 int hashText(const(char)[] text)
 {
-    version (Trace)
-        trace("text='%s'", text);
+    version (Trace) trace("text='%s'", text);
 
     try
     {
@@ -500,12 +483,11 @@ int hashText(const(char)[] text)
 
 int processFile(const(char)[] path)
 {
-    version (Trace)
-        trace("path=%s", path);
+    version (Trace) trace("path=%s", path);
 
     uint count;
-    string dir = cast(string) dirName(path); // "." if anything
-    string name = cast(string) baseName(path); // Glob patterns are kept
+    string dir  = cast(string)dirName(path); // "." if anything
+    string name = cast(string)baseName(path); // Glob patterns are kept
     const bool same = dir == "."; // same directory name from dirName
     foreach (DirEntry entry; dirEntries(dir, name, settings.spanMode, settings.follow))
     {
@@ -546,15 +528,16 @@ int processFile(const(char)[] path)
         else
             printResult(file);
     }
+    
     if (count == 0)
         return printError(6, "'%s': No such file", name);
+    
     return 0;
 }
 
 int processStdin()
 {
-    version (Trace)
-        trace("stdin");
+    version (Trace) trace("stdin");
     int e = hashStdin(STDIN_NAME);
     if (e == 0)
         printResult(STDIN_NAME);
@@ -563,8 +546,7 @@ int processStdin()
 
 int processText(const(char)[] text)
 {
-    version (Trace)
-        trace("text='%s'", text);
+    version (Trace) trace("text='%s'", text);
     int e = hashText(text);
     if (e == 0)
         printResult!`"%s"`(text);
@@ -576,8 +558,7 @@ int processList(const(char)[] listPath)
     import std.file : readText;
     import std.string : lineSplitter;
 
-    version (Trace)
-        trace("list=%s", listPath);
+    version (Trace) trace("list=%s", listPath);
 
     /// Minimum line length (hash + 1 spaces).
     // Example: abcd1234  file.txt
@@ -652,8 +633,7 @@ int processList(const(char)[] listPath)
 
             const(char)[] result = settings.hasher.toHex;
 
-            version (Trace)
-                trace("r1=%s r2=%s", result, expected);
+            version (Trace) trace("r1=%s r2=%s", result, expected);
 
             if (compareHash(result, expected) == false)
             {
@@ -740,14 +720,11 @@ void printMeta(string baseName, string name, string tagName)
 // special settings that getopts cannot simply set directly
 void option(string arg)
 {
-    import core.stdc.stdlib : exit;
-
-    version (Trace)
-        trace(arg);
+    version (Trace) trace(arg);
 
     with (settings) final switch (arg)
     {
-        // input modes
+    // input modes
     case OPT_ARG:
         process = &processText;
         return;
@@ -757,7 +734,7 @@ void option(string arg)
     case OPT_STDIN:
         settings.modeStdin = true;
         return;
-        // file input mode
+    // file input mode
     case OPT_FILE:
         hash = &hashFile;
         return;
@@ -770,7 +747,7 @@ void option(string arg)
     case OPT_BINARY:
         fileMode = FILE_MODE_BIN;
         return;
-        // hash style
+    // hash style
     case OPT_TAG:
         tag = TagType.bsd;
         return;
@@ -783,14 +760,14 @@ void option(string arg)
     case OPT_PLAIN:
         tag = TagType.plain;
         return;
-        // globber: symlink
+    // globber: symlink
     case OPT_NOFOLLOW:
         follow = false;
         return;
     case OPT_FOLLOW:
         follow = true;
         return;
-        // globber: directory
+    // globber: directory
     case OPT_DEPTH:
         spanMode = SpanMode.depth;
         return;
@@ -800,7 +777,7 @@ void option(string arg)
     case OPT_BREATH:
         spanMode = SpanMode.breadth;
         return;
-        // pages
+    // pages
     case OPT_VER:
         arg = GIT_DESCRIPTION;
         break;
@@ -815,12 +792,10 @@ void option(string arg)
         break;
     }
     writeln(arg);
-    exit(0);
 }
 
 void option2(string arg, string val)
 {
-
     with (settings) final switch (arg)
     {
     case OPT_BUFFERSIZE:
@@ -837,7 +812,7 @@ void option2(string arg, string val)
         }
         bufferSize = cast(size_t) v;
         return;
-        // key
+    // keying
     case OPT_KEY:
         try
         {
@@ -848,7 +823,7 @@ void option2(string arg, string val)
             throw new GetOptException(ex.msg);
         }
         return;
-        // seeding
+    // seeding
     case OPT_SEED:
         settings.seed = unformat(val);
         return;
@@ -863,30 +838,31 @@ int main(string[] args)
     try
     {
         res = getopt(args, config.caseSensitive,
-            OPT_FILE, "Input mode: Regular file (default).", &option,
-            OPT_BINARY, "File: Set binary mode (default).", &option,
-            OPT_TEXT, "File: Set text mode.", &option,
-            OPT_MMFILE, "Input mode: Memory-map file.", &option,
-            OPT_ARG, "Input mode: Command-line argument is text data (UTF-8).", &option,
-            OPT_STDIN, "Input mode: Standard input (stdin)", &option,
-            OPT_CHECK, "Check hashes list in this file.", &option,
-            "C|compare", "Compares all file entries.", &compare,
-            "A|against", "Compare files against hash.", &settings.against,
+            OPT_FILE,       "Input mode: Regular file (default).", &option,
+            OPT_BINARY,     "File: Set binary mode (default).", &option,
+            OPT_TEXT,       "File: Set text mode.", &option,
+            OPT_MMFILE,     "Input mode: Memory-map file.", &option,
+            OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
+            OPT_STDIN,      "Input mode: Standard input (stdin)", &option,
+            OPT_CHECK,      "Check hashes list in this file.", &option,
+            "C|compare",    "Compares all file entries.", &compare,
+            "A|against",    "Compare files against hash.", &settings.against,
             OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=4K).", &option2,
-            OPT_SHALLOW, "Depth: Same directory (default).", &option,
-            OPT_DEPTH, "Depth: Deepest directories first.", &option,
-            OPT_BREATH, "Depth: Sub directories first.", &option,
-            OPT_FOLLOW, "Links: Follow symbolic links (default).", &option,
-            OPT_NOFOLLOW, "Links: Do not follow symbolic links.", &option,
-            OPT_TAG, "Create or read BSD-style hashes.", &option,
-            OPT_SRI, "Create or read SRI-style hashes.", &option,
-            OPT_PLAIN, "Create or read plain hashes.", &option,
-            OPT_KEY, "Binary key file for BLAKE2 hashes.", &option2,//"keyhex",       "Hex text key file for supported hash.",  &option2,
+            OPT_SHALLOW,    "Depth: Same directory (default).", &option,
+            OPT_DEPTH,      "Depth: Deepest directories first.", &option,
+            OPT_BREATH,     "Depth: Sub directories first.", &option,
+            OPT_FOLLOW,     "Links: Follow symbolic links (default).", &option,
+            OPT_NOFOLLOW,   "Links: Do not follow symbolic links.", &option,
+            OPT_TAG,        "Create or read BSD-style hashes.", &option,
+            OPT_SRI,        "Create or read SRI-style hashes.", &option,
+            OPT_PLAIN,      "Create or read plain hashes.", &option,
+            OPT_KEY,        "Binary key file for BLAKE2 hashes.", &option2,
+            //"keyhex",       "Hex text key file for supported hash.",  &option2,
             //"keystr",       "Hex text argument for supported hash.",  &option2,
-            OPT_SEED, "Seed literal argument for Murmurhash3 hashes.", &option2,
-            OPT_VERSION, "Show version page and quit.", &option,
-            OPT_VER, "Show version and quit.", &option,
-            OPT_LICENSE, "Show license page and quit.", &option,
+            OPT_SEED,       "Seed literal argument for Murmurhash3 hashes.", &option2,
+            OPT_VERSION,    "Show version page and quit.", &option,
+            OPT_VER,        "Show version and quit.", &option,
+            OPT_LICENSE,    "Show license page and quit.", &option,
         );
     }
     catch (Exception ex)
@@ -931,10 +907,9 @@ int main(string[] args)
             return printError(2, "Could not determine hash type");
 
         settings.process = &processList;
-
         break;
     case "list":
-        static immutable sep = "-----------";
+        static immutable string sep = "-----------";
         printMeta("Alias", "Name", "Tag");
         printMeta(sep, sep, sep);
         foreach (info; hashInfo)

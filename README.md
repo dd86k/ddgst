@@ -79,14 +79,14 @@ file2: OK
 
 To select the BSD style tags, use `--tag`.
 
-## Check files against a string
+## Check files against a hash digest
 
 ```text
 $ ddh sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
 LICENSE: OK
 ```
 
-## Compare files using hash
+## Compare files against each other
 
 ```text
 $ ddh sha512 --compare LICENSE README.md dub.sdl 
@@ -104,12 +104,12 @@ Some hashes may take optional parameters.
 
 # Hash styles
 
-| Style | Example |
-|---|---|
-| GNU (default) | `1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE` |
-| BSD (`--tag`) | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
-| SRI (`--sri`) | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
-| Plain (`--plain`) | `1d267ceb3a8d8f75f1be3011ee4cbf53` |
+| Style | CLI Switch | Example |
+|---|---|---|
+| GNU | | `1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE` |
+| BSD | `--tag` | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
+| SRI | `--sri` | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
+| Plain | `--plain` | `1d267ceb3a8d8f75f1be3011ee4cbf53` |
 
 # File Pattern Globbing (`*` vs. `'*'`)
 
