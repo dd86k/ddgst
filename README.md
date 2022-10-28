@@ -19,17 +19,17 @@ and comes with more features than built-in OS utilities.
 
 ## Algorithm Availability
 
-| Checksum or Hash | ddh | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
+| Checksum/Hash | ddh | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
 |---|---|---|---|---|
 | CRC-32 | ✔️ | | | |
 | CRC-64-ISO | ✔️ | | |
 | CRC-64-ECMA | ✔️ | | |
-| MD5 | ✔️ | ✔️ (md5sum) | ✔️ | ✔️ |
+| MD5 | ✔️ | ✔️ | ✔️ | ✔️ |
 | RIPEMD-160 | ✔️ | | ✔️ | ✔️ |
-| SHA-1 | ✔️ | ✔️ (sha1sum) | ✔️ | ✔️ |
-| SHA-2 | ✔️ | ✔️ (sha224sum, sha256sum, sha384sum, sha512sum) | ✔️ | ✔️ |
+| SHA-1 | ✔️ | ✔️ | ✔️ | ✔️ |
+| SHA-2 | ✔️ | ✔️ | ✔️ | ✔️ |
 | SHA-3/SHAKE | ✔️ | | ✔️ | ✔️ |
-| [BLAKE2b](https://www.blake2.net/) | ✔️ | ✔️ (b2sum) | ✔️[^9] | ✔️ |
+| [BLAKE2b](https://www.blake2.net/) | ✔️ | ✔️ | ✔️[^9] | ✔️ |
 | [BLAKE2s](https://www.blake2.net/) | ✔️ | | | ✔️ |
 | [BLAKE3](https://github.com/BLAKE3-team/BLAKE3/) | | [^6] | ✔️[^9] | | [^8] |
 | MurmurHash3 | ✔️ | | | | |

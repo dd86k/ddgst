@@ -16,13 +16,14 @@ buildType "trace" {
 	buildOptions "debugMode" "debugInfo"
 }
 
-buildType "release-static" {
+buildType "release-nobounds-static" {
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
+	dflags "-static" platform="gdc"
 	dflags "--static" platform="ldc"
 }
 
 # For the needy
-buildType "release-extreme" {
+buildType "release-nobounds-extreme" {
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 	dflags "-ffast-math" platform="gdc"
 	dflags "-checkaction=halt" platform="dmd"
