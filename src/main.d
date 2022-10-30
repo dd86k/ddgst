@@ -1,10 +1,8 @@
-/**
- * Command-line interface.
- *
- * Authors: dd86k <dd@dax.moe>
- * Copyright: None
- * License: Public domain
- */
+/// Command-line interface.
+///
+/// Authors: dd86k <dd@dax.moe>
+/// Copyright: No rights reserved
+/// License: CC0
 module main;
 
 import std.compiler : version_major, version_minor;
@@ -731,68 +729,30 @@ void option(string arg)
     with (settings) final switch (arg)
     {
     // input modes
-    case OPT_ARG:
-        process = &processText;
-        return;
-    case OPT_CHECK:
-        process = &processList;
-        return;
+    case OPT_ARG:   process = &processText; return;
+    case OPT_CHECK: process = &processList; return;
     // file input mode
-    case OPT_FILE:
-        hash = &hashFile;
-        return;
-    case OPT_MMFILE:
-        hash = &hashMmfile;
-        return;
-    case OPT_TEXT:
-        fileMode = FILE_MODE_TEXT;
-        return;
-    case OPT_BINARY:
-        fileMode = FILE_MODE_BIN;
-        return;
+    case OPT_FILE:      hash = &hashFile; return;
+    case OPT_MMFILE:    hash = &hashMmfile; return;
+    case OPT_TEXT:      fileMode = FILE_MODE_TEXT; return;
+    case OPT_BINARY:    fileMode = FILE_MODE_BIN; return;
     // hash style
-    case OPT_TAG:
-        tag = TagType.bsd;
-        return;
-    case OPT_SRI:
-        tag = TagType.sri;
-        return;
-    case OPT_GNU:
-        tag = TagType.gnu;
-        return;
-    case OPT_PLAIN:
-        tag = TagType.plain;
-        return;
+    case OPT_TAG:   tag = TagType.bsd; return;
+    case OPT_SRI:   tag = TagType.sri; return;
+    case OPT_GNU:   tag = TagType.gnu; return;
+    case OPT_PLAIN: tag = TagType.plain; return;
     // globber: symlink
-    case OPT_NOFOLLOW:
-        follow = false;
-        return;
-    case OPT_FOLLOW:
-        follow = true;
-        return;
+    case OPT_NOFOLLOW:  follow = false; return;
+    case OPT_FOLLOW:    follow = true; return;
     // globber: directory
-    case OPT_DEPTH:
-        spanMode = SpanMode.depth;
-        return;
-    case OPT_SHALLOW:
-        spanMode = SpanMode.shallow;
-        return;
-    case OPT_BREATH:
-        spanMode = SpanMode.breadth;
-        return;
+    case OPT_DEPTH:     spanMode = SpanMode.depth; return;
+    case OPT_SHALLOW:   spanMode = SpanMode.shallow; return;
+    case OPT_BREATH:    spanMode = SpanMode.breadth; return;
     // pages
-    case OPT_VER:
-        arg = GIT_DESCRIPTION;
-        break;
-    case OPT_VERSION:
-        arg = PAGE_VERSION;
-        break;
-    case OPT_LICENSE:
-        arg = PAGE_LICENSE;
-        break;
-    case OPT_COFE:
-        arg = PAGE_COFE;
-        break;
+    case OPT_VER:       arg = GIT_DESCRIPTION; break;
+    case OPT_VERSION:   arg = PAGE_VERSION; break;
+    case OPT_LICENSE:   arg = PAGE_LICENSE; break;
+    case OPT_COFE:      arg = PAGE_COFE; break;
     }
     writeln(arg);
     exit(0);

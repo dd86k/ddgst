@@ -1,10 +1,8 @@
-/**
- * Main module that handles various hashing algorithms at run-time.
- *
- * Authors: dd86k <dd@dax.moe>
- * Copyright: None
- * License: Public domain
- */
+/// Module handling multiple hash types dynamically.
+///
+/// Authors: dd86k <dd@dax.moe>
+/// Copyright: No rights reserved
+/// License: CC0
 module ddh;
 
 import std.digest;
@@ -13,10 +11,7 @@ import sha3d, blake2d;
 import std.base64;
 import std.format : formattedRead;
 
-private deprecated alias MurmurHash3_32Digest = WrapperDigest!(MurmurHash3!32);
-private deprecated alias MurmurHash3_128_32Digest = WrapperDigest!(MurmurHash3!(128, 32));
-private deprecated alias MurmurHash3_128_64Digest = WrapperDigest!(MurmurHash3!(128, 64));
-
+// Adds dynamic seeding to supported hashes
 private class HashSeeded(T) if (isDigest!T) : WrapperDigest!T
 {
     @trusted nothrow void seed(uint input)
@@ -124,7 +119,7 @@ immutable HashInfo[HashCount] hashInfo = [
 
 struct Ddh
 {
-    Digest hash;
+    Digest digest;
     HashType type;
     ubyte[] result;
     immutable(HashInfo)* info;
@@ -134,27 +129,27 @@ struct Ddh
     {
         final switch (t) with (HashType)
         {
-        case CRC32: hash = new CRC32Digest(); break;
-        case CRC64ISO: hash = new CRC64ISODigest(); break;
-        case CRC64ECMA: hash = new CRC64ECMADigest(); break;
-        case MD5: hash = new MD5Digest(); break;
-        case RIPEMD160: hash = new RIPEMD160Digest(); break;
-        case SHA1: hash = new SHA1Digest(); break;
-        case SHA224: hash = new SHA224Digest(); break;
-        case SHA256: hash = new SHA256Digest(); break;
-        case SHA384: hash = new SHA384Digest(); break;
-        case SHA512: hash = new SHA512Digest(); break;
-        case SHA3_224: hash = new SHA3_224Digest(); break;
-        case SHA3_256: hash = new SHA3_256Digest(); break;
-        case SHA3_384: hash = new SHA3_384Digest(); break;
-        case SHA3_512: hash = new SHA3_512Digest(); break;
-        case SHAKE128: hash = new SHAKE128Digest(); break;
-        case SHAKE256: hash = new SHAKE256Digest(); break;
-        case BLAKE2b512: hash = new BLAKE2b512Digest(); break;
-        case BLAKE2s256: hash = new BLAKE2s256Digest(); break;
-        case MurmurHash3_32: hash = new MurmurHash3_32_SeededDigest(); break;
-        case MurmurHash3_128_32: hash = new MurmurHash3_128_32_SeededDigest(); break;
-        case MurmurHash3_128_64: hash = new MurmurHash3_128_64_SeededDigest(); break;
+        case CRC32:     digest = new CRC32Digest(); break;
+        case CRC64ISO:  digest = new CRC64ISODigest(); break;
+        case CRC64ECMA: digest = new CRC64ECMADigest(); break;
+        case MD5:       digest = new MD5Digest(); break;
+        case RIPEMD160: digest = new RIPEMD160Digest(); break;
+        case SHA1:      digest = new SHA1Digest(); break;
+        case SHA224:    digest = new SHA224Digest(); break;
+        case SHA256:    digest = new SHA256Digest(); break;
+        case SHA384:    digest = new SHA384Digest(); break;
+        case SHA512:    digest = new SHA512Digest(); break;
+        case SHA3_224:  digest = new SHA3_224Digest(); break;
+        case SHA3_256:  digest = new SHA3_256Digest(); break;
+        case SHA3_384:  digest = new SHA3_384Digest(); break;
+        case SHA3_512:  digest = new SHA3_512Digest(); break;
+        case SHAKE128:  digest = new SHAKE128Digest(); break;
+        case SHAKE256:  digest = new SHAKE256Digest(); break;
+        case BLAKE2b512:    digest = new BLAKE2b512Digest(); break;
+        case BLAKE2s256:    digest = new BLAKE2s256Digest(); break;
+        case MurmurHash3_32:    digest = new MurmurHash3_32_SeededDigest(); break;
+        case MurmurHash3_128_32:    digest = new MurmurHash3_128_32_SeededDigest(); break;
+        case MurmurHash3_128_64:    digest = new MurmurHash3_128_64_SeededDigest(); break;
         }
 
         type = t;
@@ -168,10 +163,9 @@ struct Ddh
     {
         switch (type) with (HashType)
         {
-        case BLAKE2b512: (cast(BLAKE2b512Digest)hash).key(input); break;
-        case BLAKE2s256: (cast(BLAKE2s256Digest)hash).key(input); break;
-        default:
-            throw new Exception("Digest does not support keying.");
+        case BLAKE2b512: (cast(BLAKE2b512Digest)digest).key(input); break;
+        case BLAKE2s256: (cast(BLAKE2s256Digest)digest).key(input); break;
+        default: throw new Exception("Digest does not support keying.");
         }
     }
 
@@ -179,32 +173,31 @@ struct Ddh
     {
         switch (type) with (HashType)
         {
-        case MurmurHash3_32:     (cast(MurmurHash3_32_SeededDigest)hash).seed(input); break;
-        case MurmurHash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)hash).seed(input); break;
-        case MurmurHash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)hash).seed(input); break;
-        default:
-            throw new Exception("Digest does not support seeding.");
+        case MurmurHash3_32:     (cast(MurmurHash3_32_SeededDigest)digest).seed(input); break;
+        case MurmurHash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)digest).seed(input); break;
+        case MurmurHash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)digest).seed(input); break;
+        default: throw new Exception("Digest does not support seeding.");
         }
     }
 
     void reset()
     {
-        hash.reset();
+        digest.reset();
     }
 
     size_t length()
     {
-        return hash.length();
+        return digest.length();
     }
 
     void put(scope const(ubyte)[] input...)
     {
-        hash.put(input);
+        digest.put(input);
     }
 
     ubyte[] finish()
     {
-        return (result = hash.finish());
+        return (result = digest.finish());
     }
 
     const(char)[] toHex()
@@ -255,6 +248,12 @@ struct Ddh
             "3a985da74fe225b2045c172d6bd390bd855f086e3e9d525b46bfe24511431532");
 }
 
+/// Read a formatted GNU tag line.
+/// Params:
+///     line = Full GNU formatted tag string
+///     hash = Hexadecimal hash string (e.g., "aabbccdd")
+///     file = File string (e.g., "nightly.iso")
+/// Returns: True on error.
 bool readGNULine(string line, ref const(char)[] hash, ref const(char)[] file)
 {
     // Tested to work with one or many spaces
@@ -270,6 +269,13 @@ unittest
     assert(file == "LICENSE");
 }
 
+/// Read a formatted BSD tag line.
+/// Params:
+///     line = Full BSD formatted tag string
+///     type = Hash type string (e.g., "SHA256")
+///     file = File string (e.g., "nightly.iso")
+///     hash = Hexadecimal hash string (e.g., "8080aabb")
+/// Returns: True on error.
 bool readBSDLine(string line,
     ref const(char)[] type, ref const(char)[] file, ref const(char)[] hash)
 {
@@ -289,6 +295,11 @@ unittest
     assert(hash == "80169891cb10c679cdc31dc035dab9aae3e874395adc5229f0fe5cfcc111cc8c");
 }
 
+/// Read a formatted SRI tag line.
+/// Params:
+///     line = Full RSI formatted tag string
+///     type = Hash type string (e.g., "md5")
+///     hash = Base64 hash string (e.g., "OFPip4okcUW0qhZmdzb23g==")
 bool readSRILine(string line, ref const(char)[] type, ref const(char)[] hash)
 {
     return formattedRead(line, "%s-%s", type, hash) != 2;
@@ -315,7 +326,9 @@ unittest
         ...*/
 }+/
 
-// Check by extension
+/// Guess hash type by extension name.
+/// Params: path = Filename.
+/// Returns: Hash type.
 HashType guessHashExt(const(char)[] path) @safe
 {
     import std.string : toLower, indexOf;
@@ -343,7 +356,7 @@ HashType guessHashExt(const(char)[] path) @safe
 @safe unittest
 {
     assert(guessHashExt("sha1sum") == HashType.SHA1);
-    assert(guessHashExt(".SHA512SUM") == HashType.SHA512);
+    assert(guessHashExt(".SHA256SUM") == HashType.SHA256);
     assert(guessHashExt("GE-Proton7-38.sha512sum") == HashType.SHA512);
     assert(guessHashExt("test.crc32") == HashType.CRC32);
     assert(guessHashExt("test.sha256") == HashType.SHA256);
@@ -357,8 +370,8 @@ HashType guessHashExt(const(char)[] path) @safe
 {
         
         
-}*/
+}
 
 @safe unittest
 {
-}
+}*/
