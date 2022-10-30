@@ -34,9 +34,9 @@ enum HashType
     CRC32,
     CRC64ISO,
     CRC64ECMA,
-    MurMurHash3_32,
-    MurMurHash3_128_32,
-    MurMurHash3_128_64,
+    MurmurHash3_32,
+    MurmurHash3_128_32,
+    MurmurHash3_128_64,
     MD5,
     RIPEMD160,
     SHA1,
@@ -63,6 +63,31 @@ struct HashInfo
     string fullName, alias_, tagName;
 }
 
+immutable 
+{
+   string crc32 = "crc32";
+   string crc64iso = "crc64iso";
+   string crc64ecma = "crc64ecma";
+   string murmur3a = "murmur3a";
+   string murmur3c = "murmur3c";
+   string murmur3f = "murmur3f";
+   string md5 = "md5";
+   string ripemd160 = "ripemd160";
+   string sha1 = "sha1";
+   string sha224 = "sha224";
+   string sha256 = "sha256";
+   string sha384 = "sha384";
+   string sha512 = "sha512";
+   string sha3_224 = "sha3-224";
+   string sha3_256 = "sha3-256";
+   string sha3_384 = "sha3-384";
+   string sha3_512 = "sha3-512";
+   string shake128 = "shake128";
+   string shake256 = "shake256";
+   string blake2b512 = "blake2b512";
+   string blake2s256 = "blake2s256";
+}
+
 // Full name: Should be based on their full specification name
 // Alias: Should be based on a simple lowercase name. See `openssl dgst -list` for examples.
 // Tag name: Should be based on an full uppercase name. See openssl dgst output for examples.
@@ -73,28 +98,28 @@ struct HashInfo
 //      For some reason, NetBSD seems to be using other names such as RMD160,
 //      SHA512, etc. under OpenSSL. Is this a GNU/BSD thing?
 immutable HashInfo[HashCount] hashInfo = [
-    // HashType, Full, Alias, Tag
-    { HashType.CRC32, "CRC-32", "crc32", "CRC32", },
-    { HashType.CRC64ISO, "CRC-64-ISO", "crc64iso", "CRC64ISO", },
-    { HashType.CRC64ECMA, "CRC-64-ECMA", "crc64ecma", "CRC64ECMA", },
-    { HashType.MurMurHash3_32, "MurmurHash3-32", "murmur3a", "MURMURHASH3-32", },
-    { HashType.MurMurHash3_128_32, "MurmurHash3-128/32", "murmur3c", "MURMURHASH3-128-32", },
-    { HashType.MurMurHash3_128_64, "MurmurHash3-128/64", "murmur3f", "MURMURHASH3-128-64", },
-    { HashType.MD5, "MD5-128", "md5", "MD5", },
-    { HashType.RIPEMD160, "RIPEMD-160", "ripemd160", "RIPEMD160", },
-    { HashType.SHA1, "SHA-1-160", "sha1", "SHA1", },
-    { HashType.SHA224, "SHA-2-224", "sha224", "SHA2-224", },
-    { HashType.SHA256, "SHA-2-256", "sha256", "SHA2-256", },
-    { HashType.SHA384, "SHA-2-384", "sha384", "SHA2-384", },
-    { HashType.SHA512, "SHA-2-512", "sha512", "SHA2-512", },
-    { HashType.SHA3_224, "SHA-3-224", "sha3-224", "SHA3-224", },
-    { HashType.SHA3_256, "SHA-3-256", "sha3-256", "SHA3-256", },
-    { HashType.SHA3_384, "SHA-3-384", "sha3-384", "SHA3-384", },
-    { HashType.SHA3_512, "SHA-3-512", "sha3-512", "SHA3-512", },
-    { HashType.SHAKE128, "SHAKE-128", "shake128", "SHAKE-128", },
-    { HashType.SHAKE256, "SHAKE-256", "shake256", "SHAKE-256", },
-    { HashType.BLAKE2b512, "BLAKE2b-512", "blake2b512", "BLAKE2B-512", },
-    { HashType.BLAKE2s256, "BLAKE2s-256", "blake2s256", "BLAKE2S-256", },
+    // HashType                     Full            Alias, Tag
+    { HashType.CRC32,               "CRC-32",       crc32, "CRC32", },
+    { HashType.CRC64ISO,            "CRC-64-ISO",   crc64iso, "CRC64ISO", },
+    { HashType.CRC64ECMA,           "CRC-64-ECMA",  crc64ecma, "CRC64ECMA", },
+    { HashType.MurmurHash3_32,      "MurmurHash3-32",     murmur3a, "MURMURHASH3-32", },
+    { HashType.MurmurHash3_128_32,  "MurmurHash3-128/32", murmur3c, "MURMURHASH3-128-32", },
+    { HashType.MurmurHash3_128_64,  "MurmurHash3-128/64", murmur3f, "MURMURHASH3-128-64", },
+    { HashType.MD5,                 "MD5-128",      md5, "MD5", },
+    { HashType.RIPEMD160,           "RIPEMD-160",   ripemd160, "RIPEMD160", },
+    { HashType.SHA1,                "SHA-1-160",    sha1, "SHA1", },
+    { HashType.SHA224,              "SHA-2-224",    sha224, "SHA2-224", },
+    { HashType.SHA256,              "SHA-2-256",    sha256, "SHA2-256", },
+    { HashType.SHA384,              "SHA-2-384",    sha384, "SHA2-384", },
+    { HashType.SHA512,              "SHA-2-512",    sha512, "SHA2-512", },
+    { HashType.SHA3_224,            "SHA-3-224",    sha3_224, "SHA3-224", },
+    { HashType.SHA3_256,            "SHA-3-256",    sha3_256, "SHA3-256", },
+    { HashType.SHA3_384,            "SHA-3-384",    sha3_384, "SHA3-384", },
+    { HashType.SHA3_512,            "SHA-3-512",    sha3_512, "SHA3-512", },
+    { HashType.SHAKE128,            "SHAKE-128",    shake128, "SHAKE-128", },
+    { HashType.SHAKE256,            "SHAKE-256",    shake256, "SHAKE-256", },
+    { HashType.BLAKE2b512,          "BLAKE2b-512",  blake2b512, "BLAKE2B-512", },
+    { HashType.BLAKE2s256,          "BLAKE2s-256",  blake2s256, "BLAKE2S-256", },
 ];
 
 struct Ddh
@@ -127,9 +152,9 @@ struct Ddh
         case SHAKE256: hash = new SHAKE256Digest(); break;
         case BLAKE2b512: hash = new BLAKE2b512Digest(); break;
         case BLAKE2s256: hash = new BLAKE2s256Digest(); break;
-        case MurMurHash3_32: hash = new MurmurHash3_32_SeededDigest(); break;
-        case MurMurHash3_128_32: hash = new MurmurHash3_128_32_SeededDigest(); break;
-        case MurMurHash3_128_64: hash = new MurmurHash3_128_64_SeededDigest(); break;
+        case MurmurHash3_32: hash = new MurmurHash3_32_SeededDigest(); break;
+        case MurmurHash3_128_32: hash = new MurmurHash3_128_32_SeededDigest(); break;
+        case MurmurHash3_128_64: hash = new MurmurHash3_128_64_SeededDigest(); break;
         }
 
         type = t;
@@ -154,9 +179,9 @@ struct Ddh
     {
         switch (type) with (HashType)
         {
-        case MurMurHash3_32:     (cast(MurmurHash3_32_SeededDigest)hash).seed(input); break;
-        case MurMurHash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)hash).seed(input); break;
-        case MurMurHash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)hash).seed(input); break;
+        case MurmurHash3_32:     (cast(MurmurHash3_32_SeededDigest)hash).seed(input); break;
+        case MurmurHash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)hash).seed(input); break;
+        case MurmurHash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)hash).seed(input); break;
         default:
             throw new Exception("Digest does not support seeding.");
         }
@@ -291,13 +316,13 @@ unittest
 }+/
 
 // Check by extension
-HashType guessHashExt(string path) @safe
+HashType guessHashExt(const(char)[] path) @safe
 {
     import std.string : toLower, indexOf;
     import std.path : extension, CaseSensitive;
     import std.algorithm.searching : canFind, startsWith;
 
-    string ext = extension(path);
+    const(char)[] ext = extension(path);
     if (ext == null || ext == ".")
         ext = path.toLower;
     else
@@ -319,6 +344,7 @@ HashType guessHashExt(string path) @safe
 {
     assert(guessHashExt("sha1sum") == HashType.SHA1);
     assert(guessHashExt(".SHA512SUM") == HashType.SHA512);
+    assert(guessHashExt("GE-Proton7-38.sha512sum") == HashType.SHA512);
     assert(guessHashExt("test.crc32") == HashType.CRC32);
     assert(guessHashExt("test.sha256") == HashType.SHA256);
     assert(guessHashExt("test.md5sum") == HashType.MD5);

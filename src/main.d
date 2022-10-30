@@ -14,6 +14,7 @@ import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
 import std.typecons : scoped;
+import core.stdc.stdlib : exit;
 import blake2d : BLAKE2D_VERSION_STRING;
 import sha3d : SHA3D_VERSION_STRING;
 import ddh;
@@ -54,18 +55,10 @@ Homepage: <https://github.com/dd86k/ddh>
 Compiler: ` ~ __VENDOR__ ~ " v" ~ format("%u.%03u", version_major, version_minor);
 
 immutable string PAGE_HELP =
-`Usage: ddh command [options...] [files...] [-]
-
-Commands
-[hash]    Hash or checksum. See list command for a list of hashes and checksums.
-check     Automatically check hash list depending on file extension.
-list      List all supported hashes and checksums.
-help      This help page and exit.
-ver       Only show version number and exit.
-version   Show version page and exit.
+`Usage: ddh [options...|--autocheck] [files...|--stdin]
 
 Options
---                Stop processing options.`;
+    --            Stop processing options.`;
 
 immutable string PAGE_LICENSE =
 `Creative Commons Legal Code
@@ -206,35 +199,35 @@ immutable string STDIN_NAME = "-";
 immutable string FILE_MODE_TEXT = "r";
 immutable string FILE_MODE_BIN = "rb";
 
-immutable string OPT_FILE = "f|file";
-immutable string OPT_MMFILE = "m|mmfile";
-immutable string OPT_STDIN = "stdin";
-immutable string OPT_ARG = "a|arg";
-immutable string OPT_CHECK = "c|check";
-immutable string OPT_TEXT = "t|text";
-immutable string OPT_BINARY = "b|binary";
+immutable string OPT_FILE       = "f|file";
+immutable string OPT_MMFILE     = "m|mmfile";
+immutable string OPT_ARG        = "a|arg";
+immutable string OPT_CHECK      = "c|check";
+immutable string OPT_TEXT       = "t|text";
+immutable string OPT_BINARY     = "b|binary";
 immutable string OPT_BUFFERSIZE = "B|buffersize";
-immutable string OPT_GNU = "gnu";
-immutable string OPT_TAG = "tag";
-immutable string OPT_SRI = "sri";
-immutable string OPT_PLAIN = "plain";
-immutable string OPT_FOLLOW = "follow";
-immutable string OPT_NOFOLLOW = "nofollow";
-immutable string OPT_DEPTH = "r|depth";
-immutable string OPT_SHALLOW = "shallow";
-immutable string OPT_BREATH = "breath";
-immutable string OPT_KEY = "key";
+immutable string OPT_GNU        = "gnu";
+immutable string OPT_TAG        = "tag";
+immutable string OPT_SRI        = "sri";
+immutable string OPT_PLAIN      = "plain";
+immutable string OPT_FOLLOW     = "follow";
+immutable string OPT_NOFOLLOW   = "nofollow";
+immutable string OPT_DEPTH      = "r|depth";
+immutable string OPT_SHALLOW    = "shallow";
+immutable string OPT_BREATH     = "breath";
+immutable string OPT_KEY        = "key";
 //immutable string OPT_KEYFILE	= "keyfile";
 //immutable string OPT_KEYBIN	= "keyhex";
-immutable string OPT_SEED = "seed";
-immutable string OPT_VER = "ver";
-immutable string OPT_VERSION = "version";
-immutable string OPT_LICENSE = "license";
-immutable string OPT_COFE = "cofe";
+immutable string OPT_SEED       = "seed";
+immutable string OPT_VER        = "ver";
+immutable string OPT_VERSION    = "version";
+immutable string OPT_LICENSE    = "license";
+immutable string OPT_COFE       = "cofe";
 
 struct Settings
 {
     Ddh hasher;
+    HashType type = InvalidHash;
     ubyte[] rawHash;
     size_t bufferSize = DEFAULT_READ_SIZE;
     SpanMode spanMode;
@@ -245,10 +238,12 @@ struct Settings
     uint seed; /// Seed for Murmurhash3
 
     int function(const(char)[]) hash = &hashFile;
+    // entry processor (file, text, list)
     int function(const(char)[]) process = &processFile;
 
     bool follow = true;
     bool modeStdin;
+    bool autocheck;
 }
 
 __gshared Settings settings;
@@ -259,27 +254,32 @@ version (Trace) void trace(string func = __FUNCTION__, A...)(string fmt, A args)
     writefln(fmt, args);
 }
 
-void printWarning(string func = __FUNCTION__, A...)(string fmt, A args)
+void logWarn(string func = __FUNCTION__, A...)(string fmt, A args)
 {
     stderr.write("warning: ");
     debug stderr.write("[", func, "] ");
     stderr.writefln(fmt, args);
 }
 
-int printError(string func = __FUNCTION__, A...)(int code, string fmt, A args)
+void logWarn(Exception ex)
+{
+    stderr.writefln("warning: %s", ex.msg);
+}
+
+void logError(string func = __FUNCTION__, A...)(int code, string fmt, A args)
 {
     stderr.writef("error: (code %d) ", code);
     debug stderr.write("[", func, "] ");
     stderr.writefln(fmt, args);
-    return code;
+    exit(code);
 }
 
-int printError(int code, Exception ex)
+void logError(int code, Exception ex)
 {
     stderr.writef("error: (code %d) ", code);
     debug stderr.writeln(ex);
     else stderr.writeln(ex.msg);
-    return code;
+    exit(code);
 }
 
 void printResult(string fmt = "%s")(in char[] file)
@@ -407,7 +407,8 @@ int hashFile(const(char)[] path)
     }
     catch (Exception ex)
     {
-        return printError(6, ex);
+        logWarn(ex);
+        return 1;
     }
 }
 
@@ -424,7 +425,8 @@ int hashFile(ref File file)
     }
     catch (Exception ex)
     {
-        return printError(7, ex);
+        logWarn(ex);
+        return 1;
     }
 }
 
@@ -454,7 +456,8 @@ int hashMmfile(const(char)[] path)
     }
     catch (Exception ex)
     {
-        return printError(8, ex);
+        logWarn(ex);
+        return 1;
     }
 }
 
@@ -477,7 +480,8 @@ int hashText(const(char)[] text)
     }
     catch (Exception ex)
     {
-        return printError(9, ex);
+        logError(9, "Could not hash text: %s", ex.msg);
+        return 0;
     }
 }
 
@@ -496,7 +500,7 @@ int processFile(const(char)[] path)
         ++count;
         if (entry.isDir)
         {
-            printWarning("'%s': Is a directory", file);
+            logWarn("'%s': Is a directory", file);
             continue;
         }
 
@@ -512,7 +516,7 @@ int processFile(const(char)[] path)
             {
                 const(char)[] type = void, hash = void;
                 if (readSRILine(settings.against, type, hash))
-                    return printError(18, "Could not unformat SRI tag");
+                    logError(20, "Could not unformat SRI tag");
                 settings.hasher.toBase64;
                 succ = compareHash(settings.hasher.toBase64, hash);
             }
@@ -530,7 +534,7 @@ int processFile(const(char)[] path)
     }
     
     if (count == 0)
-        return printError(6, "'%s': No such file", name);
+        logError(6, "'%s': No such file", name);
     
     return 0;
 }
@@ -560,16 +564,21 @@ int processList(const(char)[] listPath)
 
     version (Trace) trace("list=%s", listPath);
 
-    /// Minimum line length (hash + 1 spaces).
-    // Example: abcd1234  file.txt
     uint currentLine, statMismatch, statErrors;
+    
+    if (settings.autocheck)
+    {
+        settings.type = guessHashExt(listPath);
+        if (settings.type == InvalidHash)
+            logError(5, "Could not determine hash type");
+    }
 
     try
     {
         string text = readText(listPath);
 
         if (text.length == 0)
-            return printError(10, "%s: Empty", listPath);
+            logError(10, "%s: Empty", listPath);
 
         const(char)[] file = void, expected = void, type = void, lastType;
         foreach (string line; lineSplitter(text)) // doesn't allocate
@@ -581,50 +590,47 @@ int processList(const(char)[] listPath)
             if (line[0] == '#') // comment
                 continue;
 
-            final switch (settings.tag) with (TagType)
+            TAGTYPE: final switch (settings.tag) with (TagType)
             {
             case gnu:
-                // Tested to work with one or many spaces
                 if (readGNULine(line, expected, file))
                 {
                     ++statErrors;
-                    printWarning("Unobtainable hash at line %u", currentLine);
-                    continue;
+                    logWarn("Could not read GNU tag at line %u", currentLine);
                 }
                 break;
             case bsd:
-                // Tested to work with and without spaces
-                //if (formattedRead(line, "%s(%s) = %s", type, file, expected) != 3)
                 if (readBSDLine(line, type, file, expected))
                 {
                     ++statErrors;
-                    printWarning("Unobtainable hash at line %u", currentLine);
+                    logWarn("Could not read BSD tag at line %u", currentLine);
                     continue;
                 }
 
                 if (type == lastType)
-                    goto L_ENTRY_HASH;
+                    break;
 
+                // Find new hash type from tag name
                 lastType = type;
-
                 foreach (HashInfo info; hashInfo)
                 {
                     if (type == info.tagName)
                     {
                         settings.hasher.initiate(info.type);
-                        goto L_ENTRY_HASH;
+                        break TAGTYPE;
                     }
                 }
 
-                printWarning("Unknown hash tag at line %u", currentLine);
+                logWarn("Unknown '%s' tag at line %u", type, currentLine);
                 continue;
             case sri:
-                return printError(15, "SRI format is not supported in file checks");
+                logError(11, "SRI hash format is not supported in file checks");
+                break;
             case plain:
-                return printError(15, "Plain format is not supported in file checks");
+                logError(11, "Plain hash format is not supported in file checks");
+                break;
             }
 
-        L_ENTRY_HASH:
             if (settings.hash(file))
             {
                 ++statErrors;
@@ -647,7 +653,7 @@ int processList(const(char)[] listPath)
     }
     catch (Exception ex)
     {
-        return printError(15, ex);
+        logError(12, ex);
     }
 
     if (statErrors || statMismatch)
@@ -659,7 +665,7 @@ int processList(const(char)[] listPath)
 //TODO: Consider making a foreach-compatible function for this
 //      popFront returning T[2] (or tuple)
 /// Compare all file entries against each other.
-/// BigO: O(n * log(n)) (according to friend)
+/// O: O(n * log(n)) (according to friend)
 /// Params: entries: List of files
 /// Returns: Error code.
 int processCompare(string[] entries)
@@ -667,11 +673,11 @@ int processCompare(string[] entries)
     const size_t size = entries.length;
 
     if (size < 2)
-        return printError(1, "Comparison needs 2 or more files");
+        logError(15, "Comparison needs 2 or more files");
 
     //TODO: Consider an associated array
     //      Would remove duplicates, but at the same time, this removes
-    //      all user-supplied positions and may confuse people.
+    //      all user-supplied positions and may confuse people if unordered.
     string[] hashes = new string[size];
 
     for (size_t index; index < size; ++index)
@@ -731,9 +737,6 @@ void option(string arg)
     case OPT_CHECK:
         process = &processList;
         return;
-    case OPT_STDIN:
-        settings.modeStdin = true;
-        return;
     // file input mode
     case OPT_FILE:
         hash = &hashFile;
@@ -792,6 +795,7 @@ void option(string arg)
         break;
     }
     writeln(arg);
+    exit(0);
 }
 
 void option2(string arg, string val)
@@ -802,14 +806,10 @@ void option2(string arg, string val)
         ulong v = void;
         if (strtobin(&v, val))
             throw new GetOptException("Couldn't unformat buffer size");
-        version (D_LP64)
-        {
-        }
-        else
-        {
-            if (v >= uint.max)
-                throw new GetOptException("Buffer size overflows");
-        }
+        
+        if (v >= size_t.max)
+            throw new GetOptException("Buffer size overflows");
+        
         bufferSize = cast(size_t) v;
         return;
     // keying
@@ -830,6 +830,65 @@ void option2(string arg, string val)
     }
 }
 
+int cliAutoCheck(string[] entries)
+{
+    foreach (string entry; entries)
+    {
+        version (Trace) trace("entry=%s", entry);
+        
+        settings.type = guessHashExt(entry);
+        if (settings.type == InvalidHash)
+            logError(7, "Could not determine hash type for: %s", entry);
+        
+        if (settings.hasher.initiate(settings.type))
+        {
+            logError(3, "Couldn't initiate hash module");
+        }
+        
+        processList(entry);
+    }
+    
+    return 0;
+}
+
+void cliHashes()
+{
+    static immutable string sep = "-----------";
+    printMeta("Alias", "Name", "Tag");
+    printMeta(sep, sep, sep);
+    foreach (info; hashInfo)
+        printMeta(info.alias_, info.fullName, info.tagName);
+    exit(0);
+}
+
+void cliHash(string opt)
+{
+    final switch (opt)
+    {
+    case crc32:     settings.type = HashType.CRC32; return;
+    case crc64iso:  settings.type = HashType.CRC64ISO; return;
+    case crc64ecma: settings.type = HashType.CRC64ECMA; return;
+    case murmur3a:  settings.type = HashType.MurmurHash3_32; return;
+    case murmur3c:  settings.type = HashType.MurmurHash3_128_32; return;
+    case murmur3f:  settings.type = HashType.MurmurHash3_128_64; return;
+    case md5:       settings.type = HashType.MD5; return;
+    case ripemd160: settings.type = HashType.RIPEMD160; return;
+    case sha1:      settings.type = HashType.SHA1; return;
+    case sha224:    settings.type = HashType.SHA224; return;
+    case sha256:    settings.type = HashType.SHA256; return;
+    case sha384:    settings.type = HashType.SHA384; return;
+    case sha512:    settings.type = HashType.SHA512; return;
+    case sha3_224:  settings.type = HashType.SHA3_224; return;
+    case sha3_256:  settings.type = HashType.SHA3_256; return;
+    case sha3_384:  settings.type = HashType.SHA3_384; return;
+    case sha3_512:  settings.type = HashType.SHA3_512; return;
+    case shake128:  settings.type = HashType.SHAKE128; return;
+    case shake256:  settings.type = HashType.SHAKE256; return;
+    case blake2b512:    settings.type = HashType.BLAKE2b512; return;
+    case blake2s256:    settings.type = HashType.BLAKE2s256; return;
+    }
+}
+
 int main(string[] args)
 {
     bool compare;
@@ -837,16 +896,42 @@ int main(string[] args)
     GetoptResult res = void;
     try
     {
+        //TODO: Array of bool to select multiple hashes?
+        //TODO: Include argument (string,string) for doing batches with X hash?
         res = getopt(args, config.caseSensitive,
+            OPT_COFE,       "", &option,
+            crc32,          "", &cliHash,
+            crc64iso,       "", &cliHash,
+            crc64ecma,      "", &cliHash,
+            murmur3a,       "", &cliHash,
+            murmur3c,       "", &cliHash,
+            murmur3f,       "", &cliHash,
+            md5,            "", &cliHash,
+            ripemd160,      "", &cliHash,
+            sha1,           "", &cliHash,
+            sha224,         "", &cliHash,
+            sha256,         "", &cliHash,
+            sha384,         "", &cliHash,
+            sha512,         "", &cliHash,
+            sha3_224,       "", &cliHash,
+            sha3_256,       "", &cliHash,
+            sha3_384,       "", &cliHash,
+            sha3_512,       "", &cliHash,
+            shake128,       "", &cliHash,
+            shake256,       "", &cliHash,
+            blake2b512,     "", &cliHash,
+            blake2s256,     "", &cliHash,
             OPT_FILE,       "Input mode: Regular file (default).", &option,
             OPT_BINARY,     "File: Set binary mode (default).", &option,
             OPT_TEXT,       "File: Set text mode.", &option,
             OPT_MMFILE,     "Input mode: Memory-map file.", &option,
             OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
-            OPT_STDIN,      "Input mode: Standard input (stdin)", &option,
+            "stdin",        "Input mode: Standard input (stdin)", &settings.modeStdin,
             OPT_CHECK,      "Check hashes list in this file.", &option,
+            "autocheck",    "Automatically determine hash type and process list.", &settings.autocheck,
             "C|compare",    "Compares all file entries.", &compare,
             "A|against",    "Compare files against hash.", &settings.against,
+            "hashes",       "List supported hashes.", &cliHashes,
             OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=4K).", &option2,
             OPT_SHALLOW,    "Depth: Same directory (default).", &option,
             OPT_DEPTH,      "Depth: Deepest directories first.", &option,
@@ -867,14 +952,13 @@ int main(string[] args)
     }
     catch (Exception ex)
     {
-        return printError(1, ex);
+        logError(1, ex);
     }
 
     if (res.helpWanted)
     {
-    L_HELP:
         writeln(PAGE_HELP);
-        foreach (Option opt; res.options)
+        foreach (Option opt; res.options[HashCount + 1..$])
         {
             with (opt)
                 if (optShort)
@@ -885,61 +969,20 @@ int main(string[] args)
         writeln("\nThis program has actual coffee-making abilities.");
         return 0;
     }
-
-    if (args.length < 2) // Missing hash type or action
+    
+    if (settings.autocheck)
     {
-        return printError(1,
-            "Missing hash type or action. Invoke with --help for more information.");
+        return cliAutoCheck(args[1..$]);
     }
 
-    string action = args[1];
-
-    HashType type = InvalidHash;
-
-    switch (action)
+    if (settings.type == InvalidHash)
     {
-    case "check":
-        if (args.length == 0)
-            return printError(1, "Missing SUM file");
-
-        type = guessHashExt(args[2]);
-        if (type == InvalidHash)
-            return printError(2, "Could not determine hash type");
-
-        settings.process = &processList;
-        break;
-    case "list":
-        static immutable string sep = "-----------";
-        printMeta("Alias", "Name", "Tag");
-        printMeta(sep, sep, sep);
-        foreach (info; hashInfo)
-            printMeta(info.alias_, info.fullName, info.tagName);
-        return 0;
-    case "help":
-        goto L_HELP;
-    case OPT_VER, OPT_VERSION, OPT_LICENSE, OPT_COFE:
-        option(action);
-        return 0;
-    default:
-        foreach (info; hashInfo)
-        {
-            if (action == info.alias_)
-            {
-                type = info.type;
-                break;
-            }
-        }
+        logError(2, "No hashes selected");
     }
 
-    // Pages
-    if (type == InvalidHash)
+    if (settings.hasher.initiate(settings.type))
     {
-        return printError(1, "Unknown action or hash '%s'", action);
-    }
-
-    if (settings.hasher.initiate(type))
-    {
-        return printError(2, "Couldn't initiate hash module");
+        logError(3, "Couldn't initiate hash module");
     }
 
     if (settings.key != settings.key.init)
@@ -950,7 +993,7 @@ int main(string[] args)
         }
         catch (Exception ex)
         {
-            return printError(3, "%s", ex.msg);
+            logError(4, "Failed to set key: %s", ex.msg);
         }
     }
 
@@ -962,7 +1005,7 @@ int main(string[] args)
         }
         catch (Exception ex)
         {
-            return printError(3, "%s", ex.msg);
+            logError(5, "Failed to set seed: %s", ex.msg);
         }
     }
 
@@ -971,13 +1014,13 @@ int main(string[] args)
         return processStdin;
     }
 
-    string[] entries = args[2 .. $];
-
-    if (entries.length == 0)
-        return processStdin();
+    string[] entries = args[1 .. $];
 
     if (compare)
         return processCompare(entries);
+
+    if (entries.length == 0)
+        return processStdin;
 
     foreach (string entry; entries)
     {

@@ -4,17 +4,14 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." If you're missing groff_man.7, install groff. Solid documentation.
 ."
-.TH ddh 1 "April 2022" dd86k "User manual"
+.TH ddh 1 "October 2022" dd86k "User manual"
 .SH NAME
-ddh \(em Generic hasher
+ddh \- Generic hasher
 
 .SH SYNOPSIS
 .SY ddh
-.B  {list|ver|help|version|license|HASH}
-.SY ddh
-.B  HASH
-.OP options...
-.B  {files|-}...
+.OP options...|--autocheck
+.OP files...|--stdin
 .YS
 
 .SH DESCRIPTION
@@ -37,64 +34,60 @@ operating systems. The Mmfile option is good for performance reasons.
 .SH EXAMPLES
 
 .TP
-.BI ddh \ help
-Shows help screen and exit.
-
-.TP
-.BI ddh \ version
-Shows version screen and exit.
-
-.TP
-.BI ddh \ list
+.B ddh --hashes
 List supported checksum and hash algorithms and exit.
 
 .TP
-.BI echo\ "test"\ |\ ddh \ sha1
+.BI "ddh --md5 " file
+Hashes 
+.I file
+using MD5.
+
+.TP
+.BI "echo " test " | ddh --sha1"
 Use SHA-1 to read from the standard input file handle and digest a result.
 
 .TP
-.BI ddh\ sha3-256 \ essay.txt
-Use SHA-3-256 to hash
-.I essay.txt
-.R .
-
-.TP
-.BI ddh\ sha256 \ src/*
+.BI "ddh --sha256 " src/*
 Use SHA-256 to hash all files in the
 .I src
 folder.
 
 .TP
-.BI ddh\ md5 \ -Ms \ "*.{json,md}"
+.BI "ddh --md5 -m -r " "*.{json,md}"
 Use MD5 to hash all files in sub-directories
-.RI ( -s )
+.RI ( -r )
 that end with .json or .md using the memory-mapped file option
-.RI ( -M )
+.RI ( -m )
 using the embedded glob matcher.
 
 .TP
-.BI ddh\ sha256 \ -c\ list
+.BI "ddh --sha256 -c " list
 Use SHA-256 to verify the integrity a list of files. This is similar to
 .BR sha256sum\ -c\ list .
+
+.TP
+.BI "ddh --autocheck " list.sha1sum
+Automatically detect and select hashing algorithm from file extension and use it
+to process the list.
 
 .SH ALIASES
 
 Below is a list of supported checksum and hash algorithms.
 
-." See tbl(1)
-
-
-
-
+.fi t \{\
+.ft CW
+\}
 .TS
-l l l.
+l	l2	l.
 Alias	Name	Tag
-.T&
-lB l l.
 _
 crc32	CRC-32	CRC32
 crc64iso	CRC-64-ISO	CRC64ISO
 crc64ecma	CRC-64-ECMA	CRC64ECMA
+murmur3a	MurmurHash3-32	MURMURHASH3-32
+murmur3c	MurmurHash3-128/32	MURMURHASH3-128-32
+murmur3f	MurmurHash3-128/64	MURMURHASH3-128-64
 md5	MD5-128	MD5
 ripemd160	RIPEMD-160	RIPEMD160
 sha1	SHA-1-160	SHA1
@@ -110,82 +103,132 @@ shake128	SHAKE-128	SHAKE-128
 shake256	SHAKE-256	SHAKE-256
 blake2b512	BLAKE2b-512	BLAKE2B-512
 blake2s256	BLAKE2s-256	BLAKE2S-256
-mmhash3-32	MurmurHash3-32	MURMURHASH3-32
-mmhash3-128	MurmurHash3-128	MURMURHASH3-128
 .TE
 
 .SH OPTIONS
 
-Short options can be combined. Options that expect an additional argument
-(i.e., the following argument) should not be combined, this includes
-.I -c
-and
-.IR -a .
+ddh uses command switches to select hashes and other related options.
 
 .SS Entry methods
-.TS
-l l.
-Option	Description
-.T&
-lB l.
--a, --arg	Hash argument text as UTF-8.
--c, --check	Check hashes against a file.
--C, --compare	Compare all files.
--A, --againt	Check hashes against this hash.
---stdin	Set input mode to stdin.
-.TE
 
-.SS File input modes
-.TS
-l l.
-Option	Description
-.T&
-lB l.
-_
--F, --file	Set input mode to file (default).
--b, --binary	File: Set read mode to binary (default).
--t, --text	File: Set read mode to text.
--M, --mmfile	Set input mode to memory-mapped file.
-.TE
+The default entry type are files. However, multiple types can be used at once.
 
-.SS Embedded globber engine
-.TS
-l l.
-Option	Description
-.T&
-lB l.
-_
---shallow	Same-level directory (default).
--s, --depth	Deepest directories first.
---breath	Sub directories first.
---follow	Follow symbolic links (default).
---nofollow	Do not follow symbolic links.
-.TE
+.TP
+.BI "-a " text ", --arg=" text
+Hashes 
+.I text
+given as an argument (as UTF-8).
+
+This is similar to using 
+.B --stdin
+and echoing text into it.
+
+.TP
+.BI "-c " list ", --check=" list
+Check and verify files in 
+.B list
+with their hashes.
+
+.TP
+.BI "--compare " "files..."
+Compare all files to each other.
+
+.TP
+.BI "-A " hash ", --against=" hash
+Compare all files to hash string.
+
+.TP
+.B --stdin
+Sets input to the standard input. If no file entries are given, this becomes
+active.
+
+.SS File input options
+
+.TP
+.B -f, --file
+Set input mode to file (default).
+
+.TP
+.B -b, --binary
+File: Set read mode to binary (default).
+
+.TP
+.B -t, --text
+File: Set read mode to text.
+
+.TP
+.B -m, --mmfile
+Set input mode to memory-mapped file.
+
+.SS Globber engine
+
+.TP
+.B --shallow
+Same-level directory (default).
+
+.TP
+.B -r, --depth
+Deepest directories first.
+
+.TP
+-B --breath
+Sub directories first.
+
+.TP
+.B --follow
+Follow symbolic links (default).
+
+.TP
+.B --nofollow
+Do not follow symbolic links.
 
 .SS Miscellaneous
+
+.TP
+.B --tag
+Create or read BSD-style hashes.
+
+.TP
+.B --sri
+Create SRI-style hashes.
+
+.TP
+.B -B, --buffersize
+Set real buffer size for file/mmfile/stdin (default=4K).
+
+.SH ERRORS
+
+.fi t \{\
+.ft CW
+\}
 .TS
-l l.
-Option	Description
-.T&
-lB l.
+l	l.
+Code	Description
 _
---gnu	Create or read GNU-style hashes. (default)
---tag	Create or read BSD-style hashes.
---sri	Create SRI-style hashes.
--B, --buffersize	Set real buffer size for file/mmfile/stdin (default=4K).
---	Stop parsing arguments.
+1	CLI error
+2	No hashes selected or autocheck not enabled
+3	Internal error: Unable to initiate hash module with hash
+4	Failed to set the hash key
+5	Failed to set the hash seed
+6	No such file
+7	Could not determine hash type
+9	Could not hash text argument
+10	List is empty
+11	Unsupported tag format in list due to missing filename
+12	Internal error: Couldn't continue processing list
+15	Two or more files are required to compare
 .TE
 
 .SH WARNINGS
 
 The murmurhash3 hash may be in a different orientation on big-endian machines,
-because it has only been tested on a x86-64 machine. If this is the case,
-open up an Issue on the GitHub tracker.
+because this utility has only been tested on a x86-64 machine. If this is the
+case, open up an issue on the GitHub repo.
 
 .SH NOTES
 
-UNIX-like shells use their own globbing mechanism. To use the embedded
-globbing mechanism, use '*' or \\*. You can disable it with the --
+Most UNIX-like shells use their own globbing mechanism. To use the embedded
+globbing mechanism, use '*' or \\* explicitly. You can disable it with the --
 switch.
 
 Release versions of this utility has the druntime GC command-line
@@ -200,4 +243,4 @@ Written by dd86k
 
 .SH LICENSE
 
-ddh is currently licensed under the public domain, and so is this document.
+ddh is currently licensed under the CC0, and so is this document.

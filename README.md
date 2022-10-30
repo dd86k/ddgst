@@ -54,25 +54,25 @@ and comes with more features than built-in OS utilities.
 
 # Usage
 
-Format: `ddh HASH [OPTIONS...] FILE[...]`
+Format: `ddh [options...|--autocheck] [file|--stdin]`
 
 With no arguments, the help page is shown.
 
 For a list of options available, use the `--help` argument.
 
-For a list of supported checksums and hashes, use the `list` command.
+For a list of supported checksums and hashes, use the `--hashes` switch.
 
 ## Hashing a file
 
 ```text
-$ ddh md5 LICENSE
+$ ddh --md5 LICENSE
 1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
 ```
 
 ## Check list using hash
 
 ```text
-$ ddh sha256 -c list
+$ ddh --sha256 -c list
 file1: OK
 file2: OK
 ```
@@ -82,14 +82,14 @@ To select the BSD style tags, use `--tag`.
 ## Check files against a hash digest
 
 ```text
-$ ddh sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
+$ ddh --sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
 LICENSE: OK
 ```
 
 ## Compare files against each other
 
 ```text
-$ ddh sha512 --compare LICENSE README.md dub.sdl 
+$ ddh --sha512 --compare LICENSE README.md dub.sdl 
 Files 'LICENSE' and 'README.md' are different
 Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different
@@ -141,6 +141,23 @@ The mmfile mode's performance may vary on systems. Typically, file
 mode is faster on Windows, and mmfile mode is faster on Linux systems.
 
 The default is file.
+
+## Errors
+
+| Code  | Description |
+|-------|---|
+| 1	| CLI error |
+| 2	| No hashes selected or autocheck not enabled |
+| 3	| Internal error: Unable to initiate hash module with hash |
+| 4	| Failed to set the hash key |
+| 5	| Failed to set the hash seed |
+| 6	| No such file |
+| 7	| Could not determine hash type |
+| 9	| Could not hash text argument |
+| 10	| List is empty |
+| 11	| Unsupported tag format in list due to missing filename |
+| 12	| Internal error: Couldn't continue processing list |
+| 15	| Two or more files are required to compare |
 
 # Compiling
 
