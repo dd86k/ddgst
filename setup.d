@@ -12,7 +12,7 @@ enum GITINFO_PATH = "src" ~ SEP ~ "gitinfo.d";
 int main(string[] args) {
 	final switch (args[1]) {
 	case "version":
-		auto describe = executeShell("git describe");
+		auto describe = executeShell("git describe --tags");
 		if (describe.status)
 			return describe.status;
 		
