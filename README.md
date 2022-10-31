@@ -38,19 +38,19 @@ and comes with more features than built-in OS utilities.
 
 | Checksum/Hash | Type | Secure |
 |---|---|---|
-| CRC-32 | Checksum | No |
-| CRC-64-ISO | Checksum | No |
-| CRC-64-ECMA | Checksum | No |
-| Murmurhash-32 | Hash | No |
-| Murmurhash-128-32 | Hash | No |
-| Murmurhash-128-64 | Hash | No |
-| MD5 | Hash | No |
-| RIPEMD-160 | Hash | Yes |
-| SHA-1 | Hash | No |
-| SHA-2 | Hash | Yes |
-| SHA-3/SHAKE | Hash | Yes |
-| [BLAKE2b](https://www.blake2.net/) | Hash | Yes |
-| [BLAKE2s](https://www.blake2.net/) | Hash | Yes |
+| CRC-32 | Checksum | ❌ |
+| CRC-64-ISO | Checksum | ❌ |
+| CRC-64-ECMA | Checksum | ❌ |
+| Murmurhash-32 | Hash | ❌ |
+| Murmurhash-128-32 | Hash | ❌ |
+| Murmurhash-128-64 | Hash | ❌ |
+| MD5 | Hash | ❌ |
+| RIPEMD-160 | Hash | ✔️ |
+| SHA-1 | Hash | ❌ |
+| SHA-2 | Hash | ✔️ |
+| SHA-3/SHAKE | Hash | ✔️ |
+| [BLAKE2b](https://www.blake2.net/) | Hash | ✔️ |
+| [BLAKE2s](https://www.blake2.net/) | Hash | ✔️ |
 
 # Usage
 
