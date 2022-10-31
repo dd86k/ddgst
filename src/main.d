@@ -22,6 +22,9 @@ private:
 
 alias readAll = read;
 
+// GDC isn't happy with int*
+extern(C) int sscanf(scope const char* s, scope const char* format, scope ...);
+
 // Leave GC enabled, but avoid cleanup on exit
 extern (C) __gshared string[] rt_options = ["cleanup:none"];
 
@@ -367,7 +370,7 @@ unittest
 // unformat any number
 uint unformat(string input)
 {
-    import core.stdc.stdio : sscanf;
+    //import core.stdc.stdio : sscanf;
     import std.string : toStringz;
 
     int n = void;
