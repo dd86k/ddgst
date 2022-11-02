@@ -95,6 +95,13 @@ Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different
 ```
 
+## Automatically check list from extension
+
+```text
+$ ddh --autocheck codium_1.73.0.22306_amd64.deb.sha256
+codium_1.73.0.22306_amd64.deb: OK
+```
+
 ## Hash parameters
 
 Some hashes may take optional parameters.
@@ -147,7 +154,7 @@ The default is file.
 | Code  | Description |
 |-------|---|
 | 1	| CLI error |
-| 2	| No hashes selected or autocheck not enabled |
+| 2	| No hashes selected or autocheck not used |
 | 3	| Internal error: Unable to initiate hash module with hash |
 | 4	| Failed to set the hash key |
 | 5	| Failed to set the hash seed |
