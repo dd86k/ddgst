@@ -440,16 +440,18 @@ int hashMmfile(const(char)[] path)
 {
     import std.range : chunks;
     import std.mmfile : MmFile;
+    import std.file : getSize;
 
     version (Trace) trace("path=%s", path);
 
     try
     {
-        auto mmfile = scoped!MmFile(cast(string) path);
-        ulong flen = mmfile.length;
-
-        if (flen)
+        ulong size = getSize(path);
+        
+        if (size)
         {
+            auto mmfile = scoped!MmFile(cast(string)path);
+            
             foreach (chunk; chunks(cast(ubyte[]) mmfile[], settings.bufferSize))
             {
                 settings.hasher.put(chunk);
