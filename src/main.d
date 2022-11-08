@@ -525,13 +525,13 @@ int processFile(const(char)[] path)
                 const(char)[] type = void, hash = void;
                 if (readSRILine(settings.against, type, hash))
                     logError(20, "Could not unformat SRI tag");
+                
                 settings.hasher.toBase64;
                 succ = compareHash(settings.hasher.toBase64, hash);
             }
             else
             {
-                succ = compareHash(
-                    settings.hasher.toHex, settings.against);
+                succ = compareHash(settings.hasher.toHex, settings.against);
             }
             printStatus(file, succ);
             if (succ == false)
@@ -606,6 +606,9 @@ int processList(const(char)[] listPath)
                     ++statErrors;
                     logWarn("Could not read GNU tag at line %u", currentLine);
                 }
+                
+                if (file[0] == '*')
+                    file = file[1..$];
                 break;
             case bsd:
                 if (readBSDLine(line, type, file, expected))
