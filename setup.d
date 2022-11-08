@@ -1,5 +1,6 @@
 #!rdmd
 
+import std.stdio;
 import std.process;
 import std.string : stripRight;
 import std.file : write;
@@ -14,12 +15,14 @@ int main(string[] args) {
 	case "version":
 		auto describe = executeShell("git describe --tags");
 		if (describe.status)
+		{
+			stderr.writeln(describe.output);
 			return describe.status;
+		}
 		
 		string ver = stripRight(describe.output);
 		write(GITINFO_PATH,
-		"// NOTE: This file was automatically generated.\n"~
-		"module gitinfo;\n"~
+		"module gitinfo; // NOTE: Automatically generated file.\n"~
 		"enum GIT_DESCRIPTION = \""~ver~"\";");
 		return 0;
 	}

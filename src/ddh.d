@@ -12,7 +12,7 @@ import std.base64;
 import std.format : formattedRead;
 
 // Adds dynamic seeding to supported hashes
-private class HashSeeded(T) if (isDigest!T) : WrapperDigest!T
+private class HashSeeded(T) if (isDigest!T && hasBlockSize!T) : WrapperDigest!T
 {
     @trusted nothrow void seed(uint input)
     {
@@ -204,8 +204,8 @@ struct Ddh
     {
         //TODO: Test if endianness messes results with checksums
         return checksum ?
-            toHexString!(LetterCase.lower, Order.decreasing)(result) : toHexString!(
-                LetterCase.lower)(result);
+            result.toHexString!(LetterCase.lower, Order.decreasing) :
+            result.toHexString!(LetterCase.lower);
     }
 
     const(char)[] toBase64()

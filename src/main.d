@@ -402,6 +402,11 @@ int hashFile(const(char)[] path)
             if (e)
                 return e;
         }
+        else // Nothing to process, finish digest
+        {
+            settings.rawHash = settings.hasher.finish();
+            settings.hasher.reset();
+        }
         
         f.close();
         return 0;
