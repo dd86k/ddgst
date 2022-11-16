@@ -572,7 +572,7 @@ int processList(const(char)[] listPath)
 
     version (Trace) trace("list=%s", listPath);
 
-    uint currentLine, statMismatch, statErrors;
+    uint currentLine, statMismatch, statErrors, statsTotal;
     
     if (settings.autocheck)
     {
@@ -641,6 +641,8 @@ int processList(const(char)[] listPath)
                 logError(11, "Plain hash format is not supported in file checks");
                 break;
             }
+            
+            ++statsTotal;
 
             if (settings.hash(file))
             {
@@ -667,8 +669,8 @@ int processList(const(char)[] listPath)
         logError(12, ex);
     }
 
-    if (statErrors || statMismatch)
-        writefln("%u mismatches, %u not read", statMismatch, statErrors);
+    writefln("%u total: %u mismatches, %u not read",
+        statsTotal, statMismatch, statErrors);
 
     return 0;
 }

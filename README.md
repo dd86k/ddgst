@@ -74,7 +74,8 @@ $ ddh --md5 LICENSE
 ```text
 $ ddh --sha256 -c list
 file1: OK
-file2: OK
+file2: FAILED
+2 total: 1 mismatch, 0 not read
 ```
 
 To select the BSD style tags, use `--tag`.
