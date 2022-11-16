@@ -327,41 +327,50 @@ unittest
 }+/
 
 /// Guess hash type by extension name.
-/// Params: path = Filename.
+/// Params: path = Path, filename will be extract from this.
 /// Returns: Hash type.
-HashType guessHashExt(const(char)[] path) @safe
+HashType guessHash(const(char)[] path) @safe
 {
     import std.string : toLower, indexOf;
-    import std.path : extension, CaseSensitive;
+    import std.path : extension, baseName, globMatch, CaseSensitive;
     import std.algorithm.searching : canFind, startsWith;
 
-    const(char)[] ext = extension(path);
-    if (ext == null || ext == ".")
-        ext = path.toLower;
-    else
-        ext = ext[1 .. $].toLower;
+    const(char)[] name = baseName(path).toLower;
 
     foreach (info; hashInfo)
     {
-        if (indexOf(ext, info.alias_) >= 0)
+        if (indexOf(name, info.alias_) >= 0)
             return info.type;
     }
 
-    if (indexOf(ext, "sha3") >= 0)
-        return HashType.SHA3_256;
+    // aliases
+    struct Alias
+    {
+        string name;
+        HashType type;
+    }
+    static immutable Alias[] aliases = [
+        { "sha3", HashType.SHA3_256 }
+    ];
+    foreach (alias_; aliases)
+    {
+        if (indexOf(name, alias_.name) >= 0)
+            return alias_.type;
+    }
 
     return InvalidHash;
 }
 
 @safe unittest
 {
-    assert(guessHashExt("sha1sum") == HashType.SHA1);
-    assert(guessHashExt(".SHA256SUM") == HashType.SHA256);
-    assert(guessHashExt("GE-Proton7-38.sha512sum") == HashType.SHA512);
-    assert(guessHashExt("test.crc32") == HashType.CRC32);
-    assert(guessHashExt("test.sha256") == HashType.SHA256);
-    assert(guessHashExt("test.md5sum") == HashType.MD5);
-    assert(guessHashExt("test.sha3sums") == HashType.SHA3_256);
+    assert(guessHash("sha1sum") == HashType.SHA1);
+    assert(guessHash(".SHA256SUM") == HashType.SHA256);
+    assert(guessHash("GE-Proton7-38.sha512sum") == HashType.SHA512);
+    assert(guessHash("CHECKSUM.SHA512-FreeBSD-13.1-RELEASE-amd64") == HashType.SHA512);
+    assert(guessHash("test.crc32") == HashType.CRC32);
+    assert(guessHash("test.sha256") == HashType.SHA256);
+    assert(guessHash("test.md5sum") == HashType.MD5);
+    assert(guessHash("test.sha3sums") == HashType.SHA3_256);
 }
 
 // Check by context
