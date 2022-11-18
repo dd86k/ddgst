@@ -55,7 +55,7 @@ enum InvalidHash = cast(HashType)-1;
 struct HashInfo
 {
     HashType type;
-    string fullName, alias_, tagName;
+    string fullName, alias_, tag, tag2;
 }
 
 immutable 
@@ -93,28 +93,49 @@ immutable
 //      For some reason, NetBSD seems to be using other names such as RMD160,
 //      SHA512, etc. under OpenSSL. Is this a GNU/BSD thing?
 immutable HashInfo[HashCount] hashInfo = [
-    // HashType                     Full            Alias, Tag
-    { HashType.CRC32,               "CRC-32",       crc32, "CRC32", },
-    { HashType.CRC64ISO,            "CRC-64-ISO",   crc64iso, "CRC64ISO", },
-    { HashType.CRC64ECMA,           "CRC-64-ECMA",  crc64ecma, "CRC64ECMA", },
-    { HashType.MurmurHash3_32,      "MurmurHash3-32",     murmur3a, "MURMURHASH3-32", },
-    { HashType.MurmurHash3_128_32,  "MurmurHash3-128/32", murmur3c, "MURMURHASH3-128-32", },
-    { HashType.MurmurHash3_128_64,  "MurmurHash3-128/64", murmur3f, "MURMURHASH3-128-64", },
-    { HashType.MD5,                 "MD5-128",      md5, "MD5", },
-    { HashType.RIPEMD160,           "RIPEMD-160",   ripemd160, "RIPEMD160", },
-    { HashType.SHA1,                "SHA-1-160",    sha1, "SHA1", },
-    { HashType.SHA224,              "SHA-2-224",    sha224, "SHA2-224", },
-    { HashType.SHA256,              "SHA-2-256",    sha256, "SHA2-256", },
-    { HashType.SHA384,              "SHA-2-384",    sha384, "SHA2-384", },
-    { HashType.SHA512,              "SHA-2-512",    sha512, "SHA2-512", },
-    { HashType.SHA3_224,            "SHA-3-224",    sha3_224, "SHA3-224", },
-    { HashType.SHA3_256,            "SHA-3-256",    sha3_256, "SHA3-256", },
-    { HashType.SHA3_384,            "SHA-3-384",    sha3_384, "SHA3-384", },
-    { HashType.SHA3_512,            "SHA-3-512",    sha3_512, "SHA3-512", },
-    { HashType.SHAKE128,            "SHAKE-128",    shake128, "SHAKE-128", },
-    { HashType.SHAKE256,            "SHAKE-256",    shake256, "SHAKE-256", },
-    { HashType.BLAKE2b512,          "BLAKE2b-512",  blake2b512, "BLAKE2B-512", },
-    { HashType.BLAKE2s256,          "BLAKE2s-256",  blake2s256, "BLAKE2S-256", },
+    // HashType, Full, Alias, Tag (openssl), Tag2 (gnu)
+    { HashType.CRC32,
+        "CRC-32", crc32, "CRC32", },
+    { HashType.CRC64ISO,
+        "CRC-64-ISO",   crc64iso, "CRC64ISO", },
+    { HashType.CRC64ECMA,
+        "CRC-64-ECMA",  crc64ecma, "CRC64ECMA", },
+    { HashType.MurmurHash3_32,
+        "MurmurHash3-32",     murmur3a, "MURMURHASH3-32", },
+    { HashType.MurmurHash3_128_32,
+        "MurmurHash3-128/32", murmur3c, "MURMURHASH3-128-32", },
+    { HashType.MurmurHash3_128_64,
+        "MurmurHash3-128/64", murmur3f, "MURMURHASH3-128-64", },
+    { HashType.MD5,
+        "MD5-128",      md5, "MD5", },
+    { HashType.RIPEMD160,
+        "RIPEMD-160",   ripemd160, "RIPEMD160", "RMD160" },
+    { HashType.SHA1,
+        "SHA-1-160",    sha1, "SHA1", },
+    { HashType.SHA224,
+        "SHA-2-224",    sha224, "SHA2-224", "SHA224" },
+    { HashType.SHA256,
+        "SHA-2-256",    sha256, "SHA2-256", "SHA256" },
+    { HashType.SHA384,
+        "SHA-2-384",    sha384, "SHA2-384", "SHA384" },
+    { HashType.SHA512,
+        "SHA-2-512",    sha512, "SHA2-512", "SHA512" },
+    { HashType.SHA3_224,
+        "SHA-3-224",    sha3_224, "SHA3-224", },
+    { HashType.SHA3_256,
+        "SHA-3-256",    sha3_256, "SHA3-256", },
+    { HashType.SHA3_384,
+        "SHA-3-384",    sha3_384, "SHA3-384", },
+    { HashType.SHA3_512,
+        "SHA-3-512",    sha3_512, "SHA3-512", },
+    { HashType.SHAKE128,
+        "SHAKE-128",    shake128, "SHAKE-128", },
+    { HashType.SHAKE256,
+        "SHAKE-256",    shake256, "SHAKE-256", },
+    { HashType.BLAKE2b512,
+        "BLAKE2b-512",  blake2b512, "BLAKE2B-512", },
+    { HashType.BLAKE2s256,
+        "BLAKE2s-256",  blake2s256, "BLAKE2S-256", },
 ];
 
 struct Ddh
@@ -225,7 +246,7 @@ struct Ddh
 
     string tagName()
     {
-        return info.tagName;
+        return info.tag;
     }
 }
 

@@ -576,7 +576,7 @@ int processList(const(char)[] listPath)
     
     if (settings.autocheck)
     {
-        settings.type = guessHashExt(listPath);
+        settings.type = guessHash(listPath);
         if (settings.type == InvalidHash)
             logError(5, "Could not determine hash type");
     }
@@ -625,7 +625,12 @@ int processList(const(char)[] listPath)
                 lastType = type;
                 foreach (HashInfo info; hashInfo)
                 {
-                    if (type == info.tagName)
+                    if (type == info.tag)
+                    {
+                        settings.hasher.initiate(info.type);
+                        break TAGTYPE;
+                    }
+                    if (type == info.tag2)
                     {
                         settings.hasher.initiate(info.type);
                         break TAGTYPE;
@@ -731,9 +736,9 @@ int processCompare(string[] entries)
     return 0;
 }
 
-void printMeta(string baseName, string name, string tagName)
+void printMeta(string baseName, string name, string tag, string tag2)
 {
-    writefln("%-18s  %-18s  %s", baseName, name, tagName);
+    writefln("%-18s  %-18s  %-18s  %s", baseName, name, tag, tag2);
 }
 
 // special settings that getopts cannot simply set directly
@@ -811,7 +816,7 @@ int cliAutoCheck(string[] entries)
     {
         version (Trace) trace("entry=%s", entry);
         
-        settings.type = guessHashExt(entry);
+        settings.type = guessHash(entry);
         if (settings.type == InvalidHash)
             logError(7, "Could not determine hash type for: %s", entry);
         
@@ -829,10 +834,10 @@ int cliAutoCheck(string[] entries)
 void cliHashes()
 {
     static immutable string sep = "-----------";
-    printMeta("Alias", "Name", "Tag");
-    printMeta(sep, sep, sep);
+    printMeta("Alias", "Name", "Tag", "Tag2");
+    printMeta(sep, sep, sep, sep);
     foreach (info; hashInfo)
-        printMeta(info.alias_, info.fullName, info.tagName);
+        printMeta(info.alias_, info.fullName, info.tag, info.tag2);
     exit(0);
 }
 

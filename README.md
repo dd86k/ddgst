@@ -69,6 +69,10 @@ $ ddh --md5 LICENSE
 1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
 ```
 
+To select OpenSSL tags for the output, use `--tag`.
+
+To select SRI for the output, use `--sri`.
+
 ## Check list using hash
 
 ```text
@@ -78,7 +82,9 @@ file2: FAILED
 2 total: 1 mismatch, 0 not read
 ```
 
-To select the BSD style tags, use `--tag`.
+To select the tag digest style, use `--tag`.
+
+Both OpenSSL and GNU/BSD tags are supported.
 
 ## Check files against a hash digest
 
