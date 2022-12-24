@@ -11,7 +11,6 @@ import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
-import std.typecons : scoped;
 import core.stdc.stdlib : exit;
 import blake2d : BLAKE2D_VERSION_STRING;
 import sha3d : SHA3D_VERSION_STRING;
@@ -450,14 +449,14 @@ int hashMmfile(const(char)[] path)
         
         if (size)
         {
-            auto mmfile = scoped!MmFile(cast(string)path);
+            scope mmfile = new MmFile(cast(string)path);
             
             foreach (chunk; chunks(cast(ubyte[]) mmfile[], settings.bufferSize))
             {
                 settings.hasher.put(chunk);
             }
         }
-
+        
         settings.rawHash = settings.hasher.finish();
         settings.hasher.reset();
         return 0;
