@@ -194,31 +194,9 @@ immutable string PAGE_COFE = q"SECRET
     `-----'
 SECRET";
 
-immutable string STDIN_NAME = "-";
+immutable string DEFAULT_FILE_MODE = "rb";
 
-immutable string FILE_MODE_TEXT = "r";
-immutable string FILE_MODE_BIN = "rb";
-
-immutable string OPT_FILE       = "f|file";
-immutable string OPT_MMFILE     = "m|mmfile";
-immutable string OPT_ARG        = "a|arg";
-immutable string OPT_CHECK      = "c|check";
-immutable string OPT_TEXT       = "t|text";
-immutable string OPT_BINARY     = "b|binary";
-immutable string OPT_BUFFERSIZE = "B|buffersize";
-immutable string OPT_GNU        = "gnu";
-immutable string OPT_TAG        = "tag";
-immutable string OPT_SRI        = "sri";
-immutable string OPT_PLAIN      = "plain";
-immutable string OPT_FOLLOW     = "follow";
-immutable string OPT_NOFOLLOW   = "nofollow";
-immutable string OPT_DEPTH      = "r|depth";
-immutable string OPT_SHALLOW    = "shallow";
-immutable string OPT_BREATH     = "breath";
-immutable string OPT_KEY        = "key";
-//immutable string OPT_KEYFILE	= "keyfile";
-//immutable string OPT_KEYBIN	= "keyhex";
-immutable string OPT_SEED       = "seed";
+// Pages
 immutable string OPT_VER        = "ver";
 immutable string OPT_VERSION    = "version";
 immutable string OPT_LICENSE    = "license";
@@ -232,7 +210,7 @@ struct Settings
     size_t bufferSize = DEFAULT_READ_SIZE;
     SpanMode spanMode;
     TagType tag;
-    string fileMode = FILE_MODE_BIN;
+    string fileMode = DEFAULT_FILE_MODE;
     string against; /// Hash to check against (-a/--against)
     ubyte[] key; /// Key for BLAKE2
     uint seed; /// Seed for Murmurhash3
@@ -549,9 +527,9 @@ int processFile(const(char)[] path)
 int processStdin()
 {
     version (Trace) trace("stdin");
-    int e = hashStdin(STDIN_NAME);
+    int e = hashStdin(null);
     if (e == 0)
-        printResult(STDIN_NAME);
+        printResult("-");
     return e;
 }
 
@@ -740,34 +718,11 @@ void printMeta(string baseName, string name, string tag, string tag2)
     writefln("%-18s  %-18s  %-18s  %s", baseName, name, tag, tag2);
 }
 
-// special settings that getopts cannot simply set directly
-void option(string arg)
+void page(string arg)
 {
     version (Trace) trace(arg);
 
-    with (settings) final switch (arg)
-    {
-    // input modes
-    case OPT_ARG:   process = &processText; return;
-    case OPT_CHECK: process = &processList; return;
-    // file input mode
-    case OPT_FILE:      hash = &hashFile; return;
-    case OPT_MMFILE:    hash = &hashMmfile; return;
-    case OPT_TEXT:      fileMode = FILE_MODE_TEXT; return;
-    case OPT_BINARY:    fileMode = FILE_MODE_BIN; return;
-    // hash style
-    case OPT_TAG:   tag = TagType.bsd; return;
-    case OPT_SRI:   tag = TagType.sri; return;
-    case OPT_GNU:   tag = TagType.gnu; return;
-    case OPT_PLAIN: tag = TagType.plain; return;
-    // globber: symlink
-    case OPT_NOFOLLOW:  follow = false; return;
-    case OPT_FOLLOW:    follow = true; return;
-    // globber: directory
-    case OPT_DEPTH:     spanMode = SpanMode.depth; return;
-    case OPT_SHALLOW:   spanMode = SpanMode.shallow; return;
-    case OPT_BREATH:    spanMode = SpanMode.breadth; return;
-    // pages
+    with (settings) final switch (arg) {
     case OPT_VER:       arg = GIT_DESCRIPTION; break;
     case OPT_VERSION:   arg = PAGE_VERSION; break;
     case OPT_LICENSE:   arg = PAGE_LICENSE; break;
@@ -775,38 +730,6 @@ void option(string arg)
     }
     writeln(arg);
     exit(0);
-}
-
-void option2(string arg, string val)
-{
-    with (settings) final switch (arg)
-    {
-    case OPT_BUFFERSIZE:
-        ulong v = void;
-        if (strtobin(&v, val))
-            throw new GetOptException("Couldn't unformat buffer size");
-        
-        if (v >= size_t.max)
-            throw new GetOptException("Buffer size overflows");
-        
-        bufferSize = cast(size_t) v;
-        return;
-    // keying
-    case OPT_KEY:
-        try
-        {
-            settings.key = cast(ubyte[]) readAll(val);
-        }
-        catch (Exception ex)
-        {
-            throw new GetOptException(ex.msg);
-        }
-        return;
-    // seeding
-    case OPT_SEED:
-        settings.seed = unformat(val);
-        return;
-    }
 }
 
 int cliAutoCheck(string[] entries)
@@ -840,32 +763,62 @@ void cliHashes()
     exit(0);
 }
 
-void cliHash(string opt)
+void cliHashCRC32()                 { settings.type = HashType.CRC32; }
+void cliHashCRC64ISO()              { settings.type = HashType.CRC64ISO; }
+void cliHashCRC64ECMA()             { settings.type = HashType.CRC64ECMA; }
+void cliHashMurmurHash3_32()        { settings.type = HashType.MurmurHash3_32; }
+void cliHashMurmurHash3_128_32()    { settings.type = HashType.MurmurHash3_128_32; }
+void cliHashMurmurHash3_128_64()    { settings.type = HashType.MurmurHash3_128_64; }
+void cliHashMD5()                   { settings.type = HashType.MD5; }
+void cliHashRIPEMD160()             { settings.type = HashType.RIPEMD160; }
+void cliHashSHA1()                  { settings.type = HashType.SHA1; }
+void cliHashSHA224()                { settings.type = HashType.SHA224; }
+void cliHashSHA256()                { settings.type = HashType.SHA256; }
+void cliHashSHA384()                { settings.type = HashType.SHA384; }
+void cliHashSHA512()                { settings.type = HashType.SHA512; }
+void cliHashSHA3_224()              { settings.type = HashType.SHA3_224; }
+void cliHashSHA3_256()              { settings.type = HashType.SHA3_256; }
+void cliHashSHA3_384()              { settings.type = HashType.SHA3_384; }
+void cliHashSHA3_512()              { settings.type = HashType.SHA3_512; }
+void cliHashSHAKE128()              { settings.type = HashType.SHAKE128; }
+void cliHashSHAKE256()              { settings.type = HashType.SHAKE256; }
+void cliHashBLAKE2s256()            { settings.type = HashType.BLAKE2s256; }
+void cliHashBLAKE2b512()            { settings.type = HashType.BLAKE2b512; }
+
+void cliFile()      { settings.hash = &hashFile; }
+void cliBinary()    { settings.fileMode = DEFAULT_FILE_MODE; }
+void cliText()      { settings.fileMode = "r"; }
+void cliMmFile()    { settings.hash = &hashMmfile; }
+void cliArg()       { settings.process = &processText; }
+void cliCheck()     { settings.process = &processList; }
+void cliShallow()   { settings.spanMode = SpanMode.shallow; }
+void cliDepth()     { settings.spanMode = SpanMode.depth; }
+void cliBreath()    { settings.spanMode = SpanMode.breadth; }
+void cliNoFollow()  { settings.follow = false; }
+void cliTag()       { settings.tag = TagType.bsd; }
+void cliSri()       { settings.tag = TagType.sri; }
+void cliPlain()     { settings.tag = TagType.plain; }
+
+void cliBufferSize(string key, string val)
 {
-    final switch (opt)
-    {
-    case crc32:     settings.type = HashType.CRC32; return;
-    case crc64iso:  settings.type = HashType.CRC64ISO; return;
-    case crc64ecma: settings.type = HashType.CRC64ECMA; return;
-    case murmur3a:  settings.type = HashType.MurmurHash3_32; return;
-    case murmur3c:  settings.type = HashType.MurmurHash3_128_32; return;
-    case murmur3f:  settings.type = HashType.MurmurHash3_128_64; return;
-    case md5:       settings.type = HashType.MD5; return;
-    case ripemd160: settings.type = HashType.RIPEMD160; return;
-    case sha1:      settings.type = HashType.SHA1; return;
-    case sha224:    settings.type = HashType.SHA224; return;
-    case sha256:    settings.type = HashType.SHA256; return;
-    case sha384:    settings.type = HashType.SHA384; return;
-    case sha512:    settings.type = HashType.SHA512; return;
-    case sha3_224:  settings.type = HashType.SHA3_224; return;
-    case sha3_256:  settings.type = HashType.SHA3_256; return;
-    case sha3_384:  settings.type = HashType.SHA3_384; return;
-    case sha3_512:  settings.type = HashType.SHA3_512; return;
-    case shake128:  settings.type = HashType.SHAKE128; return;
-    case shake256:  settings.type = HashType.SHAKE256; return;
-    case blake2b512:    settings.type = HashType.BLAKE2b512; return;
-    case blake2s256:    settings.type = HashType.BLAKE2s256; return;
-    }
+    ulong v = void;
+    if (strtobin(&v, val))
+        throw new GetOptException("Couldn't unformat buffer size");
+    
+    if (v >= size_t.max)
+        throw new GetOptException("Buffer size overflows");
+    
+    settings.bufferSize = cast(size_t) v;
+}
+
+void cliKey(string key, string val)
+{
+    settings.key = cast(ubyte[]) readAll(val);
+}
+
+void cliSeed(string key, string val)
+{
+    settings.seed = unformat(val);
 }
 
 int main(string[] args)
@@ -878,55 +831,53 @@ int main(string[] args)
         //TODO: Array of bool to select multiple hashes?
         //TODO: Include argument (string,string) for doing batches with X hash?
         res = getopt(args, config.caseSensitive,
-            OPT_COFE,       "", &option,
-            crc32,          "", &cliHash,
-            crc64iso,       "", &cliHash,
-            crc64ecma,      "", &cliHash,
-            murmur3a,       "", &cliHash,
-            murmur3c,       "", &cliHash,
-            murmur3f,       "", &cliHash,
-            md5,            "", &cliHash,
-            ripemd160,      "", &cliHash,
-            sha1,           "", &cliHash,
-            sha224,         "", &cliHash,
-            sha256,         "", &cliHash,
-            sha384,         "", &cliHash,
-            sha512,         "", &cliHash,
-            sha3_224,       "", &cliHash,
-            sha3_256,       "", &cliHash,
-            sha3_384,       "", &cliHash,
-            sha3_512,       "", &cliHash,
-            shake128,       "", &cliHash,
-            shake256,       "", &cliHash,
-            blake2b512,     "", &cliHash,
-            blake2s256,     "", &cliHash,
-            OPT_FILE,       "Input mode: Regular file (default).", &option,
-            OPT_BINARY,     "File: Set binary mode (default).", &option,
-            OPT_TEXT,       "File: Set text mode.", &option,
-            OPT_MMFILE,     "Input mode: Memory-map file.", &option,
-            OPT_ARG,        "Input mode: Command-line argument is text data (UTF-8).", &option,
+            OPT_COFE,       "", &page,
+            crc32,          "", &cliHashCRC32,
+            crc64iso,       "", &cliHashCRC64ISO,
+            crc64ecma,      "", &cliHashCRC64ECMA,
+            murmur3a,       "", &cliHashMurmurHash3_32,
+            murmur3c,       "", &cliHashMurmurHash3_128_32,
+            murmur3f,       "", &cliHashMurmurHash3_128_64,
+            md5,            "", &cliHashMD5,
+            ripemd160,      "", &cliHashRIPEMD160,
+            sha1,           "", &cliHashSHA1,
+            sha224,         "", &cliHashSHA224,
+            sha256,         "", &cliHashSHA256,
+            sha384,         "", &cliHashSHA384,
+            sha512,         "", &cliHashSHA512,
+            sha3_224,       "", &cliHashSHA3_224,
+            sha3_256,       "", &cliHashSHA3_256,
+            sha3_384,       "", &cliHashSHA3_384,
+            sha3_512,       "", &cliHashSHA3_512,
+            shake128,       "", &cliHashSHAKE128,
+            shake256,       "", &cliHashSHAKE256,
+            blake2b512,     "", &cliHashBLAKE2s256,
+            blake2s256,     "", &cliHashBLAKE2b512,
+            "f|file",       "Input mode: Regular file (default).", &cliFile,
+            "b|binary",     "File: Set binary mode (default).", &cliBinary,
+            "t|text",       "File: Set text mode.", &cliText,
+            "m|mmfile",     "Input mode: Memory-map file.", &cliMmFile,
+            "a|arg",        "Input mode: Command-line argument is text data (UTF-8).", &cliArg,
             "stdin",        "Input mode: Standard input (stdin)", &settings.modeStdin,
-            OPT_CHECK,      "Check hashes list in this file.", &option,
+            "c|check",      "Check hashes list in this file.", &cliCheck,
             "autocheck",    "Automatically determine hash type and process list.", &settings.autocheck,
             "C|compare",    "Compares all file entries.", &compare,
             "A|against",    "Compare files against hash.", &settings.against,
             "hashes",       "List supported hashes.", &cliHashes,
-            OPT_BUFFERSIZE, "Set buffer size, affects file/mmfile/stdin (default=4K).", &option2,
-            OPT_SHALLOW,    "Depth: Same directory (default).", &option,
-            OPT_DEPTH,      "Depth: Deepest directories first.", &option,
-            OPT_BREATH,     "Depth: Sub directories first.", &option,
-            OPT_FOLLOW,     "Links: Follow symbolic links (default).", &option,
-            OPT_NOFOLLOW,   "Links: Do not follow symbolic links.", &option,
-            OPT_TAG,        "Create or read BSD-style hashes.", &option,
-            OPT_SRI,        "Create or read SRI-style hashes.", &option,
-            OPT_PLAIN,      "Create or read plain hashes.", &option,
-            OPT_KEY,        "Binary key file for BLAKE2 hashes.", &option2,
-            //"keyhex",       "Hex text key file for supported hash.",  &option2,
-            //"keystr",       "Hex text argument for supported hash.",  &option2,
-            OPT_SEED,       "Seed literal argument for Murmurhash3 hashes.", &option2,
-            OPT_VERSION,    "Show version page and quit.", &option,
-            OPT_VER,        "Show version and quit.", &option,
-            OPT_LICENSE,    "Show license page and quit.", &option,
+            "B|buffersize", "Set buffer size, affects file/mmfile/stdin (default=4K).", &cliBufferSize,
+            "shallow",      "Depth: Same directory (default).", &cliShallow,
+            "r|depth",      "Depth: Deepest directories first.", &cliDepth,
+            "breath",       "Depth: Sub directories first.", &cliBreath,
+            "follow",       "Links: Follow symbolic links (default).", &settings.follow,
+            "nofollow",     "Links: Do not follow symbolic links.", &cliNoFollow,
+            "tag",          "Create or read BSD-style hashes.", &cliTag,
+            "sri",          "Create or read SRI-style hashes.", &cliSri,
+            "plain",        "Create or read plain hashes.", &cliPlain,
+            "key",          "Binary key file for BLAKE2 hashes.", &cliKey,
+            "seed",         "Seed literal argument for Murmurhash3 hashes.", &cliSeed,
+            OPT_VERSION,    "Show version page and quit.", &page,
+            OPT_VER,        "Show version and quit.", &page,
+            OPT_LICENSE,    "Show license page and quit.", &page,
         );
     }
     catch (Exception ex)
