@@ -7,9 +7,9 @@ module ddh;
 
 import std.digest;
 import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc, std.digest.murmurhash;
-import sha3d, blake2d;
 import std.base64;
 import std.format : formattedRead;
+import sha3d, blake2d, xxhash3;
 
 // Adds dynamic seeding to supported hashes
 private class HashSeeded(T) if (isDigest!T && hasBlockSize!T) : WrapperDigest!T
@@ -29,6 +29,10 @@ enum HashType
     CRC32,
     CRC64ISO,
     CRC64ECMA,
+    XXHash_32,
+    XXHash_64,
+    XXHash3_64,
+    XXHash3_128,
     MurmurHash3_32,
     MurmurHash3_128_32,
     MurmurHash3_128_64,
@@ -60,25 +64,29 @@ struct HashInfo
 
 immutable 
 {
-   string crc32 = "crc32";
-   string crc64iso = "crc64iso";
+   string crc32     = "crc32";
+   string crc64iso  = "crc64iso";
    string crc64ecma = "crc64ecma";
-   string murmur3a = "murmur3a";
-   string murmur3c = "murmur3c";
-   string murmur3f = "murmur3f";
-   string md5 = "md5";
+   string xxh_32    = "xxh-32";
+   string xxh_64    = "xxh-64";
+   string xxh3_64   = "xxh3-64";
+   string xxh3_128  = "xxh3-128";
+   string murmur3a  = "murmur3a";
+   string murmur3c  = "murmur3c";
+   string murmur3f  = "murmur3f";
+   string md5       = "md5";
    string ripemd160 = "ripemd160";
-   string sha1 = "sha1";
-   string sha224 = "sha224";
-   string sha256 = "sha256";
-   string sha384 = "sha384";
-   string sha512 = "sha512";
-   string sha3_224 = "sha3-224";
-   string sha3_256 = "sha3-256";
-   string sha3_384 = "sha3-384";
-   string sha3_512 = "sha3-512";
-   string shake128 = "shake128";
-   string shake256 = "shake256";
+   string sha1      = "sha1";
+   string sha224    = "sha224";
+   string sha256    = "sha256";
+   string sha384    = "sha384";
+   string sha512    = "sha512";
+   string sha3_224  = "sha3-224";
+   string sha3_256  = "sha3-256";
+   string sha3_384  = "sha3-384";
+   string sha3_512  = "sha3-512";
+   string shake128  = "shake128";
+   string shake256  = "shake256";
    string blake2b512 = "blake2b512";
    string blake2s256 = "blake2s256";
 }
@@ -100,6 +108,14 @@ immutable HashInfo[HashCount] hashInfo = [
         "CRC-64-ISO",   crc64iso, "CRC64ISO", },
     { HashType.CRC64ECMA,
         "CRC-64-ECMA",  crc64ecma, "CRC64ECMA", },
+    { HashType.XXHash_32,
+        "XXHash-32",    xxh_32, "XXHASH-32", },
+    { HashType.XXHash_64,
+        "XXHash-64",    xxh_64, "XXHASH-64", },
+    { HashType.XXHash3_64,
+        "XXHash3-64",   xxh3_64, "XXHASH3-64", },
+    { HashType.XXHash3_128,
+        "XXHash3-128",  xxh3_128,"XXHASH3-128", },
     { HashType.MurmurHash3_32,
         "MurmurHash3-32",     murmur3a, "MURMURHASH3-32", },
     { HashType.MurmurHash3_128_32,
@@ -150,9 +166,16 @@ struct Ddh
     {
         final switch (t) with (HashType)
         {
-        case CRC32:     digest = new CRC32Digest(); break;
-        case CRC64ISO:  digest = new CRC64ISODigest(); break;
-        case CRC64ECMA: digest = new CRC64ECMADigest(); break;
+        case CRC32:             digest = new CRC32Digest(); break;
+        case CRC64ISO:          digest = new CRC64ISODigest(); break;
+        case CRC64ECMA:         digest = new CRC64ECMADigest(); break;
+        case XXHash_32:         digest = new XXH32Digest(); break;
+        case XXHash_64:         digest = new XXH64Digest(); break;
+        case XXHash3_64:        digest = new XXH3_64Digest(); break;
+        case XXHash3_128:       digest = new XXH3_128Digest(); break;
+        case MurmurHash3_32:    digest = new MurmurHash3_32_SeededDigest(); break;
+        case MurmurHash3_128_32:    digest = new MurmurHash3_128_32_SeededDigest(); break;
+        case MurmurHash3_128_64:    digest = new MurmurHash3_128_64_SeededDigest(); break;
         case MD5:       digest = new MD5Digest(); break;
         case RIPEMD160: digest = new RIPEMD160Digest(); break;
         case SHA1:      digest = new SHA1Digest(); break;
@@ -168,9 +191,6 @@ struct Ddh
         case SHAKE256:  digest = new SHAKE256Digest(); break;
         case BLAKE2b512:    digest = new BLAKE2b512Digest(); break;
         case BLAKE2s256:    digest = new BLAKE2s256Digest(); break;
-        case MurmurHash3_32:    digest = new MurmurHash3_32_SeededDigest(); break;
-        case MurmurHash3_128_32:    digest = new MurmurHash3_128_32_SeededDigest(); break;
-        case MurmurHash3_128_64:    digest = new MurmurHash3_128_64_SeededDigest(); break;
         }
 
         type = t;

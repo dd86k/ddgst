@@ -41,6 +41,10 @@ and comes with more features than built-in OS utilities.
 | CRC-32 | Checksum | ❌ |
 | CRC-64-ISO | Checksum | ❌ |
 | CRC-64-ECMA | Checksum | ❌ |
+| XXHash-32 | Hash | ❌ |
+| XXHash-64 | Hash | ❌ |
+| XXHash3-64 | Hash | ❌ |
+| XXHash3-128 | Hash | ❌ |
 | Murmurhash-32 | Hash | ❌ |
 | Murmurhash-128-32 | Hash | ❌ |
 | Murmurhash-128-64 | Hash | ❌ |

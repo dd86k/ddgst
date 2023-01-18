@@ -46,9 +46,11 @@ enum TagType
 debug enum BUILD_TYPE = "+debug";
 else enum BUILD_TYPE = "";
 
+enum XXHASH3_VERSION = "0.0.5";
+
 immutable string PAGE_VERSION =
-`ddh ` ~ GIT_DESCRIPTION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
-Using sha3-d ` ~ SHA3D_VERSION_STRING ~ `, blake2-d ` ~ BLAKE2D_VERSION_STRING ~ `
+`ddh `~GIT_DESCRIPTION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
+Using sha3-d `~SHA3D_VERSION_STRING~`, blake2-d `~BLAKE2D_VERSION_STRING~`, xxhash3 `~XXHASH3_VERSION~`
 No rights reserved
 License: CC0
 Homepage: <https://github.com/dd86k/ddh>
@@ -766,6 +768,10 @@ void cliHashes()
 void cliHashCRC32()                 { settings.type = HashType.CRC32; }
 void cliHashCRC64ISO()              { settings.type = HashType.CRC64ISO; }
 void cliHashCRC64ECMA()             { settings.type = HashType.CRC64ECMA; }
+void cliHashXXHash_32()             { settings.type = HashType.XXHash_32; }
+void cliHashXXHash_64()             { settings.type = HashType.XXHash_64; }
+void cliHashXXHash3_64()            { settings.type = HashType.XXHash3_64; }
+void cliHashXXHash3_128()           { settings.type = HashType.XXHash3_128; }
 void cliHashMurmurHash3_32()        { settings.type = HashType.MurmurHash3_32; }
 void cliHashMurmurHash3_128_32()    { settings.type = HashType.MurmurHash3_128_32; }
 void cliHashMurmurHash3_128_64()    { settings.type = HashType.MurmurHash3_128_64; }
@@ -835,6 +841,10 @@ int main(string[] args)
             crc32,          "", &cliHashCRC32,
             crc64iso,       "", &cliHashCRC64ISO,
             crc64ecma,      "", &cliHashCRC64ECMA,
+            xxh_32,         "", &cliHashXXHash_32,
+            xxh_64,         "", &cliHashXXHash_64,
+            xxh3_64,        "", &cliHashXXHash3_64,
+            xxh3_128,       "", &cliHashXXHash3_128,
             murmur3a,       "", &cliHashMurmurHash3_32,
             murmur3c,       "", &cliHashMurmurHash3_128_32,
             murmur3f,       "", &cliHashMurmurHash3_128_64,

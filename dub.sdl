@@ -3,39 +3,35 @@ description "dd's hashing utility"
 homepage "https://github.com/dd86k/ddh"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
+
+dependency "xxhash3" version="~>0.0.5"
 dependency "sha3-d" version="~>1.2.4"
 dependency "blake2-d" version="~>0.3.0"
 
-# NOTE: Somehow, the dmd package in the Alpine repo does not contain rdmd.
+preBuildCommands "gdmd -run setup.d version" platform="gdc"
 preBuildCommands "dmd -run setup.d version" platform="dmd"
 preBuildCommands "ldmd2 -run setup.d version" platform="ldc"
-preBuildCommands "gdmd -run setup.d version" platform="gdc"
 
+buildType "release-nobounds-static" {
+	dflags "-static" platform="gdc"
+	dflags "--static" platform="ldc"
+	buildOptions "releaseMode" "noBoundsCheck" "optimize"
+}
 buildType "trace" {
 	versions "Trace"
 	buildOptions "debugMode" "debugInfo"
 }
-
-buildType "release-nobounds-static" {
-	buildOptions "releaseMode" "noBoundsCheck" "optimize"
-	dflags "-static" platform="gdc"
-	dflags "--static" platform="ldc"
-}
-
-# For the needy
 buildType "release-nobounds-extreme" {
-	buildOptions "releaseMode" "noBoundsCheck" "optimize"
-	dflags "-ffast-math" platform="gdc"
-	dflags "-checkaction=halt" platform="dmd"
-	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
-	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=nehalem" platform="x86_64-ldc"
 	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=core2" platform="x86-ldc"
+	dflags "-ffast-math" platform="gdc"
+	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=nehalem" platform="x86_64-ldc"
+	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
+	dflags "-checkaction=halt" platform="dmd"
+	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 }
-
-# Verbose on GC/TLS usage
 buildType "debugv" {
-	versions "PrintInfo"
-	buildOptions "debugMode"
 	dflags "-vgc" "-vtls" platform="dmd"
 	dflags "--vgc" "--vtls" platform="ldc"
+	versions "PrintInfo"
+	buildOptions "debugMode"
 }
