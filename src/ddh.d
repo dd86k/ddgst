@@ -9,7 +9,7 @@ import std.digest;
 import std.digest.sha, std.digest.md, std.digest.ripemd, std.digest.crc, std.digest.murmurhash;
 import std.base64;
 import std.format : formattedRead;
-import sha3d, blake2d, xxhash3;
+import sha3d, blake2d, xxhdd;
 
 // Adds dynamic seeding to supported hashes
 private class HashSeeded(T) if (isDigest!T && hasBlockSize!T) : WrapperDigest!T

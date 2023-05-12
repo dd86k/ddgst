@@ -4,7 +4,7 @@ homepage "https://github.com/dd86k/ddh"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
 
-dependency "xxhash3" version="~>0.0.5"
+dependency "xxhdd" path="../xxhdd"
 dependency "sha3-d" version="~>1.2.4"
 dependency "blake2-d" version="~>0.3.0"
 
