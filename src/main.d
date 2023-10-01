@@ -11,6 +11,8 @@ import std.format : format, formattedRead;
 import std.getopt;
 import std.path : baseName, dirName;
 import std.stdio;
+import std.datetime;
+import std.datetime.stopwatch;
 import core.stdc.stdlib : exit;
 import blake2d : BLAKE2D_VERSION_STRING;
 import sha3d : SHA3D_VERSION_STRING;
@@ -47,6 +49,7 @@ debug enum BUILD_TYPE = "+debug";
 else enum BUILD_TYPE = "";
 
 enum XXHASH3_VERSION = "0.0.5";
+enum MiB = 1024 * 1024;
 
 immutable string PAGE_VERSION =
 `ddh `~GIT_DESCRIPTION~BUILD_TYPE~` (built: `~__TIMESTAMP__~`)
@@ -827,6 +830,50 @@ void cliSeed(string key, string val)
     settings.seed = unformat(val);
 }
 
+float getFloatSecond(Duration duration) pure
+{
+	return (cast(float)duration.total!"nsecs") / (10 ^^ 9); // precision
+}
+float getMiBPerSecond(size_t sampleSize, Duration duration) pure
+{
+    return (cast(float)(sampleSize / MiB)) / getFloatSecond(duration);
+}
+
+void benchmark(HashType digest, ubyte[] buffer)
+{
+    ubyte[] result = void;
+    Ddh hash = void;
+    hash.initiate(digest);
+    
+    StopWatch sw;
+    
+    sw.start();
+    hash.put(buffer);
+    result = hash.finish();
+    sw.stop();
+    writefln("%20s: %13.4f MiB/s",
+		hash.fullName,
+		getMiBPerSecond(buffer.length, sw.peek()));
+}
+
+void cliBenchmark()
+{
+    import std.traits : EnumMembers;
+    
+    enum bufferSize = 16;
+    
+    ubyte[] buffer = new ubyte[bufferSize * MiB];
+    
+    writefln("* buffer size: %d MiB", 16);
+    
+    foreach (ht; EnumMembers!HashType)
+    {
+        benchmark(ht, buffer);
+    }
+    
+    exit(0);
+}
+
 int main(string[] args)
 {
     bool compare;
@@ -885,6 +932,7 @@ int main(string[] args)
             "plain",        "Create or read plain hashes.", &cliPlain,
             "key",          "Binary key file for BLAKE2 hashes.", &cliKey,
             "seed",         "Seed literal argument for Murmurhash3 hashes.", &cliSeed,
+            "benchmark",    "Etc: Run benchmarks.", &cliBenchmark,
             OPT_VERSION,    "Show version page and quit.", &page,
             OPT_VER,        "Show version and quit.", &page,
             OPT_LICENSE,    "Show license page and quit.", &page,
