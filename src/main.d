@@ -17,9 +17,22 @@ import core.stdc.stdlib : exit;
 import blake2d : BLAKE2D_VERSION_STRING;
 import sha3d : SHA3D_VERSION_STRING;
 import ddh;
-import gitinfo;
 
 private:
+
+enum APPVERSION = "2.0.2";
+
+debug
+{
+    enum BUILD_TYPE = "+debug";
+}
+else
+{
+    enum BUILD_TYPE = "";
+    // Disables the Druntime GC command-line interface
+    // except for debug builds
+    extern (C) __gshared bool rt_cmdline_enabled = false;
+}
 
 alias readAll = read;
 
@@ -27,14 +40,7 @@ alias readAll = read;
 extern(C) int sscanf(scope const char* s, scope const char* format, scope ...);
 
 // Leave GC enabled, but avoid cleanup on exit
-extern (C) __gshared string[] rt_options = ["cleanup:none"];
-
-debug {} else
-{
-    // Disables the Druntime GC command-line interface
-    // except for debug builds
-    extern (C) __gshared bool rt_cmdline_enabled = false;
-}
+extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 
 enum DEFAULT_READ_SIZE = 4 * 1024;
 enum TagType
@@ -45,13 +51,10 @@ enum TagType
     plain
 }
 
-debug enum BUILD_TYPE = "+debug";
-else enum BUILD_TYPE = "";
-
 enum MiB = 1024 * 1024;
 
 immutable string PAGE_VERSION =
-`ddh ` ~ GIT_DESCRIPTION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
+`ddh ` ~ APPVERSION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
 Using sha3-d ` ~ SHA3D_VERSION_STRING ~ `, blake2-d ` ~ BLAKE2D_VERSION_STRING ~ `
 No rights reserved
 License: CC0
@@ -727,7 +730,7 @@ void page(string arg)
     version (Trace) trace(arg);
 
     with (settings) final switch (arg) {
-    case OPT_VER:       arg = GIT_DESCRIPTION; break;
+    case OPT_VER:       arg = APPVERSION; break;
     case OPT_VERSION:   arg = PAGE_VERSION; break;
     case OPT_LICENSE:   arg = PAGE_LICENSE; break;
     case OPT_COFE:      arg = PAGE_COFE; break;

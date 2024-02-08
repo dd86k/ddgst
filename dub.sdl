@@ -6,11 +6,6 @@ license "CC0"
 dependency "sha3-d" version="~>1.2.4"
 dependency "blake2-d" version="~>0.3.0"
 
-# NOTE: Somehow, the dmd package in the Alpine repo does not contain rdmd.
-preBuildCommands "dmd -run setup.d version" platform="dmd"
-preBuildCommands "ldmd2 -run setup.d version" platform="ldc"
-preBuildCommands "gdmd -run setup.d version" platform="gdc"
-
 buildType "trace" {
 	versions "Trace"
 	buildOptions "debugMode" "debugInfo"
