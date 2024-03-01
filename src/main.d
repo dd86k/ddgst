@@ -5,22 +5,10 @@
 /// License: CC0
 module main;
 
-import std.compiler : version_major, version_minor;
-import std.file : dirEntries, DirEntry, SpanMode, read;
-import std.format : format, formattedRead;
-import std.getopt;
-import std.path : baseName, dirName;
-import std.stdio;
-import std.datetime;
-import std.datetime.stopwatch;
+import std.format : format;
 import core.stdc.stdlib : exit;
-import blake2d : BLAKE2D_VERSION_STRING;
-import sha3d : SHA3D_VERSION_STRING;
-import ddh;
 
-private:
-
-enum APPVERSION = "2.0.2";
+enum APPVERSION = "3.0.0";
 
 debug
 {
@@ -32,26 +20,9 @@ else
     // Disables the Druntime GC command-line interface
     // except for debug builds
     extern (C) __gshared bool rt_cmdline_enabled = false;
+    // Leave GC enabled, but avoid cleanup on exit
+    extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 }
-
-alias readAll = read;
-
-// GDC isn't happy with int*
-extern(C) int sscanf(scope const char* s, scope const char* format, scope ...);
-
-// Leave GC enabled, but avoid cleanup on exit
-extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
-
-enum DEFAULT_READ_SIZE = 4 * 1024;
-enum TagType
-{
-    gnu,
-    bsd,
-    sri,
-    plain
-}
-
-enum MiB = 1024 * 1024;
 
 immutable string PAGE_VERSION =
 `ddh ` ~ APPVERSION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
@@ -59,13 +30,16 @@ Using sha3-d ` ~ SHA3D_VERSION_STRING ~ `, blake2-d ` ~ BLAKE2D_VERSION_STRING ~
 No rights reserved
 License: CC0
 Homepage: <https://github.com/dd86k/ddh>
-Compiler: ` ~ __VENDOR__ ~ " v" ~ format("%u.%03u", version_major, version_minor);
+Compiler: ` ~ __VENDOR__ ~ " v" ~ format("%u.%03u", __VERSION__ / 1000, __VERSION__ % 1000);
 
 immutable string PAGE_HELP =
-`Usage: ddh [options...|--autocheck] [files...|--stdin]
+`Usage:
+  ddh [options...] [files...|--stdin]
+  ddh [options...] --autocheck file
+  ddh {--ver|--version|--help|--license}
 
-Options
-    --            Stop processing options.`;
+Options:
+      --            Stop processing options.`;
 
 immutable string PAGE_LICENSE =
 `Creative Commons Legal Code
@@ -198,40 +172,48 @@ immutable string PAGE_COFE = q"SECRET
    _|     |
   / |     |
   \_|     |
-    `-----'
+    `-----´
 SECRET";
 
-immutable string DEFAULT_FILE_MODE = "rb";
+import std.conv : text;
+import std.datetime.stopwatch;
+import std.file;
+import std.getopt;
+import std.stdio;
+import std.process;
+import std.traits : EnumMembers;
+import hasher;
+import mtdir;
+import utils;
 
-// Pages
-immutable string OPT_VER        = "ver";
-immutable string OPT_VERSION    = "version";
-immutable string OPT_LICENSE    = "license";
-immutable string OPT_COFE       = "cofe";
+alias readAll = std.file.read;
 
-struct Settings
+struct HasherOptions
 {
-    Ddh hasher;
-    HashType type = InvalidHash;
-    ubyte[] rawHash;
-    size_t bufferSize = DEFAULT_READ_SIZE;
-    SpanMode spanMode;
-    TagType tag;
-    string fileMode = DEFAULT_FILE_MODE;
-    string against; /// Hash to check against (-a/--against)
-    ubyte[] key; /// Key for BLAKE2
-    uint seed; /// Seed for Murmurhash3
-
-    int function(const(char)[]) hash = &hashFile;
-    // entry processor (file, text, list)
-    int function(const(char)[]) process = &processFile;
-
-    bool follow = true;
-    bool modeStdin;
-    bool autocheck;
+    Hash hash;
+    Tag tag;
+    Digest digest;
+    size_t bufferSize = 4096;
+    uint seed;
+    ubyte[] key;
+    SpanMode span;
 }
+__gshared HasherOptions options;
 
-__gshared Settings settings;
+// App mode
+enum Mode
+{
+    // Hash files/folders, default
+    file,
+    // Check files against list
+    list,
+    // Check digest against file(s)
+    against,
+    // Input data is text
+    text,
+    // Compare files between each other
+    compare,
+}
 
 version (Trace) void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 {
@@ -246,768 +228,361 @@ void logWarn(string func = __FUNCTION__, A...)(string fmt, A args)
     stderr.writefln(fmt, args);
 }
 
-void logWarn(Exception ex)
-{
-    stderr.writefln("warning: %s", ex.msg);
-}
-
-void logError(string func = __FUNCTION__, A...)(int code, string fmt, A args)
+void logError(string mod = __FUNCTION__, int line = __LINE__, A...)(int code, string fmt, A args)
 {
     stderr.writef("error: (code %d) ", code);
-    debug stderr.write("[", func, "] ");
+    debug stderr.write("[", mod, ":", line, "] ");
     stderr.writefln(fmt, args);
     exit(code);
 }
 
-void logError(int code, Exception ex)
+Digest newDigest(Hash hash)
 {
-    stderr.writef("error: (code %d) ", code);
-    debug stderr.writeln(ex);
-    else stderr.writeln(ex.msg);
-    exit(code);
-}
-
-void printResult(string fmt = "%s")(in char[] file)
-{
-    enum fmtgnu = fmt ~ "  %s";
-    enum fmtbsd = "%s(" ~ fmt ~ ")= %s";
-
-    final switch (settings.tag) with (TagType)
-    {
-    case gnu:
-        writefln(fmtgnu, settings.hasher.toHex, file);
-        break;
-    case bsd:
-        writefln(fmtbsd, settings.hasher.tagName(), file, settings.hasher.toHex);
-        break;
-    case sri:
-        writeln(settings.hasher.aliasName(), '-', settings.hasher.toBase64);
-        break;
-    case plain:
-        writeln(settings.hasher.toHex);
-        break;
+    // NOTE: Using multiple switches is fine for now...
+    Digest digest = void;
+    final switch (hash) with (Hash) {
+    case crc32:                 digest = new CRC32Digest(); break;
+    case crc64iso:              digest = new CRC64ISODigest(); break;
+    case crc64ecma:             digest = new CRC64ECMADigest(); break;
+    case murmurhash3_32:        digest = new MurmurHash3_32_SeededDigest(); break;
+    case murmurhash3_128_32:    digest = new MurmurHash3_128_32_SeededDigest(); break;
+    case murmurhash3_128_64:    digest = new MurmurHash3_128_64_SeededDigest(); break;
+    case md5:                   digest = new MD5Digest(); break;
+    case ripemd160:             digest = new RIPEMD160Digest(); break;
+    case sha1:                  digest = new SHA1Digest(); break;
+    case sha224:                digest = new SHA224Digest(); break;
+    case sha256:                digest = new SHA256Digest(); break;
+    case sha384:                digest = new SHA384Digest(); break;
+    case sha512:                digest = new SHA512Digest(); break;
+    case sha512_224:            digest = new SHA512_224Digest(); break;
+    case sha512_256:            digest = new SHA512_256Digest(); break;
+    case sha3_224:              digest = new SHA3_224Digest(); break;
+    case sha3_256:              digest = new SHA3_256Digest(); break;
+    case sha3_384:              digest = new SHA3_384Digest(); break;
+    case sha3_512:              digest = new SHA3_512Digest(); break;
+    case shake128:              digest = new SHAKE128Digest(); break;
+    case shake256:              digest = new SHAKE256Digest(); break;
+    case blake2s256:            digest = new BLAKE2s256Digest(); break;
+    case blake2b512:            digest = new BLAKE2b512Digest(); break;
+    case none:                  assert(false, "Not supposed to happen!");
     }
-}
-
-void printStatus(in char[] file, bool match)
-{
-    if (match)
-        writeln(file, ": OK");
-    else
-        stderr.writeln(file, ": FAILED");
-}
-
-// String to binary size
-int strtobin(ulong* size, string input)
-{
-    enum
+    //TODO: Fix ugly global hack
+    if (options.seed)
     {
-        K = 1024,
-        M = K * 1024,
-        G = M * 1024,
-        T = G * 1024,
+        switch (hash) with (Hash) {
+        case murmurhash3_32:     (cast(MurmurHash3_32_SeededDigest)digest).seed(options.seed); break;
+        case murmurhash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)digest).seed(options.seed); break;
+        case murmurhash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)digest).seed(options.seed); break;
+        default: throw new Exception(
+            text("Digest ", options.hash, " does not support seeding."));
+        }
     }
-
-    float f = void;
-    char c = void;
-    try
+    if (options.key)
     {
-        if (input.formattedRead!"%f%c"(f, c) != 2)
-            return 1;
+        switch (hash) with (Hash) {
+        case blake2s256: (cast(BLAKE2s256Digest)digest).key(options.key); break;
+        case blake2b512: (cast(BLAKE2b512Digest)digest).key(options.key); break;
+        default: throw new Exception(
+            text("Digest ", options.hash, " does not support keying."));
+        }
     }
-    catch (Exception ex)
-    {
-        return 2;
-    }
-
-    if (f <= 0.0f)
-        return 3;
-
-    ulong u = cast(ulong) f;
-    switch (c)
-    {
-    case 'T', 't': u *= T; break;
-    case 'G', 'g': u *= G; break;
-    case 'M', 'm': u *= M; break;
-    case 'K', 'k': u *= K; break;
-    case 'B', 'b': break;
-    default: return 4;
-    }
-
-    enum LIMIT = 2 * G; /// Buffer read limit
-    if (u > LIMIT)
-        return 5;
-
-    *size = u;
-    return 0;
-}
-/// 
-unittest
-{
-    ulong s = void;
-    assert(strtobin(&s, "1K") == 0);
-    assert(s == 1024);
-    assert(strtobin(&s, "1.1K") == 0);
-    assert(s == 1024 + 102); // 102.4
+    return digest;
 }
 
-// unformat any number
-uint unformat(string input)
-{
-    //import core.stdc.stdio : sscanf;
-    import std.string : toStringz;
-
-    int n = void;
-    sscanf(input.toStringz, "%i", &n);
-    return cast(uint) n;
-}
-
-bool compareHash(const(char)[] h1, const(char)[] h2)
-{
-    import std.digest : secureEqual;
-    import std.uni : asLowerCase;
-
-    return secureEqual(h1.asLowerCase, h2.asLowerCase);
-}
-
-int hashFile(const(char)[] path)
+ubyte[] hashFile(Digest digest, string path)
 {
     version (Trace) trace("path=%s", path);
 
     try
     {
-        File f; // Must be init
-        // BUG: Using opAssign with LDC2 crashes at runtime
-        f.open(cast(string)path, settings.fileMode);
-        
-        if (f.size())
-        {
-            int e = hashFile(f);
-            if (e)
-                return e;
-        }
-        else // Nothing to process, finish digest
-        {
-            settings.rawHash = settings.hasher.finish();
-            settings.hasher.reset();
-        }
-        
-        f.close();
-        return 0;
+        // BUG: LDC crashes on opAssign
+        File file;
+        file.open(path, "rb");
+        scope(exit) file.close();
+        return hashFile(digest, file);
     }
     catch (Exception ex)
     {
-        logWarn(ex);
-        return 1;
+        logWarn(ex.msg);
+        return null;
     }
 }
 
-int hashFile(ref File file)
+// NOTE: file can be a stream!
+ubyte[] hashFile(Digest digest, ref File file)
 {
-    try
-    {
-        foreach (ubyte[] chunk; file.byChunk(settings.bufferSize))
-            settings.hasher.put(chunk);
-
-        settings.rawHash = settings.hasher.finish();
-        settings.hasher.reset();
-        return 0;
-    }
-    catch (Exception ex)
-    {
-        logWarn(ex);
-        return 1;
-    }
-}
-
-int hashMmfile(const(char)[] path)
-{
-    import std.range : chunks;
-    import std.mmfile : MmFile;
-    import std.file : getSize;
-
     version (Trace) trace("path=%s", path);
 
     try
     {
-        ulong size = getSize(path);
-        
-        if (size)
-        {
-            scope mmfile = new MmFile(cast(string)path);
-            
-            foreach (chunk; chunks(cast(ubyte[]) mmfile[], settings.bufferSize))
-            {
-                settings.hasher.put(chunk);
-            }
-        }
-        
-        settings.rawHash = settings.hasher.finish();
-        settings.hasher.reset();
-        return 0;
+        foreach (ubyte[] chunk; file.byChunk(options.bufferSize))
+            digest.put(chunk);
+        return digest.finish();
     }
     catch (Exception ex)
     {
-        logWarn(ex);
-        return 1;
+        logWarn(ex.msg);
+        return null;
     }
 }
 
-int hashStdin(string)
+// This function is called per-thread to initiate hash
+immutable(void)* initThreadDigest()
 {
-    version (Trace) trace("stdin");
-    return hashFile(stdin);
+    return cast(immutable(void)*)newDigest(options.hash);
 }
 
-int hashText(const(char)[] text)
+// NOTE: This is called from another thread
+void processDirEntry(DirEntry entry, immutable(void)* uobj)
 {
-    version (Trace) trace("text='%s'", text);
-
-    try
-    {
-        settings.hasher.put(cast(ubyte[]) text);
-        settings.rawHash = settings.hasher.finish();
-        settings.hasher.reset();
-        return 0;
-    }
-    catch (Exception ex)
-    {
-        logError(9, "Could not hash text: %s", ex.msg);
-        return 0;
-    }
-}
-
-int processFile(const(char)[] path)
-{
+    if (entry.isDir())
+        return;
+    
     version (Trace) trace("path=%s", path);
-
-    uint count;
-    string dir  = cast(string)dirName(path); // "." if anything
-    string name = cast(string)baseName(path); // Glob patterns are kept
-    const bool same = dir == "."; // same directory name from dirName
-    foreach (DirEntry entry; dirEntries(dir, name, settings.spanMode, settings.follow))
-    {
-        // Because entry will have "./" prefixed to it
-        string file = same ? entry.name[2 .. $] : entry.name;
-        ++count;
-        if (entry.isDir)
-        {
-            logWarn("'%s': Is a directory", file);
-            continue;
-        }
-
-        if (settings.hash(file))
-        {
-            continue;
-        }
-
-        if (settings.against)
-        {
-            bool succ = void;
-            if (settings.tag == TagType.sri)
-            {
-                const(char)[] type = void, hash = void;
-                if (readSRILine(settings.against, type, hash))
-                    logError(20, "Could not unformat SRI tag");
-                
-                settings.hasher.toBase64;
-                succ = compareHash(settings.hasher.toBase64, hash);
-            }
-            else
-            {
-                succ = compareHash(settings.hasher.toHex, settings.against);
-            }
-            printStatus(file, succ);
-            if (succ == false)
-                return 2;
-        }
-        else
-            printResult(file);
-    }
     
-    if (count == 0)
-        logError(6, "'%s': No such file", name);
-    
-    return 0;
-}
-
-int processStdin()
-{
-    version (Trace) trace("stdin");
-    int e = hashStdin(null);
-    if (e == 0)
-        printResult("-");
-    return e;
-}
-
-int processText(const(char)[] text)
-{
-    version (Trace) trace("text='%s'", text);
-    int e = hashText(text);
-    if (e == 0)
-        printResult!`"%s"`(text);
-    return e;
-}
-
-int processList(const(char)[] listPath)
-{
-    import std.file : readText;
-    import std.string : lineSplitter;
-
-    version (Trace) trace("list=%s", listPath);
-
-    uint currentLine, statMismatch, statErrors, statsTotal;
-    
-    if (settings.autocheck)
-    {
-        settings.type = guessHash(listPath);
-        if (settings.type == InvalidHash)
-            logError(5, "Could not determine hash type");
-    }
-
     try
     {
-        string text = readText(listPath);
-
-        if (text.length == 0)
-            logError(10, "%s: Empty", listPath);
-
-        const(char)[] file = void, expected = void, type = void, lastType;
-        foreach (string line; lineSplitter(text)) // doesn't allocate
-        {
-            ++currentLine;
-
-            if (line.length == 0) // empty
-                continue;
-            if (line[0] == '#') // comment
-                continue;
-
-            TAGTYPE: final switch (settings.tag) with (TagType)
-            {
-            case gnu:
-                if (readGNULine(line, expected, file))
-                {
-                    ++statErrors;
-                    logWarn("Could not read GNU tag at line %u", currentLine);
-                }
-                
-                if (file[0] == '*')
-                    file = file[1..$];
-                break;
-            case bsd:
-                if (readBSDLine(line, type, file, expected))
-                {
-                    ++statErrors;
-                    logWarn("Could not read BSD tag at line %u", currentLine);
-                    continue;
-                }
-
-                if (type == lastType)
-                    break;
-
-                // Find new hash type from tag name
-                lastType = type;
-                foreach (HashInfo info; hashInfo)
-                {
-                    if (type == info.tag)
-                    {
-                        settings.hasher.initiate(info.type);
-                        break TAGTYPE;
-                    }
-                    if (type == info.tag2)
-                    {
-                        settings.hasher.initiate(info.type);
-                        break TAGTYPE;
-                    }
-                }
-
-                logWarn("Unknown '%s' tag at line %u", type, currentLine);
-                continue;
-            case sri:
-                logError(11, "SRI hash format is not supported in file checks");
-                break;
-            case plain:
-                logError(11, "Plain hash format is not supported in file checks");
-                break;
-            }
-            
-            ++statsTotal;
-
-            if (settings.hash(file))
-            {
-                ++statErrors;
-                continue;
-            }
-
-            const(char)[] result = settings.hasher.toHex;
-
-            version (Trace) trace("r1=%s r2=%s", result, expected);
-
-            if (compareHash(result, expected) == false)
-            {
-                ++statMismatch;
-                printStatus(file, false);
-                continue;
-            }
-
-            printStatus(file, true);
-        }
+        Digest digest = cast(Digest)uobj; // Get thread-assigned instance
+        digest.reset();
+        printHash(hashFile(digest, entry.name), entry.name[2..$]);
     }
     catch (Exception ex)
     {
-        logError(12, ex);
+        logWarn(ex.msg);
     }
-
-    writefln("%u total: %u mismatches, %u not read",
-        statsTotal, statMismatch, statErrors);
-
-    return 0;
 }
 
-//TODO: Consider making a foreach-compatible function for this
-//      popFront returning T[2] (or tuple)
-/// Compare all file entries against each other.
-/// O: O(n * log(n)) (according to friend)
-/// Params: entries: List of files
-/// Returns: Error code.
-int processCompare(string[] entries)
+void printHash(ubyte[] result, string filename)
 {
-    const size_t size = entries.length;
+    if (result == null)
+        return;
+    
+    final switch (options.tag) with (Tag) {
+    case gnu: // hash  file
+        writeln(formatHashHex(options.hash, result), "  ", filename);
+        break;
+    case bsd: // TAG(file)= hash
+        writeln(getBSDName(options.hash), "(", filename, ")= ", formatHashHex(options.hash, result));
+        break;
+    case sri: // type-hash
+        writeln(getAliasName(options.hash), '-', formatHashBase64(options.hash, result));
+        break;
+    case plain: // hash
+        writeln(formatHashHex(options.hash, result));
+        break;
+    }
+}
 
-    if (size < 2)
-        logError(15, "Comparison needs 2 or more files");
+//
+// Command-line interface
+//
 
-    //TODO: Consider an associated array
-    //      Would remove duplicates, but at the same time, this removes
-    //      all user-supplied positions and may confuse people if unordered.
-    string[] hashes = new string[size];
-
-    for (size_t index; index < size; ++index)
+void cliBenchmark()
+{
+    ubyte[] buffer = new ubyte[options.bufferSize];
+    //TODO: Test buffer[] = 0;
+    
+    writeln("* buffer size: ", buffer.length.toStringBinary());
+    
+    foreach (ht; EnumMembers!Hash[1..$]) // Since 0: none
     {
-        int e = hashFile(entries[index]);
-        if (e)
-            return e;
-
-        hashes[index] = settings.hasher.toHex.idup;
+        benchDigest(ht, buffer);
     }
-
-    uint mismatch; /// Number of mismatching files
-
-    for (size_t distance = 1; distance < size; ++distance)
-    {
-        for (size_t index; index < size; ++index)
-        {
-            size_t index2 = index + distance;
-
-            if (index2 >= size)
-                break;
-
-            if (compareHash(hashes[index], hashes[index2]))
-                continue;
-
-            ++mismatch;
-
-            string entry1 = entries[index];
-            string entry2 = entries[index2];
-
-            writeln("Files '", entry1, "' and '", entry2, "' are different");
-        }
-    }
-
-    if (mismatch == 0)
-        writefln("All files identical");
-
-    return 0;
-}
-
-void printMeta(string baseName, string name, string tag, string tag2)
-{
-    writefln("%-18s  %-18s  %-18s  %s", baseName, name, tag, tag2);
-}
-
-void page(string arg)
-{
-    version (Trace) trace(arg);
-
-    with (settings) final switch (arg) {
-    case OPT_VER:       arg = APPVERSION; break;
-    case OPT_VERSION:   arg = PAGE_VERSION; break;
-    case OPT_LICENSE:   arg = PAGE_LICENSE; break;
-    case OPT_COFE:      arg = PAGE_COFE; break;
-    }
-    writeln(arg);
+    
     exit(0);
 }
 
-int cliAutoCheck(string[] entries)
+void benchDigest(Hash hash, ubyte[] buffer)
 {
-    foreach (string entry; entries)
-    {
-        version (Trace) trace("entry=%s", entry);
-        
-        settings.type = guessHash(entry);
-        if (settings.type == InvalidHash)
-            logError(7, "Could not determine hash type for: %s", entry);
-        
-        if (settings.hasher.initiate(settings.type))
-        {
-            logError(3, "Couldn't initiate hash module");
-        }
-        
-        processList(entry);
-    }
-    
-    return 0;
-}
-
-void cliHashes()
-{
-    static immutable string sep = "-----------";
-    printMeta("Alias", "Name", "Tag", "Tag2");
-    printMeta(sep, sep, sep, sep);
-    foreach (info; hashInfo)
-        printMeta(info.alias_, info.fullName, info.tag, info.tag2);
-    exit(0);
-}
-
-void cliHashCRC32()                 { settings.type = HashType.CRC32; }
-void cliHashCRC64ISO()              { settings.type = HashType.CRC64ISO; }
-void cliHashCRC64ECMA()             { settings.type = HashType.CRC64ECMA; }
-void cliHashMurmurHash3_32()        { settings.type = HashType.MurmurHash3_32; }
-void cliHashMurmurHash3_128_32()    { settings.type = HashType.MurmurHash3_128_32; }
-void cliHashMurmurHash3_128_64()    { settings.type = HashType.MurmurHash3_128_64; }
-void cliHashMD5()                   { settings.type = HashType.MD5; }
-void cliHashRIPEMD160()             { settings.type = HashType.RIPEMD160; }
-void cliHashSHA1()                  { settings.type = HashType.SHA1; }
-void cliHashSHA224()                { settings.type = HashType.SHA224; }
-void cliHashSHA256()                { settings.type = HashType.SHA256; }
-void cliHashSHA384()                { settings.type = HashType.SHA384; }
-void cliHashSHA512()                { settings.type = HashType.SHA512; }
-void cliHashSHA3_224()              { settings.type = HashType.SHA3_224; }
-void cliHashSHA3_256()              { settings.type = HashType.SHA3_256; }
-void cliHashSHA3_384()              { settings.type = HashType.SHA3_384; }
-void cliHashSHA3_512()              { settings.type = HashType.SHA3_512; }
-void cliHashSHAKE128()              { settings.type = HashType.SHAKE128; }
-void cliHashSHAKE256()              { settings.type = HashType.SHAKE256; }
-void cliHashBLAKE2s256()            { settings.type = HashType.BLAKE2s256; }
-void cliHashBLAKE2b512()            { settings.type = HashType.BLAKE2b512; }
-
-void cliFile()      { settings.hash = &hashFile; }
-void cliBinary()    { settings.fileMode = DEFAULT_FILE_MODE; }
-void cliText()      { settings.fileMode = "r"; }
-void cliMmFile()    { settings.hash = &hashMmfile; }
-void cliArg()       { settings.process = &processText; }
-void cliCheck()     { settings.process = &processList; }
-void cliShallow()   { settings.spanMode = SpanMode.shallow; }
-void cliDepth()     { settings.spanMode = SpanMode.depth; }
-void cliBreath()    { settings.spanMode = SpanMode.breadth; }
-void cliNoFollow()  { settings.follow = false; }
-void cliTag()       { settings.tag = TagType.bsd; }
-void cliSri()       { settings.tag = TagType.sri; }
-void cliPlain()     { settings.tag = TagType.plain; }
-
-void cliBufferSize(string key, string val)
-{
-    ulong v = void;
-    if (strtobin(&v, val))
-        throw new GetOptException("Couldn't unformat buffer size");
-    
-    if (v >= size_t.max)
-        throw new GetOptException("Buffer size overflows");
-    
-    settings.bufferSize = cast(size_t) v;
-}
-
-void cliKey(string key, string val)
-{
-    settings.key = cast(ubyte[]) readAll(val);
-}
-
-void cliSeed(string key, string val)
-{
-    settings.seed = unformat(val);
-}
-
-float getFloatSecond(Duration duration) pure
-{
-	return (cast(float)duration.total!"nsecs") / (10 ^^ 9); // precision
-}
-float getMiBPerSecond(size_t sampleSize, Duration duration) pure
-{
-    return (cast(float)(sampleSize / MiB)) / getFloatSecond(duration);
-}
-
-void benchmark(HashType digest, ubyte[] buffer)
-{
-    ubyte[] result = void;
-    Ddh hash = void;
-    hash.initiate(digest);
+    scope digest = newDigest(hash);
     
     StopWatch sw;
     
     sw.start();
-    hash.put(buffer);
-    result = hash.finish();
+    digest.put(buffer);
+    digest.finish();
     sw.stop();
+    
     writefln("%20s: %13.4f MiB/s",
-		hash.fullName,
+		hash.getFullName(),
 		getMiBPerSecond(buffer.length, sw.peek()));
 }
 
-void cliBenchmark()
+void main(string[] args)
 {
-    import std.traits : EnumMembers;
-    
-    enum bufferSize = 16;
-    
-    ubyte[] buffer = new ubyte[bufferSize * MiB];
-    
-    writefln("* buffer size: %d MiB", 16);
-    
-    foreach (ht; EnumMembers!HashType)
-    {
-        benchmark(ht, buffer);
-    }
-    
-    exit(0);
-}
-
-int main(string[] args)
-{
-    bool compare;
-
-    GetoptResult res = void;
+    //TODO: Option for file basenames/fullnames? (printing)
+    //TODO: Consider "building" options from stack to heap?
+    bool ocompare;
+    bool ohashes;
+    bool onofollow;
+    bool ostdin;
+    bool oautodetect;
+    int othreads = 1;
+    string oagainst;
+    Mode mode;
+    GetoptResult gres = void;
     try
     {
         //TODO: Array of bool to select multiple hashes?
         //TODO: Include argument (string,string) for doing batches with X hash?
-        res = getopt(args, config.caseSensitive,
-            OPT_COFE,       "", &page,
-            crc32,          "", &cliHashCRC32,
-            crc64iso,       "", &cliHashCRC64ISO,
-            crc64ecma,      "", &cliHashCRC64ECMA,
-            murmur3a,       "", &cliHashMurmurHash3_32,
-            murmur3c,       "", &cliHashMurmurHash3_128_32,
-            murmur3f,       "", &cliHashMurmurHash3_128_64,
-            md5,            "", &cliHashMD5,
-            ripemd160,      "", &cliHashRIPEMD160,
-            sha1,           "", &cliHashSHA1,
-            sha224,         "", &cliHashSHA224,
-            sha256,         "", &cliHashSHA256,
-            sha384,         "", &cliHashSHA384,
-            sha512,         "", &cliHashSHA512,
-            sha3_224,       "", &cliHashSHA3_224,
-            sha3_256,       "", &cliHashSHA3_256,
-            sha3_384,       "", &cliHashSHA3_384,
-            sha3_512,       "", &cliHashSHA3_512,
-            shake128,       "", &cliHashSHAKE128,
-            shake256,       "", &cliHashSHAKE256,
-            blake2b512,     "", &cliHashBLAKE2s256,
-            blake2s256,     "", &cliHashBLAKE2b512,
-            "f|file",       "Input mode: Regular file (default).", &cliFile,
-            "b|binary",     "File: Set binary mode (default).", &cliBinary,
-            "t|text",       "File: Set text mode.", &cliText,
-            "m|mmfile",     "Input mode: Memory-map file.", &cliMmFile,
-            "a|arg",        "Input mode: Command-line argument is text data (UTF-8).", &cliArg,
-            "stdin",        "Input mode: Standard input (stdin)", &settings.modeStdin,
-            "c|check",      "Check hashes list in this file.", &cliCheck,
-            "autocheck",    "Automatically determine hash type and process list.", &settings.autocheck,
-            "C|compare",    "Compares all file entries.", &compare,
-            "A|against",    "Compare files against hash.", &settings.against,
-            "hashes",       "List supported hashes.", &cliHashes,
-            "B|buffersize", "Set buffer size, affects file/mmfile/stdin (default=4K).", &cliBufferSize,
-            "shallow",      "Depth: Same directory (default).", &cliShallow,
-            "r|depth",      "Depth: Deepest directories first.", &cliDepth,
-            "breath",       "Depth: Sub directories first.", &cliBreath,
-            "follow",       "Links: Follow symbolic links (default).", &settings.follow,
-            "nofollow",     "Links: Do not follow symbolic links.", &cliNoFollow,
-            "tag",          "Create or read BSD-style hashes.", &cliTag,
-            "sri",          "Create or read SRI-style hashes.", &cliSri,
-            "plain",        "Create or read plain hashes.", &cliPlain,
-            "key",          "Binary key file for BLAKE2 hashes.", &cliKey,
-            "seed",         "Seed literal argument for Murmurhash3 hashes.", &cliSeed,
-            "benchmark",    "Etc: Run benchmarks.", &cliBenchmark,
-            OPT_VERSION,    "Show version page and quit.", &page,
-            OPT_VER,        "Show version and quit.", &page,
-            OPT_LICENSE,    "Show license page and quit.", &page,
+        gres = getopt(args, config.caseSensitive,
+        "cofe",         "",             { writeln(PAGE_COFE); exit(0); },
+        // Hash selection (function-based to avoid extra string comparisons)
+        "crc32",        "CRC-32",       { options.hash = Hash.crc32; },
+        "crc64iso",     "CRC-64-ISO",   { options.hash = Hash.crc64iso; },
+        "crc64ecma",    "CRC-64-ECMA",  { options.hash = Hash.crc64ecma; },
+        "murmur3a",     "MurMurHash3-32",       { options.hash = Hash.murmurhash3_32; },
+        "murmur3c",     "MurmurHash3-128/32",   { options.hash = Hash.murmurhash3_128_32; },
+        "murmur3f",     "MurmurHash3-128/64",   { options.hash = Hash.murmurhash3_128_64; },
+        "md5",          "MD-5",         { options.hash = Hash.md5; },
+        "ripemd160",    "RIPEMD-160",   { options.hash = Hash.ripemd160; },
+        "rmd160",       "Alias for ripemd160",  { options.hash = Hash.ripemd160; },
+        "sha1",         "SHA-1",        { options.hash = Hash.sha1; },
+        "sha224",       "SHA-224",      { options.hash = Hash.sha224; },
+        "sha256",       "SHA-256",      { options.hash = Hash.sha256; },
+        "sha384",       "SHA-384",      { options.hash = Hash.sha384; },
+        "sha512",       "SHA-512",      { options.hash = Hash.sha512; },
+        "sha512-224",   "SHA-512/224",  { options.hash = Hash.sha512_224; },
+        "sha512-256",   "SHA-512/256",  { options.hash = Hash.sha512_256; },
+        "sha3-224",     "SHA-3-224",    { options.hash = Hash.sha3_224; },
+        "sha3-256",     "SHA-3-256",    { options.hash = Hash.sha3_256; },
+        "sha3-384",     "SHA-3-384",    { options.hash = Hash.sha3_384; },
+        "sha3-512",     "SHA-3-512",    { options.hash = Hash.sha3_512; },
+        "shake128",     "SHAKE-128",    { options.hash = Hash.shake128; },
+        "shake256",     "SHAKE-256",    { options.hash = Hash.shake256; },
+        "blake2s256",   "BLAKE2s-256",  { options.hash = Hash.blake2s256; },
+        "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
+        // Input options
+        "arg",          "Input: Argument is input data as UTF-8 text", { mode = Mode.text; },
+        "stdin",        "Input: Standard input (stdin)", &ostdin,
+        "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=4K)",
+            (string _, string newsize) { options.bufferSize = newsize.toBinaryNumber(); },
+        "j|parallel",   "Spawn n worker threads, 0 for all (Default=1)", &othreads,
+        // Check file options
+        "c|check",      "Check hashes list in this file", { mode = Mode.list; },
+        "a|autocheck",  "Automatically determine hash type and process list", &oautodetect,
+        // Text options
+        "A|against",    "Compare file against string hash", &oagainst,
+        // Path options
+        "r|depth",      "Depth: Deepest directories first", { options.span = SpanMode.depth; },
+        "breath",       "Depth: Sub directories first",     { options.span = SpanMode.breadth; },
+        "shallow",      "Depth: Same directory (default)",  { options.span = SpanMode.shallow; },
+        "nofollow",     "Links: Do not follow symbolic links", &onofollow,
+        // Hash formatting
+        "tag",          "Create BSD-style hashes", { options.tag = Tag.bsd; },
+        "sri",          "Create SRI-style hashes", { options.tag = Tag.sri; },
+        "plain",        "Create plain hashes",     { options.tag = Tag.plain; },
+        // Hash parameters
+        "key",          "Binary key file for BLAKE2 hashes",
+            (string _, string path) { options.key = cast(ubyte[])readAll(path); },
+        "seed",         "Seed literal argument for Murmurhash3 hashes",
+            (string _, string seed) { options.seed = cparse(seed); },
+        // Special modes
+        "C|compare",    "Compares all file entries", &ocompare,
+        "benchmark",    "Etc: Run benchmarks", &cliBenchmark,
+        // Pages
+        "hashes",       "List supported hashes", &ohashes,
+        "version",      "Show version page and quit",   { writeln(APPVERSION); exit(0); },
+        "ver",          "Show version and quit",        { writeln(PAGE_VERSION); exit(0); },
+        "license",      "Show license page and quit",   { writeln(PAGE_LICENSE); exit(0); },
         );
     }
     catch (Exception ex)
     {
-        logError(1, ex);
+        logError(1, ex.msg);
     }
 
-    if (res.helpWanted)
+    enum SECRETS = 1;
+    enum ALIASES = 24;
+
+    // -h|--help: Show help page
+    if (gres.helpWanted)
     {
         writeln(PAGE_HELP);
-        foreach (Option opt; res.options[HashCount + 1..$])
+        foreach (ref Option opt; gres.options[ALIASES + SECRETS..$])
         {
             with (opt)
-                if (optShort)
-                    writefln("%s, %-12s  %s", optShort, optLong, help);
-                else
-                    writefln("    %-12s  %s", optLong, help);
+            if (optShort)
+                writefln("  %s, %-12s  %s", optShort, optLong, help);
+            else
+                writefln("      %-12s  %s", optLong, help);
         }
         writeln("\nThis program has actual coffee-making abilities.");
-        return 0;
+        exit(0);
     }
     
-    if (settings.autocheck)
+    // --hashes: Show hash list
+    if (ohashes)
     {
-        return cliAutoCheck(args[1..$]);
-    }
-
-    if (settings.type == InvalidHash)
-    {
-        logError(2, "No hashes selected");
-    }
-
-    if (settings.hasher.initiate(settings.type))
-    {
-        logError(3, "Couldn't initiate hash module");
-    }
-
-    if (settings.key != settings.key.init)
-    {
-        try
+        writeln("Hashes available:");
+        foreach (ref Option opt; gres.options[SECRETS..SECRETS+ALIASES])
         {
-            settings.hasher.key(settings.key);
+            with (opt) writefln("  %-12s  %s", optLong, help);
         }
-        catch (Exception ex)
-        {
-            logError(4, "Failed to set key: %s", ex.msg);
-        }
+        exit(0);
     }
-
-    if (settings.seed)
+    
+    string[] entries = args[1..$];
+    
+    //TODO: make function ensureHashSelected()
+    //      exists if no hash selected
+    
+    // No entries or stdin option
+    if (entries.length == 0 || ostdin)
     {
-        try
+        if (options.hash == Hash.none)
+            logError(2, "No hashes selected");
+        printHash(hashFile(newDigest(options.hash), stdin), "-");
+    }
+    
+    //TODO: Might need to have a multithread stack-based hasher.
+    //      Each entry aren't being multithreaded (unless std.parallelism.parallel)
+    //      is used, but needs to be applied to the other modes (list, compare, etc.).
+    //      Stack could have "file" and "dir" entries (to expand later with dirEntries).
+    final switch (mode) {
+    case Mode.file:
+        if (options.hash == Hash.none)
+            logError(2, "No hashes selected");
+        foreach (string entry; entries)
         {
-            settings.hasher.seed(settings.seed);
+            if (exists(entry) == false)
+            {
+                logWarn("'%s' does not exist", entry);
+                continue;
+            }
+            
+            if (isDir(entry))
+            {
+                dirEntriesMulti(entry, options.span, !onofollow,
+                    &initThreadDigest, &processDirEntry, othreads);
+            }
+            else
+            {
+                scope digest = newDigest(options.hash);
+                printHash(hashFile(digest, entry), entry);
+            }
         }
-        catch (Exception ex)
-        {
-            logError(5, "Failed to set seed: %s", ex.msg);
-        }
+        return;
+    case Mode.list:
+        //if (oautocheck)
+        //    exit(cliAutoCheck(entries));
+        //if (options.hash == Hash.none)
+        //    logError(2, "No hashes selected");
+        logError(20, "Not implemented");
+        return;
+    case Mode.against:
+        //if (options.hash == Hash.none)
+        //    logError(2, "No hashes selected");
+        //ubyte[] hash = unformatHashHex(options.against);
+        logError(20, "Not implemented");
+        return;
+    case Mode.compare:
+        //if (options.hash == Hash.none)
+        //    logError(2, "No hashes selected");
+        logError(20, "Not implemented");
+        return;
+    case Mode.text:
+        logError(20, "Not implemented");
+        return;
     }
-
-    if (settings.modeStdin)
-    {
-        return processStdin;
-    }
-
-    string[] entries = args[1 .. $];
-
-    if (compare)
-        return processCompare(entries);
-
-    if (entries.length == 0)
-        return processStdin;
-
-    foreach (string entry; entries)
-    {
-        settings.process(entry);
-    }
-
-    return 0;
 }
