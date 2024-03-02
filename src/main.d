@@ -5,8 +5,21 @@
 /// License: CC0
 module main;
 
+
+import std.conv : text;
+import std.datetime.stopwatch;
+import std.digest : secureEqual;
+import std.file;
 import std.format : format;
+import std.getopt;
+import std.stdio;
+import std.process;
+import std.traits : EnumMembers;
+import std.path : baseName, dirName;
 import core.stdc.stdlib : exit;
+import hasher;
+import mtdir;
+import utils;
 
 enum APPVERSION = "3.0.0";
 
@@ -174,17 +187,6 @@ immutable string PAGE_COFE = q"SECRET
   \_|     |
     `-----´
 SECRET";
-
-import std.conv : text;
-import std.datetime.stopwatch;
-import std.file;
-import std.getopt;
-import std.stdio;
-import std.process;
-import std.traits : EnumMembers;
-import hasher;
-import mtdir;
-import utils;
 
 alias readAll = std.file.read;
 
@@ -380,7 +382,6 @@ void printHash(ubyte[] result, string filename)
 void cliBenchmark()
 {
     ubyte[] buffer = new ubyte[options.bufferSize];
-    //TODO: Test buffer[] = 0;
     
     writeln("* buffer size: ", buffer.length.toStringBinary());
     
@@ -412,6 +413,7 @@ void main(string[] args)
 {
     //TODO: Option for file basenames/fullnames? (printing)
     //TODO: Consider "building" options from stack to heap?
+    //TODO: -z|--zero for terminating line with null instead of newline
     bool ocompare;
     bool ohashes;
     bool onofollow;
@@ -423,11 +425,9 @@ void main(string[] args)
     GetoptResult gres = void;
     try
     {
-        //TODO: Array of bool to select multiple hashes?
-        //TODO: Include argument (string,string) for doing batches with X hash?
         gres = getopt(args, config.caseSensitive,
         "cofe",         "",             { writeln(PAGE_COFE); exit(0); },
-        // Hash selection (function-based to avoid extra string comparisons)
+        // Hash selection (delegate-based to avoid extra string comparisons)
         "crc32",        "CRC-32",       { options.hash = Hash.crc32; },
         "crc64iso",     "CRC-64-ISO",   { options.hash = Hash.crc64iso; },
         "crc64ecma",    "CRC-64-ECMA",  { options.hash = Hash.crc64ecma; },
@@ -457,7 +457,7 @@ void main(string[] args)
         "stdin",        "Input: Standard input (stdin)", &ostdin,
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=4K)",
             (string _, string newsize) { options.bufferSize = newsize.toBinaryNumber(); },
-        "j|parallel",   "Spawn n worker threads, 0 for all (Default=1)", &othreads,
+        "j|parallel",   "Spawn n threads for glob patterns, 0 for all threads (Default=1)", &othreads,
         // Check file options
         "c|check",      "Check hashes list in this file", { mode = Mode.list; },
         "a|autocheck",  "Automatically determine hash type and process list", &oautodetect,
@@ -481,7 +481,7 @@ void main(string[] args)
         "C|compare",    "Compares all file entries", &ocompare,
         "benchmark",    "Etc: Run benchmarks", &cliBenchmark,
         // Pages
-        "hashes",       "List supported hashes", &ohashes,
+        "H|hashes",     "List supported hashes", &ohashes,
         "version",      "Show version page and quit",   { writeln(APPVERSION); exit(0); },
         "ver",          "Show version and quit",        { writeln(PAGE_VERSION); exit(0); },
         "license",      "Show license page and quit",   { writeln(PAGE_LICENSE); exit(0); },
@@ -511,7 +511,7 @@ void main(string[] args)
         exit(0);
     }
     
-    // --hashes: Show hash list
+    // -H|--hashes: Show hash list
     if (ohashes)
     {
         writeln("Hashes available:");
@@ -539,28 +539,52 @@ void main(string[] args)
     //      Each entry aren't being multithreaded (unless std.parallelism.parallel)
     //      is used, but needs to be applied to the other modes (list, compare, etc.).
     //      Stack could have "file" and "dir" entries (to expand later with dirEntries).
+    Digest digest;
     final switch (mode) {
     case Mode.file:
         if (options.hash == Hash.none)
             logError(2, "No hashes selected");
         foreach (string entry; entries)
         {
+            // Attemped to treat patterns and folders the same, but
+            // none of the *sum utils do it anyway.
+            if (isFolder(entry))
+            {
+                logWarn("Entry '%s' is a directory", entry);
+                continue;
+            }
+            
+            // If a pattern character is detected (es. on Windows),
+            // it's a glob pattern for dirEntries.
+            // e.g., "../*.d"
+            if (isPattern(entry))
+            {
+                try
+                {
+                    scope pattern = baseName(entry); // Extract pattern
+                    scope folder  = dirName(entry);  // Results to "." by default
+                    dirEntriesMT(folder, pattern, options.span, !onofollow,
+                        &initThreadDigest, &processDirEntry, othreads);
+                }
+                catch (Exception ex)
+                {
+                    logError(2, ex.msg);
+                }
+                continue;
+            }
+            
+            // Or else, treat entry as a single file, that must exist
             if (exists(entry) == false)
             {
                 logWarn("'%s' does not exist", entry);
                 continue;
             }
             
-            if (isDir(entry))
-            {
-                dirEntriesMulti(entry, options.span, !onofollow,
-                    &initThreadDigest, &processDirEntry, othreads);
-            }
-            else
-            {
-                scope digest = newDigest(options.hash);
-                printHash(hashFile(digest, entry), entry);
-            }
+            // Init digest if not init,
+            // little hack to avoid making new hashes at every entry
+            if (digest is null) digest = newDigest(options.hash);
+            
+            printHash(hashFile(digest, entry), entry);
         }
         return;
     case Mode.list:

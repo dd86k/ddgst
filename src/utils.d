@@ -136,9 +136,14 @@ unittest
     assert(dur!"msecs"( 500).toFloatSeconds == 0.5);
     assert(dur!"msecs"(1500).toFloatSeconds == 1.5);
 }
-double getMiBPerSecond(ulong sampleSize, Duration duration) pure
+
+/// Get processing speed as MiB/s with a given total size and duration.
+/// Params:
+///   size = Sample or buffer size.
+///   duration = Total duration of 
+double getMiBPerSecond(ulong size, Duration duration) pure
 {
-    return (cast(double)sampleSize / M) / duration.toFloatSeconds;
+    return (cast(double)size / M) / duration.toFloatSeconds;
 }
 unittest
 {
@@ -148,7 +153,52 @@ unittest
     assert(getMiBPerSecond(2 * M, dur!"seconds"(1)) == 2.0);
 }
 
-bool compareHash(const(char)[] h1, const(char)[] h2)
+import std.file;
+import std.path : baseName, buildPath;
+
+/// Used with dirEntries, confirms if entry is a glob pattern.
+/// Note: On POSIX systems, shells tend to expend entries themselves.
+/// Params: entry = Path entry.
+/// Returns: True if glob pattern.
+bool isPattern(string entry)
 {
-    return secureEqual(h1.asLowerCase, h2.asLowerCase);
+    // NOTE: This is faster than checking folders (I/O related)
+    foreach (char c; entry)
+    {
+        switch (c){
+        case '*':       // Match zero or more characters
+        case '?':       // Match one character
+        case '[', ']':  // Match characters
+        case '{', '}':  // Match strings
+            return true;
+        default:
+            continue;
+        }
+    }
+    
+    return false;
+}
+unittest
+{
+    // Existing examples
+    assert(isPattern("*"));
+    assert(isPattern("*.*"));
+    assert(isPattern("f*b*r"));
+    assert(isPattern("f???bar"));
+    assert(isPattern("[fg]???bar"));
+    assert(isPattern("[!gh]*bar"));
+    assert(isPattern("bar.{foo,bif}z"));
+    // Should only be files or folders themselves
+    assert(isPattern(".") == false);
+    assert(isPattern("file") == false);
+    assert(isPattern("src/file") == false);
+}
+
+// This function won't throw due to a missing file, unlike isDir.
+bool isFolder(string entry)
+{
+    if (exists(entry) == false)
+        return false;
+    
+    return entry.isDir;
 }

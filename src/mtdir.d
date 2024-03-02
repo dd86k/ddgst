@@ -5,18 +5,36 @@
 /// License: CC0
 module mtdir;
 
-import std.file;
 import std.concurrency;
+import std.file;
+import std.path : globMatch;
 import std.parallelism : totalCPUs;
 
-// TODO: Thread management
-//        0 threads -> alloc maxcores-1 threads
-//        1 thread  -> ignore and use single-threaded implementation
-//       >1 threads -> alloc n threads
-void dirEntriesMulti(string path, SpanMode mode, bool followLinks,
+//TODO: Find a way to construct dirEntries iterator.
+//      Can't access DirIterator.this, can't re-use FilterResults template,
+//      can't access DirIteratorImpl, etc.
+//      dirEntries with pattern doesn't check if pattern is valid...
+//      Kind of really silly, don't want to recreate dirEntries.
+//      Defined as: bool f(DirEntry de) { return globMatch(baseName(de.name), pattern); }
+//      So, if the implementation has a pattern, match it manually.
+//      It doesn't seem to exclude directories in matching, odd?
+//TODO: Consider returning statistics (e.g., files/folders processed)
+
+/// Start a multithreaded dirEntries instance.
+/// Note: Setting threads to 1 chooses the simpler, non-threaded implementation.
+/// Params:
+///   path = Directory path,
+///   pattern = Glob pattern to match against file. Optional.
+///   mode = Span mode.
+///   follow = Follow symbolic links if set to true.
+///   fnspawn = Callback initiation function that will be called per-thread.
+///   fnentry = Callback function that will be called per-entry.
+///   threads = Size of thread pool. Defaults to totalCPUs minus one.
+///   mailboxSize = Size of mailbox for each thread. Defaults to five.
+void dirEntriesMT(string path, string pattern, SpanMode mode, bool follow,
     immutable(void)* function() fnspawn,
     void function(DirEntry, immutable(void)*) fnentry,
-    int threads = 0)
+    int threads = 0, int mailboxSize = 5)
 {
     if (path == null)
         throw new Exception("Path is not defined");
@@ -27,33 +45,37 @@ void dirEntriesMulti(string path, SpanMode mode, bool followLinks,
     
     if (threads == 1)
     {
-        dirEntriesSingleImpl(path, mode, followLinks, fnspawn, fnentry);
+        dirEntriesSTImpl(path, pattern, mode, follow, fnspawn, fnentry);
         return;
     }
     
-    dirEntriesMultiImpl(path, mode, followLinks,
+    dirEntriesMTImpl(path, pattern, mode, follow,
         fnspawn, fnentry,
-        threads <= 0 ? totalCPUs-1 : threads);
+        threads <= 0 ? totalCPUs-1 : threads,
+        mailboxSize);
 }
 
+private:
+
 // When threads=1 is specified
-private
-void dirEntriesSingleImpl(string path, SpanMode mode, bool followLinks,
+void dirEntriesSTImpl(string path, string pattern, SpanMode mode, bool follow,
     immutable(void)* function() fnspawn,
     void function(DirEntry, immutable(void)*) fnentry)
 {
     immutable(void)* uobj = fnspawn();
-    foreach (DirEntry entry; dirEntries(path, mode, followLinks))
+    foreach (DirEntry entry; dirEntries(path, mode, follow))
     {
+        if (pattern && globMatch(entry.name, pattern) == false)
+            continue;
         fnentry(entry, uobj);
     }
 }
 
-private
-void dirEntriesMultiImpl(string path, SpanMode mode, bool followLinks,
+// When threads=0 or threads>1 is specified
+void dirEntriesMTImpl(string path, string pattern, SpanMode mode, bool followLinks,
     immutable(void)* function() fnspawn,
     void function(DirEntry, immutable(void)*) fnentry,
-    int threads)
+    int threads, int mailboxSize)
 {
     // Spawn n threads and assign them a queue size of 10.
     // 10 because if we work on millions of file paths,
@@ -61,50 +83,44 @@ void dirEntriesMultiImpl(string path, SpanMode mode, bool followLinks,
     scope pool = new Tid[threads];
     for (int i; i < threads; ++i)
     {
-        Tid tid = spawn(&dirEntriesMultiWorker, thisTid, fnentry, fnspawn());
-        setMaxMailboxSize(tid, 10, OnCrowding.ignore);
+        Tid tid = spawn(&dirEntriesMTWorker, thisTid, fnentry, fnspawn());
+        setMaxMailboxSize(tid, mailboxSize, OnCrowding.ignore);
         pool[i] = tid;
     }
     
     // Send every thread a message to work on.
-    int cur;
-    foreach (entry; dirEntries(path, mode, followLinks))
+    int cur; // Current thread index
+    foreach (DirEntry entry; dirEntries(path, mode, followLinks))
     {
-        send(pool[cur], MessageNew(entry));
+        if (pattern && globMatch(entry.name, pattern) == false)
+            continue;
+        send(pool[cur], MsgEntry(entry));
         if (++cur >= threads) cur = 0;
     }
     
+    // NOTE: Done/Ack messages are required to avoid an exception
+    //       where the parent thread is terminated before the worker threads.
     // Push cancel request at the end of the queue.
     foreach (ref tid; pool)
     {
-        send(tid, MessageCancelReq());
+        send(tid, MsgDone());
     }
     // Wait for confirmation, this is to avoid this thread
     // to finish before their children
     foreach (ref tid; pool)
     {
-        receiveOnly!MessageCancelled;
+        receiveOnly!MsgDoneAck;
     }
 }
 
-private
-struct MessageNew
+struct MsgEntry
 {
     DirEntry entry;
 }
-private
-struct MessageCancelReq
-{
-    
-}
-private
-struct MessageCancelled
-{
-    
-}
+struct MsgDone {}
+struct MsgDoneAck {}
 
-private
-void dirEntriesMultiWorker(Tid parentTid,
+void dirEntriesMTWorker(Tid parentTid,
     void function(DirEntry, immutable(void)*) fnuser,
     immutable(void) *uobj)
 {
@@ -112,11 +128,11 @@ void dirEntriesMultiWorker(Tid parentTid,
     while (cont)
     {
         receive(
-            (MessageNew msg) {
+            (MsgEntry msg) {
                 fnuser(msg.entry, uobj);
             },
-            (MessageCancelReq msg) {
-                send(parentTid, MessageCancelled());
+            (MsgDone msg) {
+                send(parentTid, MsgDoneAck());
                 cont = false;
             }
         );
