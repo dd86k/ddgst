@@ -1,3 +1,8 @@
+/// Smaller utilities.
+///
+/// Authors: dd86k <dd@dax.moe>
+/// Copyright: No rights reserved
+/// License: CC0
 module utils;
 
 import std.conv : text;

@@ -188,7 +188,7 @@ unittest
     
 }
 
-ubyte[] unformatHashHex(string input)
+ubyte[] unformatHex(string input)
 {
     if (input.length == 0)
         return [];
@@ -202,15 +202,17 @@ ubyte[] unformatHashHex(string input)
     {
         int nib = void;
         if (c >= 'a' && c <= 'f')
-            nib = (c - 'a') + 0x10;
+            nib = (c - 'a') + 10;
+        else if (c >= 'A' && c <= 'F')
+            nib = (c - 'A') + 10;
         else if (c >= '0' && c <= '9')
             nib = c - '0';
         else
-            assert(false, "cringe");
+            continue;
 
-        if (low)
+        if (low) // nibble
             buffer[bufidx++] |= cast(ubyte)(nib);
-        else
+        else     // high nibble
             buffer[bufidx] = cast(ubyte)(nib << 4);
 
         low = !low;
@@ -220,11 +222,13 @@ ubyte[] unformatHashHex(string input)
 }
 unittest
 {
-    assert(unformatHashHex("")     == []);
-    assert(unformatHashHex("0")    == [ 0x00 ]);
-    assert(unformatHashHex("00")   == [ 0x00 ]);
-    assert(unformatHashHex("0000") == [ 0x00, 0x00 ]);
-    assert(unformatHashHex("1234") == [ 0x12, 0x34 ]);
+    assert(unformatHex("")     == []);
+    assert(unformatHex("0")    == [ 0x00 ]);
+    assert(unformatHex("00")   == [ 0x00 ]);
+    assert(unformatHex("0000") == [ 0x00, 0x00 ]);
+    assert(unformatHex("1234") == [ 0x12, 0x34 ]);
+    assert(unformatHex("3853e2a78a247145b4aa16667736f6de") ==
+        [ 0x38,0x53,0xe2,0xa7,0x8a,0x24,0x71,0x45,0xb4,0xaa,0x16,0x66,0x77,0x36,0xf6,0xde ]);
 }
 
 ubyte[] unformatHashBase64(string input)

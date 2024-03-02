@@ -5,7 +5,7 @@
 /// License: CC0
 module main;
 
-
+import std.array : join;
 import std.conv : text;
 import std.datetime.stopwatch;
 import std.digest : secureEqual;
@@ -20,6 +20,15 @@ import core.stdc.stdlib : exit;
 import hasher;
 import mtdir;
 import utils;
+
+// NOTE: secureEqual usage
+//       In the case where someone is using this utility on a server,
+//       it's simply better being safe than sorry. At the same time,
+//       if that were the case, what the hell?
+
+//TODO: Messages to avoid copy-paste
+//      Could have functions like (e.g.) ensureIsDir that would return true if
+//      entry is a directory, and prints a warning.
 
 enum APPVERSION = "3.0.0";
 
@@ -37,13 +46,15 @@ else
     extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 }
 
+alias readAll = std.file.read;
+
 immutable string PAGE_VERSION =
 `ddh ` ~ APPVERSION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
 Using sha3-d ` ~ SHA3D_VERSION_STRING ~ `, blake2-d ` ~ BLAKE2D_VERSION_STRING ~ `
 No rights reserved
 License: CC0
 Homepage: <https://github.com/dd86k/ddh>
-Compiler: ` ~ __VENDOR__ ~ " v" ~ format("%u.%03u", __VERSION__ / 1000, __VERSION__ % 1000);
+Compiler: ` ~ __VENDOR__ ~ format(" v%u.%03u", __VERSION__ / 1000, __VERSION__ % 1000);
 
 immutable string PAGE_HELP =
 `Usage:
@@ -188,8 +199,6 @@ immutable string PAGE_COFE = q"SECRET
     `-----´
 SECRET";
 
-alias readAll = std.file.read;
-
 struct HasherOptions
 {
     Hash hash;
@@ -199,6 +208,7 @@ struct HasherOptions
     uint seed;
     ubyte[] key;
     SpanMode span;
+    ubyte[] against;
 }
 __gshared HasherOptions options;
 
@@ -337,8 +347,13 @@ immutable(void)* initThreadDigest()
 // NOTE: This is called from another thread
 void processDirEntry(DirEntry entry, immutable(void)* uobj)
 {
+    string path = entry.name[2..$];
+    
     if (entry.isDir())
+    {
+        logWarn("'%s' is a directory", path);
         return;
+    }
     
     version (Trace) trace("path=%s", path);
     
@@ -346,7 +361,35 @@ void processDirEntry(DirEntry entry, immutable(void)* uobj)
     {
         Digest digest = cast(Digest)uobj; // Get thread-assigned instance
         digest.reset();
-        printHash(hashFile(digest, entry.name), entry.name[2..$]);
+        printHash(hashFile(digest, entry.name), path);
+    }
+    catch (Exception ex)
+    {
+        logWarn(ex.msg);
+    }
+}
+
+void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
+{
+    string path = entry.name[2..$];
+    
+    if (entry.isDir())
+    {
+        logWarn("'%s' is a directory", path);
+        return;
+    }
+    
+    version (Trace) trace("path=%s", path);
+    
+    try
+    {
+        Digest digest = cast(Digest)uobj; // Get thread-assigned instance
+        digest.reset();
+        ubyte[] hash2 = hashFile(digest, entry);
+        if (secureEqual(options.against, hash2) == false)
+        {
+            logWarn("Entry '%s' is different", path);
+        }
     }
     catch (Exception ex)
     {
@@ -385,7 +428,7 @@ void cliBenchmark()
     
     writeln("* buffer size: ", buffer.length.toStringBinary());
     
-    foreach (ht; EnumMembers!Hash[1..$]) // Since 0: none
+    foreach (Hash ht; EnumMembers!Hash[1..$]) // Skip 'none'
     {
         benchDigest(ht, buffer);
     }
@@ -420,7 +463,7 @@ void main(string[] args)
     bool ostdin;
     bool oautodetect;
     int othreads = 1;
-    string oagainst;
+    string arg;
     Mode mode;
     GetoptResult gres = void;
     try
@@ -455,14 +498,15 @@ void main(string[] args)
         // Input options
         "arg",          "Input: Argument is input data as UTF-8 text", { mode = Mode.text; },
         "stdin",        "Input: Standard input (stdin)", &ostdin,
+        "A|against",    "Compare file against string hash",
+            (string _, string uhash) { mode = Mode.against; options.against = unformatHex(uhash); },
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=4K)",
-            (string _, string newsize) { options.bufferSize = newsize.toBinaryNumber(); },
-        "j|parallel",   "Spawn n threads for glob patterns, 0 for all threads (Default=1)", &othreads,
+            (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
+        "j|parallel",   "Spawn threads for glob pattern entries, 0 for all threads (Default=1)", &othreads,
         // Check file options
         "c|check",      "Check hashes list in this file", { mode = Mode.list; },
-        "a|autocheck",  "Automatically determine hash type and process list", &oautodetect,
-        // Text options
-        "A|against",    "Compare file against string hash", &oagainst,
+        "a|autocheck",  "Automatically determine hash type and process list",
+            { mode = Mode.list; oautodetect = true; },
         // Path options
         "r|depth",      "Depth: Deepest directories first", { options.span = SpanMode.depth; },
         "breath",       "Depth: Sub directories first",     { options.span = SpanMode.breadth; },
@@ -474,16 +518,16 @@ void main(string[] args)
         "plain",        "Create plain hashes",     { options.tag = Tag.plain; },
         // Hash parameters
         "key",          "Binary key file for BLAKE2 hashes",
-            (string _, string path) { options.key = cast(ubyte[])readAll(path); },
+            (string _, string upath) { options.key = cast(ubyte[])readAll(upath); },
         "seed",         "Seed literal argument for Murmurhash3 hashes",
-            (string _, string seed) { options.seed = cparse(seed); },
+            (string _, string useed) { options.seed = cparse(useed); },
         // Special modes
         "C|compare",    "Compares all file entries", &ocompare,
         "benchmark",    "Etc: Run benchmarks", &cliBenchmark,
         // Pages
         "H|hashes",     "List supported hashes", &ohashes,
-        "version",      "Show version page and quit",   { writeln(APPVERSION); exit(0); },
-        "ver",          "Show version and quit",        { writeln(PAGE_VERSION); exit(0); },
+        "version",      "Show version page and quit",   { writeln(PAGE_VERSION); exit(0); },
+        "ver",          "Show version and quit",        { writeln(APPVERSION); exit(0); },
         "license",      "Show license page and quit",   { writeln(PAGE_LICENSE); exit(0); },
         );
     }
@@ -539,21 +583,16 @@ void main(string[] args)
     //      Each entry aren't being multithreaded (unless std.parallelism.parallel)
     //      is used, but needs to be applied to the other modes (list, compare, etc.).
     //      Stack could have "file" and "dir" entries (to expand later with dirEntries).
+    //TODO: Do a function with callback/delegate for mode behavior?
+    //TODO: Cache per-thread instance when pattern is used again?
     Digest digest;
     final switch (mode) {
-    case Mode.file:
+    case Mode.file: // Default
         if (options.hash == Hash.none)
             logError(2, "No hashes selected");
+        
         foreach (string entry; entries)
         {
-            // Attemped to treat patterns and folders the same, but
-            // none of the *sum utils do it anyway.
-            if (isFolder(entry))
-            {
-                logWarn("Entry '%s' is a directory", entry);
-                continue;
-            }
-            
             // If a pattern character is detected (es. on Windows),
             // it's a glob pattern for dirEntries.
             // e.g., "../*.d"
@@ -576,12 +615,19 @@ void main(string[] args)
             // Or else, treat entry as a single file, that must exist
             if (exists(entry) == false)
             {
-                logWarn("'%s' does not exist", entry);
+                logWarn("Entry '%s' does not exist", entry);
                 continue;
             }
             
-            // Init digest if not init,
-            // little hack to avoid making new hashes at every entry
+            // Attemped to treat patterns and folders the same, but
+            // none of the *sum utils do it anyway.
+            if (isDir(entry))
+            {
+                logWarn("Entry '%s' is a directory", entry);
+                continue;
+            }
+            
+            // Here since pattern might be used
             if (digest is null) digest = newDigest(options.hash);
             
             printHash(hashFile(digest, entry), entry);
@@ -595,18 +641,62 @@ void main(string[] args)
         logError(20, "Not implemented");
         return;
     case Mode.against:
-        //if (options.hash == Hash.none)
-        //    logError(2, "No hashes selected");
-        //ubyte[] hash = unformatHashHex(options.against);
-        logError(20, "Not implemented");
+        if (options.hash == Hash.none)
+            logError(2, "No hashes selected");
+        
+        foreach (string entry; entries)
+        {
+            if (isPattern(entry))
+            {
+                try
+                {
+                    scope pattern = baseName(entry); // Extract pattern
+                    scope folder  = dirName(entry);  // Results to "." by default
+                    dirEntriesMT(folder, pattern, options.span, !onofollow,
+                        &initThreadDigest, &processAgainstEntry, othreads);
+                }
+                catch (Exception ex)
+                {
+                    logError(2, ex.msg);
+                }
+                continue;
+            }
+            
+            if (exists(entry) == false)
+            {
+                logWarn("Entry '%s' does not exist", entry);
+                continue;
+            }
+            
+            if (isDir(entry))
+            {
+                logWarn("Entry '%s' is a directory", entry);
+                continue;
+            }
+            
+            // Here since pattern might be used
+            if (digest is null) digest = newDigest(options.hash);
+            
+            ubyte[] hash2 = hashFile(digest, entry);
+            if (secureEqual(options.against, hash2) == false)
+            {
+                logWarn("Entry '%s' is different", entry);
+            }
+        }
         return;
     case Mode.compare:
+        //TODO: Consider choosing a default for this mode
         //if (options.hash == Hash.none)
         //    logError(2, "No hashes selected");
         logError(20, "Not implemented");
         return;
     case Mode.text:
-        logError(20, "Not implemented");
+        digest = newDigest(options.hash);
+        foreach (string entry; entries)
+        {
+            digest.put(cast(ubyte[])entry);
+        }
+        printHash(digest.finish(), text(`"`, entries.join(" "), `"`));
         return;
     }
 }

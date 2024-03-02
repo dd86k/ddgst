@@ -84,7 +84,10 @@ void dirEntriesMTImpl(string path, string pattern, SpanMode mode, bool followLin
     for (int i; i < threads; ++i)
     {
         Tid tid = spawn(&dirEntriesMTWorker, thisTid, fnentry, fnspawn());
-        setMaxMailboxSize(tid, mailboxSize, OnCrowding.ignore);
+        // NOTE: About OnCrowding
+        //       .ignore is a little suspicious, as at the end of the entries,
+        //       a thread's mailbox might be full, and ignore MsgDone messages.
+        setMaxMailboxSize(tid, mailboxSize, OnCrowding.block);
         pool[i] = tid;
     }
     
