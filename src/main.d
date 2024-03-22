@@ -204,7 +204,7 @@ struct HasherOptions
     Hash hash;
     Tag tag;
     Digest digest;
-    size_t bufferSize = 4096;
+    size_t bufferSize = MiB!1;
     uint seed;
     ubyte[] key;
     SpanMode span;
@@ -500,7 +500,7 @@ void main(string[] args)
         "stdin",        "Input: Standard input (stdin)", &ostdin,
         "A|against",    "Compare file against string hash",
             (string _, string uhash) { mode = Mode.against; options.against = unformatHex(uhash); },
-        "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=4K)",
+        "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=1M)",
             (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
         "j|parallel",   "Spawn threads for glob pattern entries, 0 for all threads (Default=1)", &othreads,
         // Check file options

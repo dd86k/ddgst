@@ -32,6 +32,14 @@ private enum
     T = G * 1024L,
 }
 
+template KiB(uint k) {
+    enum KiB = k * K;
+}
+
+template MiB(uint m) {
+    enum MiB = m * M;
+}
+
 /// Unformat a string containing a binary size to bytes.
 /// Throws: Exception on error.
 /// Params: n = String input.
@@ -124,10 +132,11 @@ unittest
 /// Returns: Total seconds with remainder.
 double toDoubleSeconds(Duration duration) pure
 {
+    static immutable NSECS = dur!"seconds"(1).total!"nsecs";
     // Example: 1,234,567,000 ns / 1,000,000,000 ns -> ~1.234 s
     // NOTE: Can't do Duration / dur!"seconds"(1) that easily.
     //       Due to integer division, since internal is ulong.
-	return cast(double)duration.total!"nsecs" / 1_000_000_000.0;
+	return cast(double)duration.total!"nsecs" / NSECS;
 }
 unittest
 {
@@ -148,10 +157,18 @@ double getMiBPerSecond(ulong size, Duration duration) pure
 }
 unittest
 {
+    // Taking 1 second for 1 megabyte: 1 MiB/s
+    assert(getMiBPerSecond(1 * M, dur!"seconds"(1)) == 1.0);
+    // Taking half a second for half a megabyte: 1 MiB/s
+    assert(getMiBPerSecond(512 * K, dur!"msecs"(500)) == 1.0);
     // Taking 2 seconds for 2 megabytes: 1 MiB/s
     assert(getMiBPerSecond(2 * M, dur!"seconds"(2)) == 1.0);
     // Taking 1 second  for 2 megabytes: 2 MiB/s
     assert(getMiBPerSecond(2 * M, dur!"seconds"(1)) == 2.0);
+    // Taking 2 seconds for 4 megabytes: 2 MiB/s
+    assert(getMiBPerSecond(2 * M, dur!"seconds"(1)) == 2.0);
+    // Taking 4 seconds for 2 megabytes: 0.5 MiB/s
+    assert(getMiBPerSecond(2 * M, dur!"seconds"(4)) == 0.5);
 }
 
 /// Used with dirEntries, confirms if entry is a glob pattern.
