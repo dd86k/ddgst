@@ -7,17 +7,12 @@ and comes with more features than built-in OS utilities.
 
 | Feature | ddh | GNU coreutils | uutils/coreutils | OpenSSL [^3] |
 |---|---|---|---|---|
-| Binary mode | ✔️ | ✔️ | ✔️ | ✔️ |
-| Text mode | ✔️ | ✔️ | ✔️ | |
 | Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
-| File support | ✔️ | ✔️ | ✔️ | ✔️ |
-| Memory-mapped file support | ✔️ | | | |
-| Standard input (stdin) support | ✔️ | ✔️ | ✔️ | ✔️ |
 | GNU style hashes | ✔️ | ✔️ | ✔️[^4] | ✔️ |
 | BSD style hashes | ✔️ | ✔️ | ✔️ | ✔️ |
 | [SRI style hashes](https://developer.mozilla.org/en-US/docs/Web/Security/Subresource_Integrity) | ✔️ | [^5] | [^5] | [^5] |
 
-## Algorithm Availability Comparison
+## Algorithm Comparison
 
 | Checksum/Hash | ddh | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
 |---|---|---|---|---|
@@ -54,7 +49,8 @@ and comes with more features than built-in OS utilities.
 
 # Usage
 
-Format: `ddh [options...|--autocheck] [file|--stdin]`
+Usage:
+- `ddh [options...|--autocheck] [file|--stdin]`
 
 With no arguments, the help page is shown.
 
@@ -64,29 +60,57 @@ For a list of supported checksums and hashes, use the `--hashes` switch.
 
 ## Hashing a file
 
+The default mode is hashing files and directories using the GNU style.
+
+Other styles include BSD (`--tag`), SRI (`--sri`), and plain (`--plain`).
+
+GNU style:
 ```text
 $ ddh --md5 LICENSE
-1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE
+3853e2a78a247145b4aa16667736f6de  LICENSE
 ```
 
-To select OpenSSL tags for the output, use `--tag`.
+BSD style:
+```text
+$ ddh --md5 --tag LICENSE
+MD5(LICENSE)= 3853e2a78a247145b4aa16667736f6de
+```
 
-To select SRI for the output, use `--sri`.
+SRI style:
+```text
+$ ddh --md5 --sri LICENSE
+md5-HSZ86zqNj3XxvjAR7ky/Uw==
+```
+
+Plain:
+```text
+$ ddh --md5 --plain LICENSE
+1d267ceb3a8d8f75f1be3011ee4cbf53
+```
 
 ## Check list using hash
 
+todo
+
+Check against file list:
 ```text
-$ ddh --sha256 -c list
+$ ddh --sha256 -c list # Add --tag for BSD style
 file1: OK
 file2: FAILED
 2 total: 1 mismatch, 0 not read
 ```
 
-To select the tag digest style, use `--tag`.
-
-Both OpenSSL and GNU/BSD tags are supported.
+Autodetect hash:
+```shell
+$ ddh --autocheck list.sha256
+file: OK
+file2: FAILED
+2 total: 1 mismatch, 0 not read
+```
 
 ## Check files against a hash digest
+
+todo
 
 ```text
 $ ddh --sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
@@ -95,18 +119,13 @@ LICENSE: OK
 
 ## Compare files against each other
 
+todo
+
 ```text
 $ ddh --sha512 --compare LICENSE README.md dub.sdl 
 Files 'LICENSE' and 'README.md' are different
 Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different
-```
-
-## Automatically check list from extension
-
-```text
-$ ddh --autocheck codium_1.73.0.22306_amd64.deb.sha256
-codium_1.73.0.22306_amd64.deb: OK
 ```
 
 ## Hash parameters
@@ -115,15 +134,6 @@ Some hashes may take optional parameters.
 
 - BLAKE2: The `--key` option takes a binary file for keying the hash.
 - Murmurhash3: The `--seed` option takes an argument literal for seeding the hash.
-
-# Hash styles
-
-| Style | CLI Switch | Example |
-|---|---|---|
-| GNU | | `1d267ceb3a8d8f75f1be3011ee4cbf53  LICENSE` |
-| BSD | `--tag` | `MD5(LICENSE)= 1d267ceb3a8d8f75f1be3011ee4cbf53` |
-| SRI | `--sri` | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
-| Plain | `--plain` | `1d267ceb3a8d8f75f1be3011ee4cbf53` |
 
 # File Pattern Globbing (`*` vs. `'*'`)
 

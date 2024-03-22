@@ -6,10 +6,9 @@
 module utils;
 
 import std.conv : text;
+import std.file;
 import std.format.read : formattedRead;
 import std.string : toStringz;
-import std.digest : secureEqual;
-import std.uni : asLowerCase;
 import std.datetime : Duration, dur;
 import core.stdc.stdio : sscanf;
 import core.stdc.ctype : toupper;
@@ -123,7 +122,7 @@ unittest
 /// Note: This is internally converted to µseconds.
 /// Params: duration = Duration, typically from a StopWatch.
 /// Returns: Total seconds with remainder.
-double toFloatSeconds(Duration duration) pure
+double toDoubleSeconds(Duration duration) pure
 {
     // Example: 1,234,567,000 ns / 1,000,000,000 ns -> ~1.234 s
     // NOTE: Can't do Duration / dur!"seconds"(1) that easily.
@@ -132,14 +131,11 @@ double toFloatSeconds(Duration duration) pure
 }
 unittest
 {
-    import std.math : isClose;
-    import std.stdio;
-    
-    assert(dur!"seconds"(1).toFloatSeconds == 1.0);
-    assert(dur!"seconds"(2).toFloatSeconds == 2.0);
-    assert(dur!"msecs"(1000).toFloatSeconds == 1.0);
-    assert(dur!"msecs"( 500).toFloatSeconds == 0.5);
-    assert(dur!"msecs"(1500).toFloatSeconds == 1.5);
+    assert(dur!"seconds"(1).toDoubleSeconds  == 1.0);
+    assert(dur!"seconds"(2).toDoubleSeconds  == 2.0);
+    assert(dur!"msecs"(1000).toDoubleSeconds == 1.0);
+    assert(dur!"msecs"( 500).toDoubleSeconds == 0.5);
+    assert(dur!"msecs"(1500).toDoubleSeconds == 1.5);
 }
 
 /// Get processing speed as MiB/s with a given total size and duration.
@@ -148,7 +144,7 @@ unittest
 ///   duration = Total duration of 
 double getMiBPerSecond(ulong size, Duration duration) pure
 {
-    return (cast(double)size / M) / duration.toFloatSeconds;
+    return (cast(double)size / M) / duration.toDoubleSeconds;
 }
 unittest
 {
@@ -158,19 +154,17 @@ unittest
     assert(getMiBPerSecond(2 * M, dur!"seconds"(1)) == 2.0);
 }
 
-import std.file;
-import std.path : baseName, buildPath;
-
 /// Used with dirEntries, confirms if entry is a glob pattern.
 /// Note: On POSIX systems, shells tend to expend entries themselves.
 /// Params: entry = Path entry.
 /// Returns: True if glob pattern.
 bool isPattern(string entry)
 {
-    // NOTE: This is faster than checking folders (I/O related)
+    // NOTE: This is potentially faster than checking folders (I/O related)
+    //       A benchmark would be nice
     foreach (char c; entry)
     {
-        switch (c){
+        switch (c) {
         case '*':       // Match zero or more characters
         case '?':       // Match one character
         case '[', ']':  // Match characters
@@ -186,17 +180,18 @@ bool isPattern(string entry)
 unittest
 {
     // Existing examples
-    assert(isPattern("*"));
-    assert(isPattern("*.*"));
-    assert(isPattern("f*b*r"));
-    assert(isPattern("f???bar"));
-    assert(isPattern("[fg]???bar"));
-    assert(isPattern("[!gh]*bar"));
-    assert(isPattern("bar.{foo,bif}z"));
+    assert(isPattern(`*`));
+    assert(isPattern(`*.*`));
+    assert(isPattern(`f*b*r`));
+    assert(isPattern(`f???bar`));
+    assert(isPattern(`[fg]???bar`));
+    assert(isPattern(`[!gh]*bar`));
+    assert(isPattern(`bar.{foo,bif}z`));
     // Should only be files or folders themselves
-    assert(isPattern(".") == false);
-    assert(isPattern("file") == false);
-    assert(isPattern("src/file") == false);
+    assert(isPattern(`.`) == false);
+    assert(isPattern(`file`) == false);
+    assert(isPattern(`src/file`) == false);
+    assert(isPattern(`src\file`) == false);
 }
 
 // This function won't throw due to a missing file, unlike isDir.
