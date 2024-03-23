@@ -649,8 +649,27 @@ void main(string[] args)
         "arg",          "Input: Argument is input data as UTF-8 text",
             (string _, string a) { mode = Mode.text; textarg = a; },
         "stdin",        "Input: Standard input (stdin)", &ostdin,
-        "A|against",    "Compare file against string hash",
-            (string _, string uhash) { mode = Mode.against; options.against = unformatHex(uhash); },
+        "A|against",    "Compare hash against file/directory entries",
+            (string _, string uhash) {
+                mode = Mode.against;
+                
+                ubyte[] base64;
+                string t, h;
+                if (readSRILine(uhash, t, h))
+                {
+                    Hash hash = guessHash(t);
+                    if (hash != Hash.none)
+                        options.hash = hash;
+                    
+                    base64 = unformatBase64(h);
+                }
+                else
+                {
+                    base64 = unformatBase64(uhash);
+                }
+                
+                options.against = base64 is null ? unformatHex(uhash) : base64;
+            },
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=1M)",
             (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
         "j|parallel",   "Spawn threads for glob pattern entries, 0 for all threads (Default=1)", &othreads,
@@ -673,7 +692,7 @@ void main(string[] args)
             (string _, string useed) { options.seed = cparse(useed); },
         // Special modes
         "C|compare",    "Compares all file entries", &ocompare,
-        "benchmark",    "Etc: Run benchmarks", &obenchmark,
+        "benchmark",    "Run benchmarks on all supported hashes", &obenchmark,
         // Pages
         "H|hashes",     "List supported hashes", &ohashes,
         "version",      "Show version page and quit",   { writeln(PAGE_VERSION); exit(0); },
@@ -738,6 +757,7 @@ void main(string[] args)
     //      exit if no hash selected
     
     // No entries or stdin option
+    //TODO: stdin option can be applied for a few modes, like check
     if (entries.length == 0 || ostdin)
     {
         if (options.hash == Hash.none)
@@ -750,7 +770,7 @@ void main(string[] args)
     //      is used, but needs to be applied to the other modes (list, compare, etc.).
     //      Stack could have "file" and "dir" entries (to expand later with dirEntries).
     //TODO: Do a function with callback/delegate for mode behavior?
-    //TODO: Cache per-thread instance when pattern is used again?
+    //TODO: Cache per-thread digest instance when pattern is used again?
     Digest digest;
     final switch (mode) {
     case Mode.file: // Default
@@ -832,14 +852,13 @@ void main(string[] args)
                 logWarn("Entry '%s' does not exist", entry);
                 continue;
             }
-            
             if (isDir(entry))
             {
                 logWarn("Entry '%s' is a directory", entry);
                 continue;
             }
             
-            // Here since pattern might be used
+            // Here since pattern might have been used
             if (digest is null) digest = newDigest(options.hash);
             
             ubyte[] hash2 = hashFile(digest, entry);

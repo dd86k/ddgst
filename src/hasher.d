@@ -243,16 +243,16 @@ unittest
         [ 0x38,0x53,0xe2,0xa7,0x8a,0x24,0x71,0x45,0xb4,0xaa,0x16,0x66,0x77,0x36,0xf6,0xde ]);
 }
 
-ubyte[] unformatHashBase64(string input)
+ubyte[] unformatBase64(string input)
 {
-    ptrdiff_t i = indexOf(input, '-');
-    if (i >= 0) input = input[i+1..$];
-    return Base64.decode(input);
+    try
+        return Base64.decode(input);
+    catch (Exception)
+        return null;
 }
 unittest
 {
     assert(unformatHashBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
-    assert(unformatHashBase64("md5-dGVzdA==") == [ 't', 'e', 's', 't' ]);
 }
 
 /// Guess hash type by extension name.

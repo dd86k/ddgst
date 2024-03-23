@@ -27,7 +27,7 @@ bool readGNULine(string line, ref string hash, ref string file)
         
         return r;
     }
-    catch (Exception ex)
+    catch (Exception)
     {
         return false;
     }
@@ -54,7 +54,7 @@ bool readBSDLine(string line,
 {
     try // Tested to work with and without spaces
         return formattedRead(line, "%s (%s) = %s", type, file, hash) == 3;
-    catch (Exception ex)
+    catch (Exception)
         return false;
 }
 unittest
@@ -80,7 +80,7 @@ bool readSRILine(string line, ref string type, ref string hash)
 {
     try
         return formattedRead(line, "%s-%s", type, hash) == 2;
-    catch (Exception ex)
+    catch (Exception)
         return false;
 }
 unittest
