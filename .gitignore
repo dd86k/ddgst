@@ -32,4 +32,5 @@ src/gitinfo.d
 *.tar
 
 # Personal stuff
-perso
+/perso/
+/list.*

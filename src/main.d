@@ -9,6 +9,7 @@ import std.array : join;
 import std.conv : text;
 import std.datetime.stopwatch;
 import std.digest : secureEqual;
+import std.string : lineSplitter, indexOf, stripRight;
 import std.file;
 import std.format : format;
 import std.getopt;
@@ -17,9 +18,7 @@ import std.process;
 import std.traits : EnumMembers;
 import std.path : baseName, dirName;
 import core.stdc.stdlib : exit;
-import hasher;
-import mtdir;
-import utils;
+import hasher, reader, mtdir, utils;
 
 // NOTE: secureEqual usage
 //       In the case where someone is using this utility on a server,
@@ -199,10 +198,11 @@ immutable string PAGE_COFE = q"SECRET
     `-----´
 SECRET";
 
+//TODO: Reduce global usage
 struct HasherOptions
 {
     Hash hash;
-    Tag tag;
+    Style style;
     Digest digest;
     size_t bufferSize = MiB!1;
     uint seed;
@@ -227,6 +227,10 @@ enum Mode
     compare,
 }
 
+//
+// Logging
+//
+
 version (Trace) void trace(string func = __FUNCTION__, A...)(string fmt, A args)
 {
     write("TRACE:", func, ": ");
@@ -247,6 +251,10 @@ void logError(string mod = __FUNCTION__, int line = __LINE__, A...)(int code, st
     stderr.writefln(fmt, args);
     exit(code);
 }
+
+//
+// Digest management
+//
 
 Digest newDigest(Hash hash)
 {
@@ -301,6 +309,37 @@ Digest newDigest(Hash hash)
     return digest;
 }
 
+// This function is called per-thread to initiate hash
+immutable(void)* initThreadDigest()
+{
+    return cast(immutable(void)*)newDigest(options.hash);
+}
+
+void printHash(ubyte[] result, string filename)
+{
+    if (result == null)
+        return;
+    
+    final switch (options.style) with (Style) {
+    case gnu: // hash  file
+        writeln(formatHashHex(options.hash, result), "  ", filename);
+        break;
+    case bsd: // TAG(file)= hash
+        writeln(getBSDName(options.hash), "(", filename, ")= ", formatHashHex(options.hash, result));
+        break;
+    case sri: // type-hash
+        writeln(getAliasName(options.hash), '-', formatHashBase64(options.hash, result));
+        break;
+    case plain: // hash
+        writeln(formatHashHex(options.hash, result));
+        break;
+    }
+}
+
+//
+// 
+//
+
 ubyte[] hashFile(Digest digest, string path)
 {
     version (Trace) trace("path=%s", path);
@@ -338,12 +377,6 @@ ubyte[] hashFile(Digest digest, ref File file)
     }
 }
 
-// This function is called per-thread to initiate hash
-immutable(void)* initThreadDigest()
-{
-    return cast(immutable(void)*)newDigest(options.hash);
-}
-
 // NOTE: This is called from another thread
 void processDirEntry(DirEntry entry, immutable(void)* uobj)
 {
@@ -368,6 +401,153 @@ void processDirEntry(DirEntry entry, immutable(void)* uobj)
         logWarn(ex.msg);
     }
 }
+
+//
+// Mode: Check list
+//
+
+//TODO: Could separate file read and line splitter to introduce tests?
+int processList(string path, bool autodetect, Style style)
+{
+    version (Trace) trace("list=%s", path);
+
+    try
+    {
+        // Autodetect: Guess digest, only override if detected
+        if (autodetect)
+        {
+            Hash hash = guessHash(path);
+            if (hash != Hash.none)
+                options.hash = hash;
+        }
+        
+        // Error out if no digest was selected or guessed
+        if (options.hash == Hash.none)
+            logError(2, autodetect ? "No hashes detected" : "No hashes selected");
+        
+        // Read the entire text file into memory
+        //TODO: Could be made a warning
+        string text = readText(path);
+        if (text.length == 0)
+            logError(10, "%s: Empty file", path);
+
+        string entryFile, entryHash, entryTag, lastTag;
+
+        // Autodetect: Guess the line format
+        if (autodetect)
+        {
+            // Get the first line only, skip comments
+            foreach (string line; lineSplitter(text))
+            {
+                // If line empty or starts with a comment
+                if (line.length == 0 || line[0] == '#')
+                    continue;
+                
+                // Try reading BSD and GNU style, if both fail, exit with error
+                if (readBSDLine(line, entryTag, entryFile, entryHash))
+                    style = Style.bsd;
+                else if (readGNULine(line, entryHash, entryFile))
+                    style = Style.gnu;
+                else
+                    logError(12, "Unknown hash style format");
+                
+                break;
+            }
+        }
+
+        // Check every hash entry!
+        uint statmismatch, staterror, stattotal;
+        uint currline;  /// Current line
+        scope digest = newDigest(options.hash);
+        foreach (string line; lineSplitter(text))
+        {
+            ++currline;
+
+            // If line empty or starts with a comment
+            if (line.length == 0 || line[0] == '#')
+                continue;
+
+            final switch (style) with (Style)
+            {
+            case gnu:
+                if (readGNULine(line, entryHash, entryFile) == false)
+                {
+                    ++staterror;
+                    logWarn("Could not read GNU tag at line %u", currline);
+                }
+                break;
+            case bsd:
+                if (readBSDLine(line, entryTag, entryFile, entryHash) == false)
+                {
+                    ++staterror;
+                    logWarn("Could not read BSD tag at line %u", currline);
+                    continue;
+                }
+ 
+                // Check if tag name change since the last entry
+                if (entryTag == lastTag)
+                    break;
+                
+                // Find new hash type from new tag name
+                Hash newhash = hashFromTag(entryTag);
+                if (newhash == Hash.none)
+                {
+                    logWarn("Unknown tag '%s' at line %u", entryTag, currline);
+                    continue;
+                }
+                
+                // Worked out, save it and re-init digest
+                lastTag = entryTag;
+                digest = newDigest(newhash);
+                continue;
+            case sri:
+                logError(11, "SRI hash format is not supported in file checks");
+                break;
+            case plain:
+                logError(11, "Plain hash format is not supported in file checks");
+                break;
+            }
+
+            ++stattotal;
+            
+            // Hash file entry
+            ubyte[] hashResult = hashFile(digest, entryFile); // Warns on error
+            if (hashResult == null)
+            {
+                ++staterror;
+                continue;
+            }
+
+            // Parse entry hash to byte array
+            ubyte[] hashExpected = unformatHex(entryHash);
+
+            version (Trace) trace("result=%s expected=%s", result, expected);
+
+            // Compare binary hashes.
+            // secureEqual is used in case this is used server-side.
+            if (secureEqual(hashResult, hashExpected) == false)
+            {
+                ++statmismatch;
+                stderr.writeln(entryFile, ": FAILED");
+                continue;
+            }
+
+            writeln(entryFile, ": OK");
+        }
+        
+        writeln(stattotal, " total: ", statmismatch, " mismatch, ", staterror, " error");
+    }
+    catch (Exception ex)
+    {
+        logError(12, ex.msg);
+    }
+
+    return 0;
+}
+
+//
+// Mode: against hash
+//
 
 void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
 {
@@ -397,44 +577,9 @@ void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
     }
 }
 
-void printHash(ubyte[] result, string filename)
-{
-    if (result == null)
-        return;
-    
-    final switch (options.tag) with (Tag) {
-    case gnu: // hash  file
-        writeln(formatHashHex(options.hash, result), "  ", filename);
-        break;
-    case bsd: // TAG(file)= hash
-        writeln(getBSDName(options.hash), "(", filename, ")= ", formatHashHex(options.hash, result));
-        break;
-    case sri: // type-hash
-        writeln(getAliasName(options.hash), '-', formatHashBase64(options.hash, result));
-        break;
-    case plain: // hash
-        writeln(formatHashHex(options.hash, result));
-        break;
-    }
-}
-
 //
-// Command-line interface
+// Mode: Benchmark
 //
-
-void cliBenchmark()
-{
-    ubyte[] buffer = new ubyte[options.bufferSize];
-    
-    writeln("* buffer size: ", buffer.length.toStringBinary());
-    
-    foreach (Hash ht; EnumMembers!Hash[1..$]) // Skip 'none'
-    {
-        benchDigest(ht, buffer);
-    }
-    
-    exit(0);
-}
 
 void benchDigest(Hash hash, ubyte[] buffer)
 {
@@ -452,6 +597,10 @@ void benchDigest(Hash hash, ubyte[] buffer)
 		getMiBPerSecond(buffer.length, sw.peek()));
 }
 
+//
+// Command-line interface
+//
+
 void main(string[] args)
 {
     //TODO: Option for file basenames/fullnames? (printing)
@@ -462,6 +611,7 @@ void main(string[] args)
     bool onofollow;
     bool ostdin;
     bool oautodetect;
+    bool obenchmark;
     int othreads = 1;
     string textarg;
     Mode mode;
@@ -513,9 +663,9 @@ void main(string[] args)
         "shallow",      "Depth: Same directory (default)",  { options.span = SpanMode.shallow; },
         "nofollow",     "Links: Do not follow symbolic links", &onofollow,
         // Hash formatting
-        "tag",          "Create BSD-style hashes", { options.tag = Tag.bsd; },
-        "sri",          "Create SRI-style hashes", { options.tag = Tag.sri; },
-        "plain",        "Create plain hashes",     { options.tag = Tag.plain; },
+        "tag",          "Create BSD-style hashes", { options.style = Style.bsd; },
+        "sri",          "Create SRI-style hashes", { options.style = Style.sri; },
+        "plain",        "Create plain hashes",     { options.style = Style.plain; },
         // Hash parameters
         "key",          "Binary key file for BLAKE2 hashes",
             (string _, string upath) { options.key = cast(ubyte[])readAll(upath); },
@@ -523,7 +673,7 @@ void main(string[] args)
             (string _, string useed) { options.seed = cparse(useed); },
         // Special modes
         "C|compare",    "Compares all file entries", &ocompare,
-        "benchmark",    "Etc: Run benchmarks", &cliBenchmark,
+        "benchmark",    "Etc: Run benchmarks", &obenchmark,
         // Pages
         "H|hashes",     "List supported hashes", &ohashes,
         "version",      "Show version page and quit",   { writeln(PAGE_VERSION); exit(0); },
@@ -566,10 +716,26 @@ void main(string[] args)
         exit(0);
     }
     
+    // Benchmark mode requires no arguments
+    // Having it here allows buffer arg to be set after this argument
+    if (obenchmark)
+    {
+        ubyte[] buffer = new ubyte[options.bufferSize];
+        
+        writeln("* buffer size: ", buffer.length.toStringBinary());
+        
+        foreach (Hash ht; EnumMembers!Hash[1..$]) // Skip 'none'
+        {
+            benchDigest(ht, buffer);
+        }
+        
+        exit(0);
+    }
+    
     string[] entries = args[1..$];
     
     //TODO: make function ensureHashSelected()
-    //      exists if no hash selected
+    //      exit if no hash selected
     
     // No entries or stdin option
     if (entries.length == 0 || ostdin)
@@ -634,11 +800,10 @@ void main(string[] args)
         }
         return;
     case Mode.list:
-        //if (oautocheck)
-        //    exit(cliAutoCheck(entries));
-        //if (options.hash == Hash.none)
-        //    logError(2, "No hashes selected");
-        logError(20, "Not implemented");
+        foreach (string entry; entries)
+        {
+            processList(entry, oautodetect, options.style);
+        }
         return;
     case Mode.against:
         if (options.hash == Hash.none)

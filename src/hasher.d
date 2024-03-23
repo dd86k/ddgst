@@ -57,7 +57,7 @@ enum Hash
     blake2b512,
 }
 
-enum Tag
+enum Style
 {
     gnu,
     bsd,
@@ -153,10 +153,22 @@ unittest
     
 }
 
-// No BSD/GNU preference, just get something
+/// Get hash type from its tag name.
+/// Params: tag = Tag name, like "SHA-512"
+/// Return: Hash type
 Hash hashFromTag(string tag)
 {
-    throw new Exception("Todo");
+    foreach (name; hashNames)
+    {
+        if (name.gnuTag && tag == name.gnuTag)
+            return name.hash;
+        else if (name.bsdTag && tag == name.bsdTag)
+            return name.hash;
+        else if (tag == name.full)
+            return name.hash;
+    }
+    
+    return Hash.none;
 }
 unittest
 {
@@ -241,4 +253,50 @@ unittest
 {
     assert(unformatHashBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
     assert(unformatHashBase64("md5-dGVzdA==") == [ 't', 'e', 's', 't' ]);
+}
+
+/// Guess hash type by extension name.
+/// Params: path = Path, filename will be extract from this.
+/// Returns: Hash type.
+Hash guessHash(const(char)[] path) @safe
+{
+    import std.string : toLower, indexOf;
+    import std.path : extension, baseName, globMatch, CaseSensitive;
+    import std.algorithm.searching : canFind, startsWith;
+ 
+    const(char)[] name = baseName(path).toLower;
+ 
+    foreach (info; hashNames)
+    {
+        if (indexOf(name, info.alias_) >= 0)
+            return info.hash;
+    }
+ 
+    // aliases
+    struct Alias
+    {
+        string name;
+        Hash type;
+    }
+    static immutable Alias[] aliases = [
+        { "sha3", Hash.sha3_256 }
+    ];
+    foreach (alias_; aliases)
+    {
+        if (indexOf(name, alias_.name) >= 0)
+            return alias_.type;
+    }
+ 
+    return Hash.none;
+}
+@safe unittest
+{
+    assert(guessHash("sha1sum") == Hash.sha1);
+    assert(guessHash(".SHA256SUM") == Hash.sha256);
+    assert(guessHash("GE-Proton7-38.sha512sum") == Hash.sha512);
+    assert(guessHash("CHECKSUM.SHA512-FreeBSD-13.1-RELEASE-amd64") == Hash.sha512);
+    assert(guessHash("test.crc32") == Hash.crc32);
+    assert(guessHash("test.sha256") == Hash.sha256);
+    assert(guessHash("test.md5sum") == Hash.md5);
+    assert(guessHash("test.sha3sums") == Hash.sha3_256);
 }
