@@ -463,7 +463,7 @@ void main(string[] args)
     bool ostdin;
     bool oautodetect;
     int othreads = 1;
-    string arg;
+    string textarg;
     Mode mode;
     GetoptResult gres = void;
     try
@@ -496,7 +496,8 @@ void main(string[] args)
         "blake2s256",   "BLAKE2s-256",  { options.hash = Hash.blake2s256; },
         "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         // Input options
-        "arg",          "Input: Argument is input data as UTF-8 text", { mode = Mode.text; },
+        "arg",          "Input: Argument is input data as UTF-8 text",
+            (string _, string a) { mode = Mode.text; textarg = a; },
         "stdin",        "Input: Standard input (stdin)", &ostdin,
         "A|against",    "Compare file against string hash",
             (string _, string uhash) { mode = Mode.against; options.against = unformatHex(uhash); },
@@ -504,9 +505,8 @@ void main(string[] args)
             (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
         "j|parallel",   "Spawn threads for glob pattern entries, 0 for all threads (Default=1)", &othreads,
         // Check file options
-        "c|check",      "Check hashes list in this file", { mode = Mode.list; },
-        "a|autocheck",  "Automatically determine hash type and process list",
-            { mode = Mode.list; oautodetect = true; },
+        "c|check",      "List: Check hash list from file", { mode = Mode.list; },
+        "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; oautodetect = true; },
         // Path options
         "r|depth",      "Depth: Deepest directories first", { options.span = SpanMode.depth; },
         "breath",       "Depth: Sub directories first",     { options.span = SpanMode.breadth; },
