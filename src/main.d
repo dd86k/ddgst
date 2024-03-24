@@ -366,6 +366,8 @@ ubyte[] hashFile(Digest digest, ref File file)
 
     try
     {
+        digest.reset();
+        
         foreach (ubyte[] chunk; file.byChunk(options.bufferSize))
             digest.put(chunk);
         return digest.finish();
@@ -378,7 +380,7 @@ ubyte[] hashFile(Digest digest, ref File file)
 }
 
 // NOTE: This is called from another thread
-void processDirEntry(DirEntry entry, immutable(void)* uobj)
+void mtDirEntry(DirEntry entry, immutable(void)* uobj)
 {
     string path = entry.name[2..$];
     
@@ -578,6 +580,67 @@ void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
 }
 
 //
+// Mode: Compare
+//
+
+//TODO: Consider making a foreach-compatible function for this
+//      popFront returning T[2] (or tuple)
+/// Compare all file entries against each other.
+/// O: O(n * log(n)) (according to friend)
+/// Params: entries: List of files
+/// Returns: Error code.
+void processCompare(Digest digest, string[] entries)
+{
+    const size_t size = entries.length;
+
+    if (size < 2)
+        logError(15, "Comparison needs 2 or more files");
+
+    //TODO: Consider an associated array
+    //      Would remove duplicates, but at the same time, this removes
+    //      all user-supplied positions and may confuse people if unordered.
+    
+    // Hash all entries eagerly
+    immutable(ubyte)[][] hashes = new immutable(ubyte)[][size];
+    for (size_t index; index < size; ++index)
+    {
+        ubyte[] fhash = hashFile(digest, entries[index]);
+        if (fhash is null)
+            continue;
+
+        hashes[index] = fhash.idup;
+    }
+
+    // Compare hashes
+    uint smismatch; /// Number of mismatching files
+    for (size_t distance = 1; distance < size; ++distance)
+    {
+        for (size_t index; index < size; ++index)
+        {
+            size_t index2 = index + distance;
+
+            if (index2 >= size)
+                break;
+
+            if (secureEqual(hashes[index], hashes[index2]))
+                continue;
+
+            ++smismatch;
+
+            string entry1 = entries[index];
+            string entry2 = entries[index2];
+
+            writeln("Files '", entry1, "' and '", entry2, "' are different");
+        }
+    }
+
+    if (smismatch == 0)
+        writefln("All files identical");
+
+    exit(0);
+}
+
+//
 // Mode: Benchmark
 //
 
@@ -606,7 +669,7 @@ void main(string[] args)
     //TODO: Option for file basenames/fullnames? (printing)
     //TODO: Consider "building" options from stack to heap?
     //TODO: -z|--zero for terminating line with null instead of newline
-    bool ocompare;
+    //TODO: Option for unsafe hash comparisons? (not using secureEqual)
     bool ohashes;
     bool onofollow;
     bool ostdin;
@@ -691,7 +754,7 @@ void main(string[] args)
         "seed",         "Seed literal argument for Murmurhash3 hashes",
             (string _, string useed) { options.seed = cparse(useed); },
         // Special modes
-        "C|compare",    "Compares all file entries", &ocompare,
+        "C|compare",    "Compares all file entries", { mode = Mode.compare; },
         "benchmark",    "Run benchmarks on all supported hashes", &obenchmark,
         // Pages
         "H|hashes",     "List supported hashes", &ohashes,
@@ -789,7 +852,7 @@ void main(string[] args)
                     scope pattern = baseName(entry); // Extract pattern
                     scope folder  = dirName(entry);  // Results to "." by default
                     dirEntriesMT(folder, pattern, options.span, !onofollow,
-                        &initThreadDigest, &processDirEntry, othreads);
+                        &initThreadDigest, &mtDirEntry, othreads);
                 }
                 catch (Exception ex)
                 {
@@ -870,9 +933,10 @@ void main(string[] args)
         return;
     case Mode.compare:
         //TODO: Consider choosing a default for this mode
-        //if (options.hash == Hash.none)
-        //    logError(2, "No hashes selected");
-        logError(20, "Not implemented");
+        if (options.hash == Hash.none)
+            logError(2, "No hashes selected");
+        
+        processCompare(newDigest(options.hash), entries);
         return;
     case Mode.text:
         digest = newDigest(options.hash);
