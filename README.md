@@ -58,7 +58,7 @@ For a list of options available, use the `--help` argument.
 
 For a list of supported checksums and hashes, use the `--hashes` switch.
 
-## Hashing a file
+## Hashing files
 
 The default mode is hashing files and directories using the GNU style.
 
@@ -90,8 +90,6 @@ $ ddgst --md5 --plain LICENSE
 
 ## Check list using hash
 
-todo
-
 Check against file list:
 ```text
 $ ddgst --sha256 -c list # Add --tag for BSD style
@@ -101,7 +99,7 @@ file2: FAILED
 ```
 
 Autodetect hash:
-```shell
+```text
 $ ddgst --autocheck list.sha256
 file: OK
 file2: FAILED
@@ -110,16 +108,12 @@ file2: FAILED
 
 ## Check files against a hash digest
 
-todo
-
 ```text
 $ ddgst --sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
 LICENSE: OK
 ```
 
 ## Compare files against each other
-
-todo
 
 ```text
 $ ddgst --sha512 --compare LICENSE README.md dub.sdl 
@@ -128,12 +122,24 @@ Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different
 ```
 
-## Hash parameters
+## Hash text
+
+```text
+$ ddgst --crc32 --arg "Argument with spaces" Arguments without spaces
+f17cf59f  "Argument with spacesArgumentswithoutspaces"
+```
+
+# Hash parameters
 
 Some hashes may take optional parameters.
 
-- BLAKE2: The `--key` option takes a binary file for keying the hash.
-- Murmurhash3: The `--seed` option takes an argument literal for seeding the hash.
+- Murmurhash3
+  - The `--seed` option takes an argument literal for seeding the hash.
+  - Can only be a 32-bit seed.
+- BLAKE2
+  - The `--key` option takes a binary file for keying the hash.
+  - BLAKE2s: Key can be up to 64 Bytes in size.
+  - BLAKE2b: Key can be up to 128 Bytes in size.
 
 # File Pattern Globbing (`*` vs. `'*'`)
 

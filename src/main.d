@@ -676,7 +676,6 @@ void main(string[] args)
     bool oautodetect;
     bool obenchmark;
     int othreads = 1;
-    string textarg;
     Mode mode;
     GetoptResult gres = void;
     try
@@ -709,8 +708,7 @@ void main(string[] args)
         "blake2s256",   "BLAKE2s-256",  { options.hash = Hash.blake2s256; },
         "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         // Input options
-        "arg",          "Input: Argument is input data as UTF-8 text",
-            (string _, string a) { mode = Mode.text; textarg = a; },
+        "arg",          "Input: Argument is input data as UTF-8 text", { mode = Mode.text; },
         "stdin",        "Input: Standard input (stdin)", &ostdin,
         "A|against",    "Compare hash against file/directory entries",
             (string _, string uhash) {
@@ -735,7 +733,7 @@ void main(string[] args)
             },
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=1M)",
             (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
-        "j|parallel",   "Spawn threads for glob pattern entries, 0 for all threads (Default=1)", &othreads,
+        "j|parallel",   "Spawn n threads for pattern entries, 0 for all (Default=1)", &othreads,
         // Check file options
         "c|check",      "List: Check hash list from file", { mode = Mode.list; },
         "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; oautodetect = true; },
@@ -939,12 +937,15 @@ void main(string[] args)
         processCompare(newDigest(options.hash), entries);
         return;
     case Mode.text:
+        if (options.hash == Hash.none)
+            logError(2, "No hashes selected");
+        
         digest = newDigest(options.hash);
         foreach (string entry; entries)
         {
             digest.put(cast(ubyte[])entry);
         }
-        printHash(digest.finish(), text(`"`, entries.join(" "), `"`));
+        printHash(digest.finish(), text(`"`, entries.join(), `"`));
         return;
     }
 }
