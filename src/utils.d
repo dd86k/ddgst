@@ -6,7 +6,6 @@
 module utils;
 
 import std.conv : text;
-import std.file;
 import std.format.read : formattedRead;
 import std.string : toStringz;
 import std.datetime : Duration, dur;
@@ -209,13 +208,4 @@ unittest
     assert(isPattern(`file`) == false);
     assert(isPattern(`src/file`) == false);
     assert(isPattern(`src\file`) == false);
-}
-
-// This function won't throw due to a missing file, unlike isDir.
-bool isFolder(string entry)
-{
-    if (exists(entry) == false)
-        return false;
-    
-    return entry.isDir;
 }

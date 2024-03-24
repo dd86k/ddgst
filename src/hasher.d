@@ -13,7 +13,6 @@ public import std.digest.crc;
 public import std.digest.murmurhash;
 public import sha3d, blake2d;
 import std.base64;
-import std.format : formattedRead;
 import std.string : indexOf;
 
 // Adds dynamic seeding to supported hashes

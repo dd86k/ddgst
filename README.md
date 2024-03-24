@@ -1,4 +1,4 @@
-# ddgst, DD's Hashing command utility
+# ddgst, dd's digest utility
 
 ddgst is a simple hasher available cross-platform (Windows, macOS, Linux, BSDs)
 and comes with more features than built-in OS utilities.

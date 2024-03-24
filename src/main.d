@@ -5,20 +5,19 @@
 /// License: CC0
 module main;
 
+import core.stdc.stdlib : exit;
 import std.array : join;
 import std.conv : text;
 import std.datetime.stopwatch;
 import std.digest : secureEqual;
-import std.string : lineSplitter, indexOf, stripRight;
 import std.file;
 import std.format : format;
 import std.getopt;
-import std.stdio;
-import std.process;
-import std.traits : EnumMembers;
 import std.path : baseName, dirName;
-import core.stdc.stdlib : exit;
-import hasher, reader, mtdir, utils;
+import std.stdio;
+import std.string : lineSplitter;
+import std.traits : EnumMembers;
+import hasher, mtdir, reader, utils;
 
 // NOTE: secureEqual usage
 //       In the case where someone is using this utility on a server,
