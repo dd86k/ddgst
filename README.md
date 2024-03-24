@@ -165,28 +165,19 @@ The default parameters used in `dirEntries` are:
 - But doesn't match `example.d`, `src/.ddd`, and `src/.e`;
 - Basically all files ending with `.d` and `.dd` in the `src` directory, following symlinks.
 
-## Memory-mapped Files
-
-The mmfile mode's performance may vary on systems. Typically, file
-mode is faster on Windows, and mmfile mode is faster on Linux systems.
-
-The default is file.
-
-## Errors
+# Errors
 
 | Code  | Description |
 |-------|---|
 | 1	| CLI error |
 | 2	| No hashes selected or autocheck not used |
-| 3	| Internal error: Unable to initiate hash module with hash |
+| 3	| Internal error |
 | 4	| Failed to set the hash key |
 | 5	| Failed to set the hash seed |
-| 6	| No such file |
-| 7	| Could not determine hash type |
+| 6	| Missing entries |
 | 9	| Could not hash text argument |
 | 10	| List is empty |
-| 11	| Unsupported tag format in list due to missing filename |
-| 12	| Internal error: Couldn't continue processing list |
+| 11	| Unsupported style format |
 | 15	| Two or more files are required to compare |
 
 # Compiling

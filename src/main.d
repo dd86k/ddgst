@@ -45,6 +45,20 @@ else
     extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 }
 
+enum // Error codes
+{
+    ECLI        = 1,    /// CLI error
+    ENOHASH     = 2,    /// No hashes selected or autocheck not used
+    EINTERNAL   = 3,    /// Internal error
+    ENOKEY      = 4,    /// Failed to set the hash key
+    ENOSEED     = 5,    /// Failed to set the hash seed
+    ENOARGS     = 6,    /// Missing entries
+    ENOTEXT     = 9,    /// Could not hash text argument
+    ENOLIST     = 10,   /// List is empty
+    ENOSTYLE    = 11,   /// Unsupported style format
+    ENOCMP      = 15,   /// Two or more files are required to compare
+}
+
 alias readAll = std.file.read;
 
 immutable string PAGE_VERSION =
@@ -293,8 +307,8 @@ Digest newDigest(Hash hash)
         case murmurhash3_32:     (cast(MurmurHash3_32_SeededDigest)digest).seed(options.seed); break;
         case murmurhash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)digest).seed(options.seed); break;
         case murmurhash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)digest).seed(options.seed); break;
-        default: throw new Exception(
-            text("Digest ", options.hash, " does not support seeding."));
+        default:
+            logError(ENOSEED, "Digest %s does not support seeding.", hash);
         }
     }
     if (options.key)
@@ -302,8 +316,8 @@ Digest newDigest(Hash hash)
         switch (hash) with (Hash) {
         case blake2s256: (cast(BLAKE2s256Digest)digest).key(options.key); break;
         case blake2b512: (cast(BLAKE2b512Digest)digest).key(options.key); break;
-        default: throw new Exception(
-            text("Digest ", options.hash, " does not support keying."));
+        default: 
+            logError(ENOKEY, "Digest %s does not support keying.", hash);
         }
     }
     return digest;
@@ -425,13 +439,13 @@ int processList(string path, bool autodetect, Style style)
         
         // Error out if no digest was selected or guessed
         if (options.hash == Hash.none)
-            logError(2, autodetect ? "No hashes detected" : "No hashes selected");
+            logError(ENOHASH, autodetect ? "No hashes detected" : "No hashes selected");
         
         // Read the entire text file into memory
         //TODO: Could be made a warning
         string text = readText(path);
         if (text.length == 0)
-            logError(10, "%s: Empty file", path);
+            logError(ENOLIST, "%s: List is empty", path);
 
         string entryFile, entryHash, entryTag, lastTag;
 
@@ -451,7 +465,7 @@ int processList(string path, bool autodetect, Style style)
                 else if (readGNULine(line, entryHash, entryFile))
                     style = Style.gnu;
                 else
-                    logError(12, "Unknown hash style format");
+                    logError(ENOSTYLE, "Unknown hash style format");
                 
                 break;
             }
@@ -503,10 +517,10 @@ int processList(string path, bool autodetect, Style style)
                 digest = newDigest(newhash);
                 continue;
             case sri:
-                logError(11, "SRI hash format is not supported in file checks");
+                logError(ENOSTYLE, "SRI hash format is not supported in file checks");
                 break;
             case plain:
-                logError(11, "Plain hash format is not supported in file checks");
+                logError(ENOSTYLE, "Plain hash format is not supported in file checks");
                 break;
             }
 
@@ -541,7 +555,7 @@ int processList(string path, bool autodetect, Style style)
     }
     catch (Exception ex)
     {
-        logError(12, ex.msg);
+        logError(EINTERNAL, ex.msg);
     }
 
     return 0;
@@ -594,7 +608,7 @@ void processCompare(Digest digest, string[] entries)
     const size_t size = entries.length;
 
     if (size < 2)
-        logError(15, "Comparison needs 2 or more files");
+        logError(ENOCMP, "Comparison needs 2 or more files");
 
     //TODO: Consider an associated array
     //      Would remove duplicates, but at the same time, this removes
@@ -763,7 +777,7 @@ void main(string[] args)
     }
     catch (Exception ex)
     {
-        logError(1, ex.msg);
+        logError(ECLI, ex.msg);
     }
 
     enum SECRETS = 1;
@@ -819,11 +833,17 @@ void main(string[] args)
     
     // No entries or stdin option
     //TODO: stdin option can be applied for a few modes, like check
-    if (entries.length == 0 || ostdin)
+    if (entries.length == 0)
     {
-        if (options.hash == Hash.none)
-            logError(2, "No hashes selected");
-        printHash(hashFile(newDigest(options.hash), stdin), "-");
+        if (mode != Mode.file || ostdin)
+        {
+            if (options.hash == Hash.none)
+                logError(ENOHASH, "No hashes selected");
+            printHash(hashFile(newDigest(options.hash), stdin), "-");
+            return;
+        }
+        
+        logError(ENOARGS, "Missing entry arguments.");
     }
     
     //TODO: Might need to have a multithread stack-based hasher.
@@ -836,7 +856,7 @@ void main(string[] args)
     final switch (mode) {
     case Mode.file: // Default
         if (options.hash == Hash.none)
-            logError(2, "No hashes selected");
+            logError(ENOHASH, "No hashes selected");
         
         foreach (string entry; entries)
         {
@@ -854,7 +874,7 @@ void main(string[] args)
                 }
                 catch (Exception ex)
                 {
-                    logError(2, ex.msg);
+                    logError(ENOHASH, ex.msg);
                 }
                 continue;
             }
@@ -888,7 +908,7 @@ void main(string[] args)
         return;
     case Mode.against:
         if (options.hash == Hash.none)
-            logError(2, "No hashes selected");
+            logError(ENOHASH, "No hashes selected");
         
         foreach (string entry; entries)
         {
@@ -903,7 +923,7 @@ void main(string[] args)
                 }
                 catch (Exception ex)
                 {
-                    logError(2, ex.msg);
+                    logError(ENOHASH, ex.msg);
                 }
                 continue;
             }
@@ -932,13 +952,13 @@ void main(string[] args)
     case Mode.compare:
         //TODO: Consider choosing a default for this mode
         if (options.hash == Hash.none)
-            logError(2, "No hashes selected");
+            logError(ENOHASH, "No hashes selected");
         
         processCompare(newDigest(options.hash), entries);
         return;
     case Mode.text:
         if (options.hash == Hash.none)
-            logError(2, "No hashes selected");
+            logError(ENOHASH, "No hashes selected");
         
         digest = newDigest(options.hash);
         foreach (string entry; entries)
