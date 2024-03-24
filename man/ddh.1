@@ -1,21 +1,21 @@
-." TOPIC: ddh(1)
+." TOPIC: ddgst(1)
 ." AUTHOR: dd86k <dd@dax.moe>
 ."
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." If you're missing groff_man.7, install groff. Solid documentation.
 ."
-.TH ddh 1 "October 2022" dd86k "User manual"
+.TH ddgst 1 "October 2022" dd86k "User manual"
 .SH NAME
-ddh \- Generic hasher
+ddgst \- Generic hasher
 
 .SH SYNOPSIS
-.SY ddh
+.SY ddgst
 .OP options...|--autocheck
 .OP files...|--stdin
 .YS
 
 .SH DESCRIPTION
-.B ddh
+.B ddgst
 is a generic hasher. The main goal of this utility is to centralize
 the various options into one package for multiple systems.
 
@@ -34,27 +34,27 @@ operating systems. The Mmfile option is good for performance reasons.
 .SH EXAMPLES
 
 .TP
-.B ddh --hashes
+.B ddgst --hashes
 List supported checksum and hash algorithms and exit.
 
 .TP
-.BI "ddh --md5 " file
+.BI "ddgst --md5 " file
 Hashes 
 .I file
 using MD5.
 
 .TP
-.BI "echo " test " | ddh --sha1"
+.BI "echo " test " | ddgst --sha1"
 Use SHA-1 to read from the standard input file handle and digest a result.
 
 .TP
-.BI "ddh --sha256 " src/*
+.BI "ddgst --sha256 " src/*
 Use SHA-256 to hash all files in the
 .I src
 folder.
 
 .TP
-.BI "ddh --md5 -m -r " "*.{json,md}"
+.BI "ddgst --md5 -m -r " "*.{json,md}"
 Use MD5 to hash all files in sub-directories
 .RI ( -r )
 that end with .json or .md using the memory-mapped file option
@@ -62,12 +62,12 @@ that end with .json or .md using the memory-mapped file option
 using the embedded glob matcher.
 
 .TP
-.BI "ddh --sha256 -c " list
+.BI "ddgst --sha256 -c " list
 Use SHA-256 to verify the integrity a list of files. This is similar to
 .BR sha256sum\ -c\ list .
 
 .TP
-.BI "ddh --autocheck " list.sha1sum
+.BI "ddgst --autocheck " list.sha1sum
 Automatically detect and select hashing algorithm from file extension and use it
 to process the list.
 
@@ -107,7 +107,7 @@ blake2s256	BLAKE2s-256	BLAKE2S-256
 
 .SH OPTIONS
 
-ddh uses command switches to select hashes and other related options.
+ddgst uses command switches to select hashes and other related options.
 
 .SS Entry methods
 
@@ -243,4 +243,4 @@ Written by dd86k
 
 .SH LICENSE
 
-ddh is currently licensed under the CC0, and so is this document.
+ddgst is currently licensed under the CC0, and so is this document.

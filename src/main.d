@@ -48,18 +48,18 @@ else
 alias readAll = std.file.read;
 
 immutable string PAGE_VERSION =
-`ddh ` ~ APPVERSION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
+`ddgst ` ~ APPVERSION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
 Using sha3-d ` ~ SHA3D_VERSION_STRING ~ `, blake2-d ` ~ BLAKE2D_VERSION_STRING ~ `
 No rights reserved
 License: CC0
-Homepage: <https://github.com/dd86k/ddh>
+Homepage: <https://github.com/dd86k/ddgst>
 Compiler: ` ~ __VENDOR__ ~ format(" v%u.%03u", __VERSION__ / 1000, __VERSION__ % 1000);
 
 immutable string PAGE_HELP =
 `Usage:
-  ddh [options...] [files...|--stdin]
-  ddh [options...] --autocheck file
-  ddh {--ver|--version|--help|--license}
+  ddgst [options...] [files...|--stdin]
+  ddgst [options...] --autocheck file
+  ddgst {--ver|--version|--help|--license}
 
 Options:
       --            Stop processing options.`;

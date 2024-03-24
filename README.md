@@ -1,11 +1,11 @@
-# ddh, DD's Hashing command utility
+# ddgst, DD's Hashing command utility
 
-ddh is a simple hasher available cross-platform (Windows, macOS, Linux, BSDs)
+ddgst is a simple hasher available cross-platform (Windows, macOS, Linux, BSDs)
 and comes with more features than built-in OS utilities.
 
 ## Feature Comparison
 
-| Feature | ddh | GNU coreutils | uutils/coreutils | OpenSSL [^3] |
+| Feature | ddgst | GNU coreutils | uutils/coreutils | OpenSSL [^3] |
 |---|---|---|---|---|
 | Check support | ✔️ | ✔️[^2] | ✔️ | ✔️ |
 | GNU style hashes | ✔️ | ✔️ | ✔️[^4] | ✔️ |
@@ -14,7 +14,7 @@ and comes with more features than built-in OS utilities.
 
 ## Algorithm Comparison
 
-| Checksum/Hash | ddh | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
+| Checksum/Hash | ddgst | GNU coreutils | uutils/coreutils | OpenSSL[^3] |
 |---|---|---|---|---|
 | CRC-32 | ✔️ | | | |
 | CRC-64-ISO | ✔️ | | |
@@ -50,7 +50,7 @@ and comes with more features than built-in OS utilities.
 # Usage
 
 Usage:
-- `ddh [options...|--autocheck] [file|--stdin]`
+- `ddgst [options...|--autocheck] [file|--stdin]`
 
 With no arguments, the help page is shown.
 
@@ -66,25 +66,25 @@ Other styles include BSD (`--tag`), SRI (`--sri`), and plain (`--plain`).
 
 GNU style:
 ```text
-$ ddh --md5 LICENSE
+$ ddgst --md5 LICENSE
 3853e2a78a247145b4aa16667736f6de  LICENSE
 ```
 
 BSD style:
 ```text
-$ ddh --md5 --tag LICENSE
+$ ddgst --md5 --tag LICENSE
 MD5(LICENSE)= 3853e2a78a247145b4aa16667736f6de
 ```
 
 SRI style:
 ```text
-$ ddh --md5 --sri LICENSE
+$ ddgst --md5 --sri LICENSE
 md5-HSZ86zqNj3XxvjAR7ky/Uw==
 ```
 
 Plain:
 ```text
-$ ddh --md5 --plain LICENSE
+$ ddgst --md5 --plain LICENSE
 1d267ceb3a8d8f75f1be3011ee4cbf53
 ```
 
@@ -94,7 +94,7 @@ todo
 
 Check against file list:
 ```text
-$ ddh --sha256 -c list # Add --tag for BSD style
+$ ddgst --sha256 -c list # Add --tag for BSD style
 file1: OK
 file2: FAILED
 2 total: 1 mismatch, 0 not read
@@ -102,7 +102,7 @@ file2: FAILED
 
 Autodetect hash:
 ```shell
-$ ddh --autocheck list.sha256
+$ ddgst --autocheck list.sha256
 file: OK
 file2: FAILED
 2 total: 1 mismatch, 0 not read
@@ -113,7 +113,7 @@ file2: FAILED
 todo
 
 ```text
-$ ddh --sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
+$ ddgst --sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
 LICENSE: OK
 ```
 
@@ -122,7 +122,7 @@ LICENSE: OK
 todo
 
 ```text
-$ ddh --sha512 --compare LICENSE README.md dub.sdl 
+$ ddgst --sha512 --compare LICENSE README.md dub.sdl 
 Files 'LICENSE' and 'README.md' are different
 Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different

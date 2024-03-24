@@ -1,6 +1,6 @@
-name "ddh"
+name "ddgst"
 description "dd's hashing utility"
-homepage "https://github.com/dd86k/ddh"
+homepage "https://github.com/dd86k/ddgst"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
 dependency "sha3-d" version="~>1.2.4"
