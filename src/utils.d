@@ -12,6 +12,10 @@ import std.datetime : Duration, dur;
 import core.stdc.stdio : sscanf;
 import core.stdc.ctype : toupper;
 
+//TODO: entryState(path)
+//      Possible performance gain avoiding calling exists() and isDir()
+//      Use OS functions (GetFileAttributes/GetFileType, stat_t, etc.)
+
 /// Parse string into a 32-bit unsigned integer.
 /// Params: input = 
 /// Returns: Unformatted number.
@@ -208,4 +212,59 @@ unittest
     assert(isPattern(`file`) == false);
     assert(isPattern(`src/file`) == false);
     assert(isPattern(`src\file`) == false);
+}
+
+int compareList(T)(T[] items, bool function(T,T) fcompare,
+    void delegate(T[],size_t,size_t) fannounce = null)
+{
+    if (items.length <= 1)
+        return 0;
+
+    int mismatch;
+    
+    // Compare every hashes together.
+    // The outer loop checks the secondary entry, traveling towards the end.
+    for (size_t distance = 1; distance < items.length; ++distance)
+    {
+        for (size_t index; index < items.length; ++index)
+        {
+            size_t index2 = index + distance;
+
+            if (index2 >= items.length)
+                break;
+
+            // Skip error entries
+            if (items[index2] == T.init)
+                continue;
+            
+            T a = items[index];
+            T b = items[index2];
+
+            if (fcompare(a, b))
+                continue;
+
+            if (fannounce) fannounce(items, index, index2);
+
+            ++mismatch;
+        }
+    }
+    
+    return mismatch;
+}
+unittest
+{
+    import std.stdio;
+    
+    static bool cmp(immutable(char) a, immutable(char) b)
+    {
+        return a == b;
+    }
+    
+    assert(compareList("AAA",   &cmp) == 0);
+    assert(compareList("AAB",   &cmp) == 2);
+    assert(compareList("AAB",   &cmp) == 2);
+    assert(compareList("AAA",   &cmp) == 0);
+    assert(compareList("ABC",   &cmp) == 3);
+    assert(compareList("ABCD",  &cmp) == 6);
+    assert(compareList("ABCDE", &cmp) == 10);
 }

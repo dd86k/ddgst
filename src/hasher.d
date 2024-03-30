@@ -174,7 +174,7 @@ unittest
     
 }
 
-const(char)[] formatHashHex(Hash hash, ubyte[] result)
+const(char)[] formatHex(Hash hash, ubyte[] result)
 {
     version (BigEndian)
         enum ORDER = Order.increasing;
@@ -187,16 +187,17 @@ const(char)[] formatHashHex(Hash hash, ubyte[] result)
 }
 unittest
 {
-    
+    //TODO: Endian-based tests for checksums
 }
 
-const(char)[] formatHashBase64(Hash hash, ubyte[] result)
+const(char)[] formatBase64(Hash hash, ubyte[] result)
 {
-    return null;
+    return Base64.encode(result);
 }
 unittest
 {
-    
+    //TODO: Endian-based tests for checksums
+    assert(formatBase64(Hash.md5, cast(ubyte[])"test")     == "dGVzdA==");
 }
 
 ubyte[] unformatHex(string input)

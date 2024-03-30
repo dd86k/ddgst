@@ -21,8 +21,7 @@ import hasher, mtdir, reader, utils;
 
 // NOTE: secureEqual usage
 //       In the case where someone is using this utility on a server,
-//       it's simply better being safe than sorry. At the same time,
-//       if that were the case, what the hell?
+//       it's simply better being safe than sorry.
 
 //TODO: Messages to avoid copy-paste
 //      Could have functions like (e.g.) ensureIsDir that would return true if
@@ -41,7 +40,7 @@ else
     // except for debug builds
     extern (C) __gshared bool rt_cmdline_enabled = false;
     // Disable runtime environment variables
-    extern(C) __gshared bool rt_envvars_enabled = false;
+    extern (C) __gshared bool rt_envvars_enabled = false;
     // Leave GC enabled, but avoid cleanup on exit
     extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 }
@@ -337,16 +336,16 @@ void printHash(ubyte[] result, string filename)
     
     final switch (options.style) with (Style) {
     case gnu: // hash  file
-        writeln(formatHashHex(options.hash, result), "  ", filename);
+        writeln(formatHex(options.hash, result), "  ", filename);
         break;
     case bsd: // TAG(file)= hash
-        writeln(getBSDName(options.hash), "(", filename, ")= ", formatHashHex(options.hash, result));
+        writeln(getBSDName(options.hash), "(", filename, ")= ", formatHex(options.hash, result));
         break;
     case sri: // type-hash
-        writeln(getAliasName(options.hash), '-', formatHashBase64(options.hash, result));
+        writeln(getAliasName(options.hash), '-', formatBase64(options.hash, result));
         break;
     case plain: // hash
-        writeln(formatHashHex(options.hash, result));
+        writeln(formatHex(options.hash, result));
         break;
     }
 }
@@ -598,55 +597,45 @@ void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
 // Mode: Compare
 //
 
-//TODO: Consider making a foreach-compatible function for this
-//      popFront returning T[2] (or tuple)
 /// Compare all file entries against each other.
-/// O: O(n * log(n)) (according to friend)
-/// Params: entries: List of files
+/// BigO: O(n * log(n)) (according to friend)
+/// Params:
+///   digest = Digest instance.
+///   entries = List of entries.
 /// Returns: Error code.
 void processCompare(Digest digest, string[] entries)
 {
     const size_t size = entries.length;
+    
+    //TODO: Support patterns
 
     if (size < 2)
         logError(ENOCMP, "Comparison needs 2 or more files");
 
     // Hash all entries eagerly
     immutable(ubyte)[][] hashes = new immutable(ubyte)[][size];
-    for (size_t index; index < size; ++index)
+    foreach (index, entry; entries)
     {
         ubyte[] fhash = hashFile(digest, entries[index]);
         if (fhash is null)
             continue;
 
+        // NOTE: Duplicating this is cheaper thank pre-allocating everything
         hashes[index] = fhash.idup;
     }
-
-    // Compare hashes
-    uint smismatch; /// Number of mismatching files
-    for (size_t distance = 1; distance < size; ++distance)
+    
+    static bool cmp(immutable(ubyte)[] a, immutable(ubyte)[] b)
     {
-        for (size_t index; index < size; ++index)
-        {
-            size_t index2 = index + distance;
-
-            if (index2 >= size)
-                break;
-
-            if (secureEqual(hashes[index], hashes[index2]))
-                continue;
-
-            ++smismatch;
-
-            string entry1 = entries[index];
-            string entry2 = entries[index2];
-
-            writeln("Files '", entry1, "' and '", entry2, "' are different");
-        }
+        return secureEqual(a, b);
     }
 
-    if (smismatch == 0)
-        writefln("All files identical");
+    int mismatch = compareList(hashes, &cmp,
+        (immutable(ubyte)[][] items, size_t i1, size_t i2) {
+            writeln("DIFFERENT: '", entries[i1], "' and '", entries[i2], "'");
+        });
+
+    if (mismatch == 0)
+        writefln("All entries identical; No mismatch found.");
 
     exit(0);
 }
@@ -777,7 +766,7 @@ void main(string[] args)
     }
 
     enum SECRETS = 1;
-    enum ALIASES = 24;
+    enum ALIASES = 25;
 
     // -h|--help: Show help page
     if (gres.helpWanted)
@@ -863,7 +852,7 @@ void main(string[] args)
                 }
                 catch (Exception ex)
                 {
-                    logError(ENOHASH, ex.msg);
+                    logError(EINTERNAL, ex.msg);
                 }
                 continue;
             }
@@ -912,7 +901,7 @@ void main(string[] args)
                 }
                 catch (Exception ex)
                 {
-                    logError(ENOHASH, ex.msg);
+                    logError(EINTERNAL, ex.msg);
                 }
                 continue;
             }
