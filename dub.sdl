@@ -17,14 +17,12 @@ buildType "release-nobounds-static" {
 	dflags "--static" platform="ldc"
 }
 
-# For the needy
-buildType "release-nobounds-extreme" {
+# Native build with fast-math option enabled
+buildType "native" {
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
-	dflags "-ffast-math" platform="gdc"
-	dflags "-checkaction=halt" platform="dmd"
-	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" platform="ldc"
-	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=nehalem" platform="x86_64-ldc"
-	dflags "--checkaction=halt" "--float-abi=hard" "--ffast-math" "--mcpu=core2" platform="x86-ldc"
+	dflags "-mcpu=native" platform="dmd"
+	dflags "-ffast-math" "-march=native" platform="gdc"
+	dflags "--ffast-math" "-mcpu=native" platform="ldc"
 }
 
 # Verbose on GC/TLS usage
