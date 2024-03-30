@@ -73,8 +73,9 @@ immutable string PAGE_HELP =
 `Usage:
   ddgst [options...] [files...|-]
   ddgst [options...] {--autocheck|--check} list
-  ddgst [options...] --args text...
+  ddgst [options...] --against=HASH files...
   ddgst [options...] --compare files...
+  ddgst [options...] --args text...
   ddgst [options...] --benchmark
   ddgst {--ver|--version|--help|--license}
 
@@ -741,9 +742,8 @@ void main(string[] args)
         "c|check",      "List: Check hash list from file", { mode = Mode.list; },
         "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; oautodetect = true; },
         // Path options
-        "r|depth",      "Depth: Deepest directories first", { options.span = SpanMode.depth; },
-        "breath",       "Depth: Sub directories first",     { options.span = SpanMode.breadth; },
-        "shallow",      "Depth: Same directory (default)",  { options.span = SpanMode.shallow; },
+        "r|depth",      "Depth: Traverse deepest sub-directories first", { options.span = SpanMode.depth; },
+        "breath",       "Depth: Traverse immediate sub-directories first",     { options.span = SpanMode.breadth; },
         "nofollow",     "Links: Do not follow symbolic links", &onofollow,
         // Hash formatting
         "tag",          "Create BSD-style hashes", { options.style = Style.bsd; },
@@ -775,6 +775,7 @@ void main(string[] args)
     // -h|--help: Show help page
     if (gres.helpWanted)
     {
+    Lhelp:
         writeln(PAGE_HELP);
         foreach (ref Option opt; gres.options[ALIASES + SECRETS..$])
         {
@@ -815,12 +816,14 @@ void main(string[] args)
     //TODO: make function ensureHashSelected()
     //      exit if no hash selected
     
-    // No entries or stdin option
+    // If there are no entries and no hash, bring up the help page!
+    if (entries.length == 0 && options.hash == Hash.none)
+        goto Lhelp;
+    
+    // Hash selected, no entries, stdin sub-mode
     if (entries.length == 0)
     {
     Lstdin:
-        if (options.hash == Hash.none)
-            logError(ENOHASH, "No hashes selected");
         printHash(hashFile(newDigest(options.hash), stdin), "-");
         return;
     }
@@ -885,7 +888,7 @@ void main(string[] args)
     case Mode.list:
         foreach (string entry; entries)
         {
-            processList(entry, oautodetect, options.style);
+            cast(void)processList(entry, oautodetect, options.style);
         }
         return;
     case Mode.against:
