@@ -50,7 +50,12 @@ and comes with more features than built-in OS utilities.
 # Usage
 
 Usage:
-- `ddgst [options...|--autocheck] [file|--stdin]`
+- `ddgst [options...] [file|-]`
+- `ddgst [options...] {--check|--autocheck} list`
+- `ddgst [options...] --against=HASH files...`
+- `ddgst [options...] --compare files...`
+- `ddgst [options...] --args text...`
+- `ddgst [options...] --benchmark`
 
 With no arguments, the help page is shown.
 
