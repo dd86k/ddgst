@@ -62,43 +62,26 @@ For a list of supported checksums and hashes, use the `--hashes` switch.
 
 The default mode is hashing files and directories using the GNU style.
 
-Other styles include BSD (`--tag`), SRI (`--sri`), and plain (`--plain`).
+Styles available:
 
-GNU style:
+| Style | Argument |Example |
+|---|---|---|
+| GNU (default) | | `3853e2a78a247145b4aa16667736f6de  LICENSE` |
+| BSD | `--tag` | `MD5(LICENSE)= 3853e2a78a247145b4aa16667736f6de` |
+| SRI | `--sri` | `md5-HSZ86zqNj3XxvjAR7ky/Uw==` |
+| Plain | `--plain` | `3853e2a78a247145b4aa16667736f6de` |
+
+## Check list of hashes
+
+Check against file list (supports `--tag`):
 ```text
-$ ddgst --md5 LICENSE
-3853e2a78a247145b4aa16667736f6de  LICENSE
-```
-
-BSD style:
-```text
-$ ddgst --md5 --tag LICENSE
-MD5(LICENSE)= 3853e2a78a247145b4aa16667736f6de
-```
-
-SRI style:
-```text
-$ ddgst --md5 --sri LICENSE
-md5-HSZ86zqNj3XxvjAR7ky/Uw==
-```
-
-Plain:
-```text
-$ ddgst --md5 --plain LICENSE
-1d267ceb3a8d8f75f1be3011ee4cbf53
-```
-
-## Check list using hash
-
-Check against file list:
-```text
-$ ddgst --sha256 -c list # Add --tag for BSD style
+$ ddgst --sha256 -c list
 file1: OK
 file2: FAILED
 2 total: 1 mismatch, 0 not read
 ```
 
-Autodetect hash:
+Using autodetection:
 ```text
 $ ddgst --autocheck list.sha256
 file: OK
@@ -107,6 +90,8 @@ file2: FAILED
 ```
 
 ## Check files against a hash digest
+
+Supports hex and base64 digests.
 
 ```text
 $ ddgst --sha1 LICENSE -A f6067df486cbdbb0aac026b799b26261c92734a3
@@ -122,20 +107,20 @@ Files 'README.md' and 'dub.sdl' are different
 Files 'LICENSE' and 'dub.sdl' are different
 ```
 
-## Hash text
+## Hash text entries
 
 ```text
-$ ddgst --crc32 --arg "Argument with spaces" Arguments without spaces
+$ ddgst --crc32 --args "Argument with spaces" Arguments without spaces
 f17cf59f  "Argument with spacesArgumentswithoutspaces"
 ```
 
-# Hash parameters
+# Digest parameters
 
 Some hashes may take optional parameters.
 
 - Murmurhash3
   - The `--seed` option takes an argument literal for seeding the hash.
-  - Can only be a 32-bit seed.
+  - Can only be a 32-bit integer seed in decimal format.
 - BLAKE2
   - The `--key` option takes a binary file for keying the hash.
   - BLAKE2s: Key can be up to 64 Bytes in size.
