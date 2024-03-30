@@ -40,6 +40,8 @@ else
     // Disables the Druntime GC command-line interface
     // except for debug builds
     extern (C) __gshared bool rt_cmdline_enabled = false;
+    // Disable runtime environment variables
+    extern(C) __gshared bool rt_envvars_enabled = false;
     // Leave GC enabled, but avoid cleanup on exit
     extern (C) __gshared string[] rt_options = [ "cleanup:none" ];
 }
@@ -70,7 +72,7 @@ Compiler: ` ~ __VENDOR__ ~ format(" v%u.%03u", __VERSION__ / 1000, __VERSION__ %
 
 immutable string PAGE_HELP =
 `Usage:
-  ddgst [options...] [files...|--stdin]
+  ddgst [options...] [files...|-]
   ddgst [options...] --autocheck file
   ddgst {--ver|--version|--help|--license}
 
@@ -609,10 +611,6 @@ void processCompare(Digest digest, string[] entries)
     if (size < 2)
         logError(ENOCMP, "Comparison needs 2 or more files");
 
-    //TODO: Consider an associated array
-    //      Would remove duplicates, but at the same time, this removes
-    //      all user-supplied positions and may confuse people if unordered.
-    
     // Hash all entries eagerly
     immutable(ubyte)[][] hashes = new immutable(ubyte)[][size];
     for (size_t index; index < size; ++index)
@@ -685,7 +683,6 @@ void main(string[] args)
     //TODO: Option for unsafe hash comparisons? (not using secureEqual)
     bool ohashes;
     bool onofollow;
-    bool ostdin;
     bool oautodetect;
     bool obenchmark;
     int othreads = 1;
@@ -723,7 +720,6 @@ void main(string[] args)
         "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         // Input options
         "arg",          "Input: Argument is input data as UTF-8 text", { mode = Mode.text; },
-        "stdin",        "Input: Standard input (stdin)", &ostdin,
         "A|against",    "Compare hash against file/directory entries",
             (string _, string uhash) {
                 mode = Mode.against;
@@ -815,14 +811,9 @@ void main(string[] args)
     if (obenchmark)
     {
         ubyte[] buffer = new ubyte[options.bufferSize];
-        
         writeln("* buffer size: ", buffer.length.toStringBinary());
-        
         foreach (Hash ht; EnumMembers!Hash[1..$]) // Skip 'none'
-        {
             benchDigest(ht, buffer);
-        }
-        
         exit(0);
     }
     
@@ -832,26 +823,21 @@ void main(string[] args)
     //      exit if no hash selected
     
     // No entries or stdin option
-    //TODO: stdin option can be applied for a few modes, like check
     if (entries.length == 0)
     {
-        if (mode != Mode.file || ostdin)
-        {
-            if (options.hash == Hash.none)
-                logError(ENOHASH, "No hashes selected");
-            printHash(hashFile(newDigest(options.hash), stdin), "-");
-            return;
-        }
-        
-        logError(ENOARGS, "Missing entry arguments.");
+    Lstdin:
+        if (options.hash == Hash.none)
+            logError(ENOHASH, "No hashes selected");
+        printHash(hashFile(newDigest(options.hash), stdin), "-");
+        return;
     }
     
     //TODO: Might need to have a multithread stack-based hasher.
     //      Each entry aren't being multithreaded (unless std.parallelism.parallel)
     //      is used, but needs to be applied to the other modes (list, compare, etc.).
     //      Stack could have "file" and "dir" entries (to expand later with dirEntries).
-    //TODO: Do a function with callback/delegate for mode behavior?
     //TODO: Cache per-thread digest instance when pattern is used again?
+    //      e.g., Allocate thread or instance buffer outside of mtdir.
     Digest digest;
     final switch (mode) {
     case Mode.file: // Default
@@ -860,6 +846,9 @@ void main(string[] args)
         
         foreach (string entry; entries)
         {
+            if (entry == "-")
+                goto Lstdin;
+            
             // If a pattern character is detected (es. on Windows),
             // it's a glob pattern for dirEntries.
             // e.g., "../*.d"

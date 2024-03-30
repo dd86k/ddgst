@@ -251,7 +251,7 @@ ubyte[] unformatBase64(string input)
 }
 unittest
 {
-    assert(unformatHashBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
+    assert(unformatBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
 }
 
 /// Find hash type by entry name (filename, extension, etc.).
