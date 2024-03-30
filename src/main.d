@@ -72,7 +72,10 @@ Compiler: ` ~ __VENDOR__ ~ format(" v%u.%03u", __VERSION__ / 1000, __VERSION__ %
 immutable string PAGE_HELP =
 `Usage:
   ddgst [options...] [files...|-]
-  ddgst [options...] --autocheck file
+  ddgst [options...] {--autocheck|--check} list
+  ddgst [options...] --args text...
+  ddgst [options...] --compare files...
+  ddgst [options...] --benchmark
   ddgst {--ver|--version|--help|--license}
 
 Options:
@@ -698,15 +701,16 @@ void main(string[] args)
         "sha512",       "SHA-512",      { options.hash = Hash.sha512; },
         "sha512-224",   "SHA-512/224",  { options.hash = Hash.sha512_224; },
         "sha512-256",   "SHA-512/256",  { options.hash = Hash.sha512_256; },
-        "sha3",         "Alias for sha3-256",    { options.hash = Hash.sha3_256; },
         "sha3-224",     "SHA-3-224",    { options.hash = Hash.sha3_224; },
         "sha3-256",     "SHA-3-256",    { options.hash = Hash.sha3_256; },
         "sha3-384",     "SHA-3-384",    { options.hash = Hash.sha3_384; },
         "sha3-512",     "SHA-3-512",    { options.hash = Hash.sha3_512; },
+        "sha3",         "Alias for sha3-256",    { options.hash = Hash.sha3_256; },
         "shake128",     "SHAKE-128",    { options.hash = Hash.shake128; },
         "shake256",     "SHAKE-256",    { options.hash = Hash.shake256; },
         "blake2s256",   "BLAKE2s-256",  { options.hash = Hash.blake2s256; },
         "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
+        "b2",           "Alias for BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         // Input options
         "args",         "Use entries as input text data (UTF-8)", { mode = Mode.text; },
         "A|against",    "Compare hash against file/directory entries",
@@ -766,7 +770,7 @@ void main(string[] args)
     }
 
     enum SECRETS = 1;
-    enum ALIASES = 25;
+    enum ALIASES = 26;
 
     // -h|--help: Show help page
     if (gres.helpWanted)
