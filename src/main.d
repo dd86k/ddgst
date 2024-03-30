@@ -380,8 +380,6 @@ ubyte[] hashFile(Digest digest, string path)
 // NOTE: file can be a stream!
 ubyte[] hashFile(Digest digest, ref File file)
 {
-    version (Trace) trace("path=%s", path);
-
     try
     {
         digest.reset();
@@ -540,8 +538,6 @@ int processList(string path, bool autodetect, Style style)
 
             // Parse entry hash to byte array
             ubyte[] hashExpected = unformatHex(entryHash);
-
-            version (Trace) trace("result=%s expected=%s", result, expected);
 
             // Compare binary hashes.
             // secureEqual is used in case this is used server-side.
@@ -852,8 +848,9 @@ void main(string[] args)
             {
                 try
                 {
-                    scope pattern = baseName(entry); // Extract pattern
                     scope folder  = dirName(entry);  // Results to "." by default
+                    scope pattern = baseName(entry); // Extract pattern
+                    version (Trace) trace("folder=%s pattern=%s", folder, pattern);
                     dirEntriesMT(folder, pattern, options.span, !onofollow,
                         &initThreadDigest, &mtDirEntry, othreads);
                 }

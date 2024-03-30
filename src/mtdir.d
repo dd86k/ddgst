@@ -7,7 +7,7 @@ module mtdir;
 
 import std.concurrency;
 import std.file;
-import std.path : globMatch;
+import std.path : globMatch, baseName;
 import std.parallelism : totalCPUs;
 
 //TODO: Find a way to construct dirEntries iterator.
@@ -65,7 +65,7 @@ void dirEntriesSTImpl(string path, string pattern, SpanMode mode, bool follow,
     immutable(void)* uobj = fnspawn();
     foreach (DirEntry entry; dirEntries(path, mode, follow))
     {
-        if (pattern && globMatch(entry.name, pattern) == false)
+        if (pattern && globMatch(baseName(entry.name), pattern) == false)
             continue;
         fnentry(entry, uobj);
     }
@@ -95,7 +95,7 @@ void dirEntriesMTImpl(string path, string pattern, SpanMode mode, bool followLin
     int cur; // Current thread index
     foreach (DirEntry entry; dirEntries(path, mode, followLinks))
     {
-        if (pattern && globMatch(entry.name, pattern) == false)
+        if (pattern && globMatch(baseName(entry.name), pattern) == false)
             continue;
         send(pool[cur], MsgEntry(entry));
         if (++cur >= threads) cur = 0;
