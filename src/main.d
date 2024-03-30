@@ -708,7 +708,7 @@ void main(string[] args)
         "blake2s256",   "BLAKE2s-256",  { options.hash = Hash.blake2s256; },
         "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         // Input options
-        "arg",          "Input: Argument is input data as UTF-8 text", { mode = Mode.text; },
+        "args",         "Use entries as input text data (UTF-8)", { mode = Mode.text; },
         "A|against",    "Compare hash against file/directory entries",
             (string _, string uhash) {
                 mode = Mode.against;
