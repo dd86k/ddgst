@@ -4,32 +4,74 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." If you're missing groff_man.7, install groff. Solid documentation.
 ."
-.TH ddgst 1 "October 2022" dd86k "User manual"
+.TH ddgst 1 "March 2024" dd86k "User manual"
 .SH NAME
-ddgst \- Generic hasher
+ddgst \- Hasher and file checker
 
 .SH SYNOPSIS
 .SY ddgst
-.OP options...|--autocheck
-.OP files...|--stdin
+.OP options...
+.I files...|-
+.YS
+
+.SY ddgst
+.OP options...
+.B --check|--autocheck
+.I list
+.YS
+
+.SY ddgst
+.OP options...
+.B --against=HASH
+.I files...
+.YS
+
+.SY ddgst
+.OP options...
+.B --compare
+.I files...
+.YS
+
+.SY ddgst
+.OP options...
+.B --args
+.I text...
+.YS
+
+.SY ddgst
+.OP options...
+.B --benchmark
+.YS
+
+.SY ddgst
+.B --version | --help | --license
 .YS
 
 .SH DESCRIPTION
 .B ddgst
-is a generic hasher. The main goal of this utility is to centralize
-the various options into one package for multiple systems.
+is a file hasher and file checker. The main goal of this utility is to
+centralize the various options into one package for multiple systems.
 
 By default, the GNU-style checksums are used. You can use
 .B --tag
-to switch to the BSD-style checksums. This affects reading lists.
-
-There is also
+to switch to the BSD-style checksums. This affects reading lists. There is also
 .B --sri
 for a Sub-Resource Integrity style hash. This is not supported in lists.
 
-The default entry mode is File for being the best case scenario for
-behaving better on zero-length files, network shares, and on most
-operating systems. The Mmfile option is good for performance reasons.
+The
+.B --check
+and
+.B --autocheck
+option can be used to check a list of files with hashes.
+
+The
+.B --against
+option is useful for checking a downloaded file against a digest you can
+usually paste into your terminal emulator.
+
+The
+.B --compare
+option is a fast way to compare two or more files.
 
 .SH EXAMPLES
 
@@ -54,8 +96,8 @@ Use SHA-256 to hash all files in the
 folder.
 
 .TP
-.BI "ddgst --md5 -m -r " "*.{json,md}"
-Use MD5 to hash all files in sub-directories
+.BI "ddgst --md5 -r " "*.{json,md}"
+Use MD5 to hash all files in sub-directories recursively
 .RI ( -r )
 that end with .json or .md using the memory-mapped file option
 .RI ( -m )
@@ -73,37 +115,9 @@ to process the list.
 
 .SH ALIASES
 
-Below is a list of supported checksum and hash algorithms.
-
-.fi t \{\
-.ft CW
-\}
-.TS
-l	l2	l.
-Alias	Name	Tag
-_
-crc32	CRC-32	CRC32
-crc64iso	CRC-64-ISO	CRC64ISO
-crc64ecma	CRC-64-ECMA	CRC64ECMA
-murmur3a	MurmurHash3-32	MURMURHASH3-32
-murmur3c	MurmurHash3-128/32	MURMURHASH3-128-32
-murmur3f	MurmurHash3-128/64	MURMURHASH3-128-64
-md5	MD5-128	MD5
-ripemd160	RIPEMD-160	RIPEMD160
-sha1	SHA-1-160	SHA1
-sha224	SHA-2-224	SHA2-224
-sha256	SHA-2-256	SHA2-256
-sha384	SHA-2-384	SHA2-384
-sha512	SHA-2-512	SHA2-512
-sha3-224	SHA-3-224	SHA3-224
-sha3-256	SHA-3-256	SHA3-256
-sha3-384	SHA-3-384	SHA3-384
-sha3-512	SHA-3-512	SHA3-512
-shake128	SHAKE-128	SHAKE-128
-shake256	SHAKE-256	SHAKE-256
-blake2b512	BLAKE2b-512	BLAKE2B-512
-blake2s256	BLAKE2s-256	BLAKE2S-256
-.TE
+You can check the list of supported hashes, checksums, and aliases using the
+.B --hashes
+argument.
 
 .SH OPTIONS
 
@@ -114,20 +128,27 @@ ddgst uses command switches to select hashes and other related options.
 The default entry type are files. However, multiple types can be used at once.
 
 .TP
-.BI "-a " text ", --arg=" text
+.B --args
 Hashes 
 .I text
-given as an argument (as UTF-8).
+entries given as arguments, as UTF-8.
 
 This is similar to using 
 .B --stdin
-and echoing text into it.
+and echoing text into it, but makes it more portable since different systems
+may output different newlines formats.
 
 .TP
 .BI "-c " list ", --check=" list
 Check and verify files in 
 .B list
 with their hashes.
+
+.TP
+.BI "-a " list ", --autocheck=" list
+Check and verify files in 
+.B list
+with their hashes by automatically indentifying their hash and format.
 
 .TP
 .BI "--compare " "files..."
@@ -138,45 +159,20 @@ Compare all files to each other.
 Compare all files to hash string.
 
 .TP
-.B --stdin
-Sets input to the standard input. If no file entries are given, this becomes
-active.
+.BI "-j " threads ", --parallel=" threads
+Spawns specified amount of threads for hashing.
 
-.SS File input options
+Only supported for the default mode.
 
-.TP
-.B -f, --file
-Set input mode to file (default).
-
-.TP
-.B -b, --binary
-File: Set read mode to binary (default).
-
-.TP
-.B -t, --text
-File: Set read mode to text.
-
-.TP
-.B -m, --mmfile
-Set input mode to memory-mapped file.
-
-.SS Globber engine
-
-.TP
-.B --shallow
-Same-level directory (default).
+.SS Traversing options
 
 .TP
 .B -r, --depth
 Deepest directories first.
 
 .TP
--B --breath
+.B --breath
 Sub directories first.
-
-.TP
-.B --follow
-Follow symbolic links (default).
 
 .TP
 .B --nofollow
@@ -194,7 +190,7 @@ Create SRI-style hashes.
 
 .TP
 .B -B, --buffersize
-Set real buffer size for file/mmfile/stdin (default=4K).
+Set real buffer size for reading. The default is 1 MiB.
 
 .SH ERRORS
 
@@ -207,15 +203,13 @@ Code	Description
 _
 1	CLI error
 2	No hashes selected or autocheck not enabled
-3	Internal error: Unable to initiate hash module with hash
+3	Internal error
 4	Failed to set the hash key
 5	Failed to set the hash seed
-6	No such file
-7	Could not determine hash type
+6	Missing entries
 9	Could not hash text argument
 10	List is empty
-11	Unsupported tag format in list due to missing filename
-12	Internal error: Couldn't continue processing list
+11	Unsupported style format
 15	Two or more files are required to compare
 .TE
 
@@ -237,10 +231,15 @@ interface disabled.
 HMAC is not supported.
 
 .SH AUTHOR
+
 Written by dd86k
 .MT dd@dax.moe
 .ME .
 
+.UR https://github.com/dd86k/ddgst
+Project homepage
+.UE
+
 .SH LICENSE
 
-ddgst is currently licensed under the CC0, and so is this document.
+ddgst is currently licensed under the CC0-1.0 license, and so is this document.
