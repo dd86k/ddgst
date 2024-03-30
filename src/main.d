@@ -712,6 +712,7 @@ void main(string[] args)
         "sha512",       "SHA-512",      { options.hash = Hash.sha512; },
         "sha512-224",   "SHA-512/224",  { options.hash = Hash.sha512_224; },
         "sha512-256",   "SHA-512/256",  { options.hash = Hash.sha512_256; },
+        "sha3",         "Alias for sha3-256",    { options.hash = Hash.sha3_256; },
         "sha3-224",     "SHA-3-224",    { options.hash = Hash.sha3_224; },
         "sha3-256",     "SHA-3-256",    { options.hash = Hash.sha3_256; },
         "sha3-384",     "SHA-3-384",    { options.hash = Hash.sha3_384; },

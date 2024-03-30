@@ -254,7 +254,7 @@ unittest
     assert(unformatHashBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
 }
 
-/// Guess hash type by extension name.
+/// Find hash type by entry name (filename, extension, etc.).
 /// Params: path = Path, filename will be extract from this.
 /// Returns: Hash type.
 Hash guessHash(const(char)[] path) @safe
