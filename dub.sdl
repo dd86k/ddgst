@@ -11,7 +11,7 @@ buildType "trace" {
 	buildOptions "debugMode" "debugInfo"
 }
 
-buildType "release-nobounds-static" {
+buildType "static" {
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 	dflags "-static" platform="gdc"
 	dflags "--static" platform="ldc"
