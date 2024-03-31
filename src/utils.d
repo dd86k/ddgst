@@ -6,9 +6,10 @@
 module utils;
 
 import std.conv : text;
+import std.datetime : Duration, dur;
 import std.format.read : formattedRead;
 import std.string : toStringz;
-import std.datetime : Duration, dur;
+import std.path : dirSeparator;
 import core.stdc.stdio : sscanf;
 import core.stdc.ctype : toupper;
 
@@ -17,14 +18,24 @@ import core.stdc.ctype : toupper;
 //      Use OS functions (GetFileAttributes/GetFileType, stat_t, etc.)
 
 /// Parse string into a 32-bit unsigned integer.
-/// Params: input = 
+/// Params: input = String user input.
 /// Returns: Unformatted number.
-uint cparse(string input)
+int cparse(string input)
 {
     int u = void;
     if (sscanf(input.toStringz, "%i", &u) != 1)
         throw new Exception("Could not parse input");
     return cast(uint)u;
+}
+unittest
+{
+    import std.conv : octal;
+    assert(cparse("0") == 0);
+    assert(cparse("1") == 1);
+    assert(cparse("010") == octal!10);
+    assert(cparse("0x10") == 0x10);
+    assert(cparse("0x7fffffff") == 0x7fff_ffff);
+    assert(cparse("0x80000000") == 0x8000_0000);
 }
 
 private enum
@@ -267,4 +278,23 @@ unittest
     assert(compareList("ABC",   &cmp) == 3);
     assert(compareList("ABCD",  &cmp) == 6);
     assert(compareList("ABCDE", &cmp) == 10);
+}
+
+// Better than the dirSeparator string
+private immutable string pf = "."~dirSeparator;
+
+// Fixes the annoying relative path that dirEntries *might* introduce.
+// Safer than preemptively truncating it.
+string fixpath(string entry)
+{
+    if (entry.length <= pf.length)
+        return entry;
+    
+    return entry[0..pf.length] != pf ? entry : entry[pf.length..$];
+}
+unittest
+{
+    assert(fixpath("a") == "a");
+    assert(fixpath("abc") == "abc");
+    assert(fixpath(pf~"abc") == "abc");
 }

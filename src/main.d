@@ -398,7 +398,7 @@ ubyte[] hashFile(Digest digest, ref File file)
 // NOTE: This is called from another thread
 void mtDirEntry(DirEntry entry, immutable(void)* uobj)
 {
-    string path = entry.name[2..$];
+    string path = fixpath( entry.name );
     
     if (entry.isDir())
     {
@@ -412,7 +412,7 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)
     {
         Digest digest = cast(Digest)uobj; // Get thread-assigned instance
         digest.reset();
-        printHash(hashFile(digest, entry.name), path);
+        printHash(hashFile(digest, path), path);
     }
     catch (Exception ex)
     {
@@ -567,7 +567,7 @@ int processList(string path, bool autodetect, Style style)
 
 void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
 {
-    string path = entry.name[2..$];
+    string path = fixpath( entry.name );
     
     if (entry.isDir())
     {
