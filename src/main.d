@@ -6,6 +6,7 @@
 module main;
 
 import core.stdc.stdlib : exit;
+import core.bitop : bswap;
 import std.array : join;
 import std.conv : text;
 import std.datetime.stopwatch;
@@ -70,14 +71,23 @@ Homepage: <https://github.com/dd86k/ddgst>
 Compiler: ` ~ __VENDOR__ ~ format(" v%u.%03u", __VERSION__ / 1000, __VERSION__ % 1000);
 
 immutable string PAGE_HELP =
-`Usage:
-  ddgst [options...] [files...|-]
-  ddgst [options...] {--autocheck|--check} list
-  ddgst [options...] --against=HASH files...
-  ddgst [options...] --compare files...
-  ddgst [options...] --args text...
-  ddgst [options...] --benchmark
-  ddgst {--ver|--version|--help|--license}
+`USAGE
+
+Hash files or stdin:
+  ddgst --HASH [FILES...|-] [options...]
+
+Compare files from a list:
+  ddgst --HASH --check LIST [options...]
+  ddgst --autocheck LIST [options...]
+
+Compare files against a digest:
+  ddgst --HASH --against=digest FILES... [options...]
+
+Compare files against each other:
+  ddgst --HASH --compare FILES... [options...]
+
+Hash arguments as text data:
+  ddgst --HASH --args TEXT... [options...]
 
 Options:
       --            Stop processing options.`;
@@ -537,7 +547,7 @@ int processList(string path, bool autodetect, Style style)
             }
 
             // Parse entry hash to byte array
-            ubyte[] hashExpected = unformatHex(entryHash);
+            ubyte[] hashExpected = parseHex(entryHash);
 
             // Compare binary hashes.
             // secureEqual is used in case this is used server-side.
@@ -612,6 +622,8 @@ void processCompare(Digest digest, string[] entries)
     if (size < 2)
         logError(ENOCMP, "Comparison needs 2 or more files");
 
+    // TODO: Pre-allocate digest buffers
+
     // Hash all entries eagerly
     immutable(ubyte)[][] hashes = new immutable(ubyte)[][size];
     foreach (index, entry; entries)
@@ -620,7 +632,6 @@ void processCompare(Digest digest, string[] entries)
         if (fhash is null)
             continue;
 
-        // NOTE: Duplicating this is cheaper thank pre-allocating everything
         hashes[index] = fhash.idup;
     }
     
@@ -711,25 +722,29 @@ void main(string[] args)
         // Input options
         "args",         "Use entries as input text data (UTF-8)", { mode = Mode.text; },
         "A|against",    "Compare hash against file/directory entries",
-            (string _, string uhash) {
+            (string _, string value) {
                 mode = Mode.against;
                 
-                ubyte[] base64;
+                options.against = parseHex(value);
+            },
+        "against-sri",  "Compare SRI against file/directory entries",
+            (string _, string value) {
+                mode = Mode.against;
+                
+                // Try SRI format
                 string t, h;
-                if (readSRILine(uhash, t, h))
+                if (readSRILine(value, t, h)) // Try hash-base64digest
                 {
                     Hash hash = guessHash(t);
-                    if (hash != Hash.none)
-                        options.hash = hash;
+                    if (hash != Hash.none)   // otherwise, leave it at none
+                        options.hash = hash; // another check is performed later
                     
-                    base64 = unformatBase64(h);
+                     options.against = parseBase64(h);
                 }
-                else
+                else // Try base64 digest only
                 {
-                    base64 = unformatBase64(uhash);
+                     options.against = parseBase64(value);
                 }
-                
-                options.against = base64 is null ? unformatHex(uhash) : base64;
             },
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=1M)",
             (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
@@ -807,10 +822,10 @@ void main(string[] args)
         exit(0);
     }
     
-    string[] entries = args[1..$];
+    // From this point, a hash must be selected
     
-    //TODO: make function ensureHashSelected()
-    //      exit if no hash selected
+    // Get argument entries
+    string[] entries = args[1..$];
     
     // If there are no entries and no hash, bring up the help page!
     if (entries.length == 0 && options.hash == Hash.none)
@@ -891,6 +906,32 @@ void main(string[] args)
     case Mode.against:
         if (options.hash == Hash.none)
             logError(ENOHASH, "No hashes selected");
+        if (options.against == null)
+            logError(EINTERNAL, "Missing digest to compare with");
+        
+        // If a checksum was selected, "normalize" it.
+        // This is due to how sums work as integers and on little-endian plaforms
+        // the hex number ordering is inversed.
+version (LittleEndian)
+{
+        switch (options.hash) {
+        case Hash.crc32:
+            if (options.against.length < uint.sizeof)
+                logError(EINTERNAL, "Not enough bytes for comparison");
+            
+            uint *u32p = cast(uint*)options.against.ptr;
+            *u32p = bswap(*u32p);
+            break;
+        case Hash.crc64ecma, Hash.crc64iso:
+            if (options.against.length < ulong.sizeof)
+                logError(EINTERNAL, "Not enough bytes for comparison");
+            
+            ulong *u64p = cast(ulong*)options.against.ptr;
+            *u64p = bswap(*u64p);
+            break;
+        default:
+        }
+}
         
         foreach (string entry; entries)
         {

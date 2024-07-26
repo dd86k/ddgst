@@ -200,7 +200,7 @@ unittest
     assert(formatBase64(Hash.md5, cast(ubyte[])"test")     == "dGVzdA==");
 }
 
-ubyte[] unformatHex(string input)
+ubyte[] parseHex(string input)
 {
     if (input.length == 0)
         return [];
@@ -234,16 +234,16 @@ ubyte[] unformatHex(string input)
 }
 unittest
 {
-    assert(unformatHex("")     == []);
-    assert(unformatHex("0")    == [ 0x00 ]);
-    assert(unformatHex("00")   == [ 0x00 ]);
-    assert(unformatHex("0000") == [ 0x00, 0x00 ]);
-    assert(unformatHex("1234") == [ 0x12, 0x34 ]);
-    assert(unformatHex("3853e2a78a247145b4aa16667736f6de") ==
+    assert(parseHex("")     == []);
+    assert(parseHex("0")    == [ 0x00 ]);
+    assert(parseHex("00")   == [ 0x00 ]);
+    assert(parseHex("0000") == [ 0x00, 0x00 ]);
+    assert(parseHex("1234") == [ 0x12, 0x34 ]);
+    assert(parseHex("3853e2a78a247145b4aa16667736f6de") ==
         [ 0x38,0x53,0xe2,0xa7,0x8a,0x24,0x71,0x45,0xb4,0xaa,0x16,0x66,0x77,0x36,0xf6,0xde ]);
 }
 
-ubyte[] unformatBase64(string input)
+ubyte[] parseBase64(string input)
 {
     try
         return Base64.decode(input);
@@ -252,7 +252,7 @@ ubyte[] unformatBase64(string input)
 }
 unittest
 {
-    assert(unformatBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
+    assert(parseBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
 }
 
 /// Find hash type by entry name (filename, extension, etc.).

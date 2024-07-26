@@ -280,7 +280,7 @@ unittest
     assert(compareList("ABCDE", &cmp) == 10);
 }
 
-// Better than the dirSeparator string
+// dirEnties entry prefix
 private immutable string pf = "."~dirSeparator;
 
 // Fixes the annoying relative path that dirEntries *might* introduce.
