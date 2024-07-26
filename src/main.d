@@ -747,7 +747,7 @@ void main(string[] args)
                 }
             },
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=1M)",
-            (string _, string usize) { options.bufferSize = usize.toBinaryNumber(); },
+            (string _, string usize) { options.bufferSize = cast(size_t)usize.toBinaryNumber(); },
         "j|parallel",   "Spawn n threads for pattern entries, 0 for all (Default=1)", &othreads,
         // Check file options
         "c|check",      "List: Check hash list from file", { mode = Mode.list; },
