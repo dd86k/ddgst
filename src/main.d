@@ -28,7 +28,7 @@ import hasher, mtdir, reader, utils;
 //      Could have functions like (e.g.) ensureIsDir that would return true if
 //      entry is a directory, and prints a warning.
 
-enum APPVERSION = "3.0.0";
+enum APPVERSION = "3.0.1";
 
 debug
 {
