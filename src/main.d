@@ -24,10 +24,6 @@ import hasher, mtdir, reader, utils;
 //       In the case where someone is using this utility on a server,
 //       it's simply better being safe than sorry.
 
-//TODO: Messages to avoid copy-paste
-//      Could have functions like (e.g.) ensureIsDir that would return true if
-//      entry is a directory, and prints a warning.
-
 enum APPVERSION = "3.0.1";
 
 debug
@@ -219,11 +215,11 @@ immutable string PAGE_COFE = q"SECRET
 
       ) ) )
      ( ( (
-    .......
+     _____
    _|     |
   / |     |
   \_|     |
-    `-----´
+    |_____|
 SECRET";
 
 //TODO: Reduce global usage
@@ -259,9 +255,9 @@ enum Mode
 // Logging
 //
 
-version (Trace) void trace(string func = __FUNCTION__, A...)(string fmt, A args)
+version (Trace) void trace(string func = __FUNCTION__, int line = __LINE__, A...)(string fmt, A args)
 {
-    write("TRACE:", func, ": ");
+    write("TRACE:", func, ":", line, ": ");
     writefln(fmt, args);
 }
 
@@ -836,12 +832,6 @@ void main(string[] args)
         return;
     }
     
-    //TODO: Might need to have a multithread stack-based hasher.
-    //      Each entry aren't being multithreaded (unless std.parallelism.parallel)
-    //      is used, but needs to be applied to the other modes (list, compare, etc.).
-    //      Stack could have "file" and "dir" entries (to expand later with dirEntries).
-    //TODO: Cache per-thread digest instance when pattern is used again?
-    //      e.g., Allocate thread or instance buffer outside of mtdir.
     Digest digest;
     final switch (mode) {
     case Mode.file: // Default
