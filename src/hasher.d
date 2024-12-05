@@ -64,6 +64,32 @@ enum Style
     plain
 }
 
+/*
+                    BSD             GNU
+crc32               "CRC32"
+crc64iso            "CRC64ISO"
+crc64ecma           "CRC64ECMA"
+murmurhash3_32      "MURMUR3A"
+murmurhash3_128_32  "MURMUR3C"
+murmurhash3_128_64  "MURMUR3F"
+md5                 "MD5"
+ripemd160           "RIPEMD160"     "RMD160"
+sha1                "SHA1"
+sha224              "SHA2-224"      "SHA224"
+sha256              "SHA2-256"      "SHA256"
+sha384              "SHA2-384"      "SHA384"
+sha512              "SHA2-512"      "SHA512"
+sha512_224          "SHA2-512/224"
+sha512_256          "SHA2-512/256"
+sha3_224            "SHA3-224"
+sha3_256            "SHA3-256"
+sha3_384            "SHA3-384"
+sha3_512            "SHA3-512"
+shake128            "SHAKE-128"
+shake256            "SHAKE-256"
+blake2s256          "BLAKE2S-256"  "BLAKE2s"
+blake2b512          "BLAKE2B-512"  "BLAKE2b"
+*/
 struct HashName
 {
     Hash hash;
@@ -72,7 +98,6 @@ struct HashName
     string bsdTag; // OpenSSL uses this
     string gnuTag;
 }
-
 immutable HashName[] hashNames = [
     // NOTE: Checksum tag names are assumed
     //                          Alias         Full-digest/core      BSD             GNU
@@ -181,7 +206,7 @@ const(char)[] formatHex(Hash hash, ubyte[] result)
     else
         enum ORDER = Order.decreasing;
     
-    return hash <= Hash.crc64ecma ?
+    return hash <= Hash.crc64ecma ? // is checksum?
         result.toHexString!(LetterCase.lower, ORDER) :
         result.toHexString!(LetterCase.lower);
 }
@@ -265,18 +290,19 @@ unittest
 Hash guessHash(const(char)[] path) @safe
 {
     import std.string : toLower, indexOf;
-    import std.path : extension, baseName, globMatch, CaseSensitive;
-    import std.algorithm.searching : canFind, startsWith;
- 
-    const(char)[] name = baseName(path).toLower;
- 
+    import std.path : baseName;
+
+    const(char)[] name = baseName(path).toLower; // filename + extension
+
+    // Try main aliases first because "sha3" will be contained
+    // in "sha386sums", for example, and must be rendered invalid.
     foreach (info; hashNames)
     {
         if (indexOf(name, info.alias_) >= 0)
             return info.hash;
     }
- 
-    // aliases
+
+    // Try shorter aliases
     struct Alias
     {
         string name;
@@ -290,7 +316,7 @@ Hash guessHash(const(char)[] path) @safe
         if (indexOf(name, alias_.name) >= 0)
             return alias_.type;
     }
- 
+
     return Hash.none;
 }
 @safe unittest

@@ -431,7 +431,7 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)
 //
 
 //TODO: Could separate file read and line splitter to introduce tests?
-int processList(string path, bool autodetect, Style style)
+int processList(string path, bool autodetect, Style style, bool showstats)
 {
     version (Trace) trace("list=%s", path);
     
@@ -554,7 +554,8 @@ int processList(string path, bool autodetect, Style style)
             writeln(entryFile, ": OK");
         }
         
-        writeln(stattotal, " total: ", statmismatch, " mismatch, ", staterror, " error");
+        if (showstats)
+            writeln(stattotal, " total: ", statmismatch, " mismatch, ", staterror, " error");
     }
     catch (Exception ex)
     {
@@ -671,13 +672,12 @@ void benchDigest(Hash hash, ubyte[] buffer)
 void main(string[] args)
 {
     //TODO: Option for file basenames/fullnames? (printing)
-    //TODO: Consider "building" options from stack to heap?
     //TODO: -z|--zero for terminating line with null instead of newline
-    //TODO: Option for unsafe hash comparisons? (not using secureEqual)
     bool ohashes;
     bool onofollow;
     bool oautodetect;
     bool obenchmark;
+    bool ohidestats;
     int othreads = 1;
     Mode mode;
     GetoptResult gres = void;
@@ -685,6 +685,7 @@ void main(string[] args)
     {
         gres = getopt(args, config.caseSensitive,
         "cofe",         "",             { writeln(PAGE_COFE); exit(0); },
+        "coffee",       "",             { writeln(PAGE_COFE); exit(0); },
         // Hash selection (delegate-based to avoid extra string comparisons)
         "crc32",        "CRC-32",       { options.hash = Hash.crc32; },
         "crc64iso",     "CRC-64-ISO",   { options.hash = Hash.crc64iso; },
@@ -717,7 +718,6 @@ void main(string[] args)
         "A|against",    "Compare hash against file/directory entries",
             (string _, string value) {
                 mode = Mode.against;
-                
                 options.against = parseHex(value);
             },
         "against-sri",  "Compare SRI against file/directory entries",
@@ -745,6 +745,7 @@ void main(string[] args)
         // Check file options
         "c|check",      "List: Check hash list from file", { mode = Mode.list; },
         "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; oautodetect = true; },
+        "hidestats",    "List: Hide end statistics", &ohidestats,
         // Path options
         "r|depth",      "Depth: Traverse deepest sub-directories first", { options.span = SpanMode.depth; },
         "breath",       "Depth: Traverse immediate sub-directories first",     { options.span = SpanMode.breadth; },
@@ -773,7 +774,7 @@ void main(string[] args)
         logError(ECLI, ex.msg);
     }
 
-    enum SECRETS = 1;
+    enum SECRETS = 2;
     enum ALIASES = 26;
 
     // -h|--help: Show help page
@@ -887,7 +888,7 @@ void main(string[] args)
     case Mode.list:
         foreach (string entry; entries)
         {
-            cast(void)processList(entry, oautodetect, options.style);
+            cast(void)processList(entry, oautodetect, options.style, !ohidestats);
         }
         return;
     case Mode.against:
