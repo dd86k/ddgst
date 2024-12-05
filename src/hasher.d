@@ -230,11 +230,15 @@ ubyte[] parseHex(string input)
         low = !low;
     }
     
-    return buffer;
+    // When invalid characters are skipped, they do not contribute
+    // to the total length of the slice, and since `bufidx` isn't
+    // incremented, 
+    return buffer[0..bufidx + low];
 }
 unittest
 {
     assert(parseHex("")     == []);
+    assert(parseHex("z")    == []);
     assert(parseHex("0")    == [ 0x00 ]);
     assert(parseHex("00")   == [ 0x00 ]);
     assert(parseHex("0000") == [ 0x00, 0x00 ]);
@@ -252,7 +256,7 @@ ubyte[] parseBase64(string input)
 }
 unittest
 {
-    assert(parseBase64("dGVzdA==")     == [ 't', 'e', 's', 't' ]);
+    assert(parseBase64("dGVzdA==") == cast(ubyte[])"test");
 }
 
 /// Find hash type by entry name (filename, extension, etc.).

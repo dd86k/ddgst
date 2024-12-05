@@ -438,50 +438,37 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)
 int processList(string path, bool autodetect, Style style)
 {
     version (Trace) trace("list=%s", path);
+    
+    final switch (style) with (Style) {
+    case gnu: break;
+    case bsd: break;
+    case sri:
+        logError(ENOSTYLE, "SRI hash format is not supported in file checks");
+        break;
+    case plain:
+        logError(ENOSTYLE, "Plain hash format is not supported in file checks");
+        break;
+    }
 
     try
     {
-        // Autodetect: Guess digest, only override if detected
+        // Autodetect: Guess digest used in filename
         if (autodetect)
-        {
-            Hash hash = guessHash(path);
-            if (hash != Hash.none)
-                options.hash = hash;
-        }
+            options.hash = guessHash(path);
         
         // Error out if no digest was selected or guessed
         if (options.hash == Hash.none)
             logError(ENOHASH, autodetect ? "No hashes detected" : "No hashes selected");
         
         // Read the entire text file into memory
-        //TODO: Could be made a warning
-        string text = readText(path);
+        scope string text = readText(path);
         if (text.length == 0)
-            logError(ENOLIST, "%s: List is empty", path);
+        {
+            logWarn("%s: List is empty", path);
+            return ENOLIST;
+        }
 
         string entryFile, entryHash, entryTag, lastTag;
-
-        // Autodetect: Guess the line format
-        if (autodetect)
-        {
-            // Get the first line only, skip comments
-            foreach (string line; lineSplitter(text))
-            {
-                // If line empty or starts with a comment
-                if (line.length == 0 || line[0] == '#')
-                    continue;
-                
-                // Try reading BSD and GNU style, if both fail, exit with error
-                if (readBSDLine(line, entryTag, entryFile, entryHash))
-                    style = Style.bsd;
-                else if (readGNULine(line, entryHash, entryFile))
-                    style = Style.gnu;
-                else
-                    logError(ENOSTYLE, "Unknown hash style format");
-                
-                break;
-            }
-        }
 
         // Check every hash entry!
         uint statmismatch, staterror, stattotal;
@@ -495,13 +482,27 @@ int processList(string path, bool autodetect, Style style)
             if (line.length == 0 || line[0] == '#')
                 continue;
 
-            final switch (style) with (Style)
+            // Autodetect: Guess the line format
+            if (autodetect)
             {
+                if (readBSDLine(line, entryTag, entryFile, entryHash))
+                    style = Style.bsd;
+                else if (readGNULine(line, entryHash, entryFile))
+                    style = Style.gnu;
+                else
+                {
+                    logWarn("Unknown hash style format at line %u", currline);
+                    continue;
+                }
+            }
+
+            switch (style) with (Style) {
             case gnu:
                 if (readGNULine(line, entryHash, entryFile) == false)
                 {
                     ++staterror;
                     logWarn("Could not read GNU tag at line %u", currline);
+                    continue;
                 }
                 break;
             case bsd:
@@ -528,12 +529,8 @@ int processList(string path, bool autodetect, Style style)
                 lastTag = entryTag;
                 digest = newDigest(newhash);
                 continue;
-            case sri:
-                logError(ENOSTYLE, "SRI hash format is not supported in file checks");
-                break;
-            case plain:
-                logError(ENOSTYLE, "Plain hash format is not supported in file checks");
-                break;
+            default:
+                assert(0);
             }
 
             ++stattotal;
