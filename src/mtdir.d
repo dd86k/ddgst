@@ -59,7 +59,7 @@ void dirEntriesMT(string path, string pattern, SpanMode mode, bool follow,
 
 private:
 
-// When threads=1 is specified
+// Single-threaded (threads == 1)
 void dirEntriesSTImpl(string path, string pattern, SpanMode mode, bool follow,
     immutable(void)* function() fnspawn,
     void function(DirEntry, immutable(void)*) fnentry)
@@ -73,7 +73,7 @@ void dirEntriesSTImpl(string path, string pattern, SpanMode mode, bool follow,
     }
 }
 
-// threads >= 0
+// Multi-threaded (threads != 1)
 void dirEntriesMTImpl(string path, string pattern, SpanMode mode, bool followLinks,
     immutable(void)* function() fnspawn,
     void function(DirEntry, immutable(void)*) fnentry,

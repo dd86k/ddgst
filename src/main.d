@@ -18,7 +18,8 @@ import std.path : baseName, dirName;
 import std.stdio;
 import std.string : lineSplitter;
 import std.traits : EnumMembers;
-import hasher, mtdir, reader, utils;
+import ddgst, mtdir, reader, utils;
+import printers;
 
 // NOTE: secureEqual usage
 //       In the case where someone is using this utility on a server,
@@ -222,19 +223,24 @@ immutable string PAGE_COFE = q"SECRET
     |_____|
 SECRET";
 
-//TODO: Reduce global usage
 struct HasherOptions
 {
     Hash hash;
     Style style;
-    Digest digest;
-    size_t bufferSize = MiB!1;
+    
+    size_t buffersize = MiB!1;
     uint seed;
     ubyte[] key;
     SpanMode span;
     ubyte[] against;
+    
+    bool nofollow;
+    bool autodetect;
+    bool benchmark;
+    bool hidestats;
+    
+    int threads = 1;
 }
-__gshared HasherOptions options;
 
 // App mode
 enum Mode
@@ -252,35 +258,10 @@ enum Mode
 }
 
 //
-// Logging
-//
-
-version (Trace) void trace(string func = __FUNCTION__, int line = __LINE__, A...)(string fmt, A args)
-{
-    write("TRACE:", func, ":", line, ": ");
-    writefln(fmt, args);
-}
-
-void logWarn(string func = __FUNCTION__, A...)(string fmt, A args)
-{
-    stderr.write("warning: ");
-    debug stderr.write("[", func, "] ");
-    stderr.writefln(fmt, args);
-}
-
-void logError(string mod = __FUNCTION__, int line = __LINE__, A...)(int code, string fmt, A args)
-{
-    stderr.writef("error: (code %d) ", code);
-    debug stderr.write("[", mod, ":", line, "] ");
-    stderr.writefln(fmt, args);
-    exit(code);
-}
-
-//
 // Digest management
 //
 
-Digest newDigest(Hash hash)
+Digest newDigest(Hash hash, uint seed, ubyte[] key)
 {
     // NOTE: Using multiple switches is fine for now...
     Digest digest = void;
@@ -310,22 +291,27 @@ Digest newDigest(Hash hash)
     case blake2b512:            digest = new BLAKE2b512Digest(); break;
     case none:                  assert(false, "Not supposed to happen!");
     }
-    //TODO: Fix ugly global hack
-    if (options.seed)
+    if (seed)
     {
         switch (hash) with (Hash) {
-        case murmurhash3_32:     (cast(MurmurHash3_32_SeededDigest)digest).seed(options.seed); break;
-        case murmurhash3_128_32: (cast(MurmurHash3_128_32_SeededDigest)digest).seed(options.seed); break;
-        case murmurhash3_128_64: (cast(MurmurHash3_128_64_SeededDigest)digest).seed(options.seed); break;
+        case murmurhash3_32:
+            (cast(MurmurHash3_32_SeededDigest)digest).seed(seed);
+            break;
+        case murmurhash3_128_32:
+            (cast(MurmurHash3_128_32_SeededDigest)digest).seed(seed);
+            break;
+        case murmurhash3_128_64:
+            (cast(MurmurHash3_128_64_SeededDigest)digest).seed(seed);
+            break;
         default:
             logError(ENOSEED, "Digest %s does not support seeding.", hash);
         }
     }
-    if (options.key)
+    if (key)
     {
         switch (hash) with (Hash) {
-        case blake2s256: (cast(BLAKE2s256Digest)digest).key(options.key); break;
-        case blake2b512: (cast(BLAKE2b512Digest)digest).key(options.key); break;
+        case blake2s256: (cast(BLAKE2s256Digest)digest).key(key); break;
+        case blake2b512: (cast(BLAKE2b512Digest)digest).key(key); break;
         default: 
             logError(ENOKEY, "Digest %s does not support keying.", hash);
         }
@@ -333,38 +319,19 @@ Digest newDigest(Hash hash)
     return digest;
 }
 
+__gshared HasherOptions temporary_hack;
 // This function is called per-thread to initiate hash
 immutable(void)* initThreadDigest()
 {
-    return cast(immutable(void)*)newDigest(options.hash);
-}
-
-void printHash(ubyte[] result, string filename)
-{
-    if (result == null)
-        return;
-    
-    final switch (options.style) with (Style) {
-    case gnu: // hash  file
-        writeln(formatHex(options.hash, result), "  ", filename);
-        break;
-    case bsd: // TAG(file)= hash
-        writeln(getBSDName(options.hash), "(", filename, ")= ", formatHex(options.hash, result));
-        break;
-    case sri: // type-hash
-        writeln(getAliasName(options.hash), '-', formatBase64(options.hash, result));
-        break;
-    case plain: // hash
-        writeln(formatHex(options.hash, result));
-        break;
-    }
+    with (temporary_hack)
+    return cast(immutable(void)*)newDigest(hash, seed, key);
 }
 
 //
 // 
 //
 
-ubyte[] hashFile(Digest digest, string path)
+ubyte[] hashFile(Digest digest, string path, size_t buffersize)
 {
     version (Trace) trace("path=%s", path);
 
@@ -373,8 +340,7 @@ ubyte[] hashFile(Digest digest, string path)
         // BUG: LDC crashes on opAssign
         File file;
         file.open(path, "rb");
-        scope(exit) file.close();
-        return hashFile(digest, file);
+        return hashFile(digest, file, buffersize);
     }
     catch (Exception ex)
     {
@@ -384,13 +350,13 @@ ubyte[] hashFile(Digest digest, string path)
 }
 
 // NOTE: file can be a stream!
-ubyte[] hashFile(Digest digest, ref File file)
+ubyte[] hashFile(Digest digest, ref File file, size_t buffersize)
 {
     try
     {
         digest.reset();
         
-        foreach (ubyte[] chunk; file.byChunk(options.bufferSize))
+        foreach (ubyte[] chunk; file.byChunk(buffersize))
             digest.put(chunk);
         return digest.finish();
     }
@@ -402,7 +368,7 @@ ubyte[] hashFile(Digest digest, ref File file)
 }
 
 // NOTE: This is called from another thread
-void mtDirEntry(DirEntry entry, immutable(void)* uobj)
+void mtDirEntry(DirEntry entry, immutable(void)* uobj)//, size_t buffersize, Hash hash, Style style)
 {
     string path = fixpath( entry.name );
     
@@ -418,7 +384,8 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)
     {
         Digest digest = cast(Digest)uobj; // Get thread-assigned instance
         digest.reset();
-        printHash(hashFile(digest, path), path);
+        with (temporary_hack)
+        printHash(hashFile(digest, path, temporary_hack.buffersize), path, hash, style);
     }
     catch (Exception ex)
     {
@@ -431,7 +398,7 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)
 //
 
 //TODO: Could separate file read and line splitter to introduce tests?
-int processList(string path, bool autodetect, Style style, bool showstats)
+int processList(string path, bool autodetect, Style style, bool showstats, Hash hash, uint seed, ubyte[] key, size_t buffersize)
 {
     version (Trace) trace("list=%s", path);
     
@@ -450,10 +417,10 @@ int processList(string path, bool autodetect, Style style, bool showstats)
     {
         // Autodetect: Guess digest used in filename
         if (autodetect)
-            options.hash = guessHash(path);
+            hash = guessHash(path);
         
         // Error out if no digest was selected or guessed
-        if (options.hash == Hash.none)
+        if (hash == Hash.none)
             logError(ENOHASH, autodetect ? "No hashes detected" : "No hashes selected");
         
         // Read the entire text file into memory
@@ -469,7 +436,7 @@ int processList(string path, bool autodetect, Style style, bool showstats)
         // Check every hash entry!
         uint statmismatch, staterror, stattotal;
         uint currline;  /// Current line
-        scope digest = newDigest(options.hash);
+        scope digest = newDigest(hash, seed, key);
         foreach (string line; lineSplitter(text))
         {
             ++currline;
@@ -523,7 +490,7 @@ int processList(string path, bool autodetect, Style style, bool showstats)
                 
                 // Worked out, save it and re-init digest
                 lastTag = entryTag;
-                digest = newDigest(newhash);
+                digest = newDigest(newhash, seed, key);
                 continue;
             default:
                 assert(0);
@@ -532,7 +499,7 @@ int processList(string path, bool autodetect, Style style, bool showstats)
             ++stattotal;
             
             // Hash file entry
-            ubyte[] hashResult = hashFile(digest, entryFile); // Warns on error
+            ubyte[] hashResult = hashFile(digest, entryFile, buffersize); // Warns on error
             if (hashResult == null)
             {
                 ++staterror;
@@ -569,7 +536,7 @@ int processList(string path, bool autodetect, Style style, bool showstats)
 // Mode: against hash
 //
 
-void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
+void processAgainstEntry(DirEntry entry, immutable(void)* uobj)//, ubyte[] against, size_t buffersize)
 {
     string path = fixpath( entry.name );
     
@@ -585,8 +552,8 @@ void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
     {
         Digest digest = cast(Digest)uobj; // Get thread-assigned instance
         digest.reset();
-        ubyte[] hash2 = hashFile(digest, entry);
-        if (secureEqual(options.against, hash2) == false)
+        ubyte[] hash2 = hashFile(digest, entry, temporary_hack.buffersize);
+        if (secureEqual(temporary_hack.against, hash2) == false)
         {
             logWarn("Entry '%s' is different", path);
         }
@@ -607,7 +574,7 @@ void processAgainstEntry(DirEntry entry, immutable(void)* uobj)
 ///   digest = Digest instance.
 ///   entries = List of entries.
 /// Returns: Error code.
-void processCompare(Digest digest, string[] entries)
+void processCompare(Digest digest, string[] entries, size_t buffersize)
 {
     const size_t size = entries.length;
     
@@ -622,7 +589,7 @@ void processCompare(Digest digest, string[] entries)
     immutable(ubyte)[][] hashes = new immutable(ubyte)[][size];
     foreach (index, entry; entries)
     {
-        ubyte[] fhash = hashFile(digest, entries[index]);
+        ubyte[] fhash = hashFile(digest, entries[index], buffersize);
         if (fhash is null)
             continue;
 
@@ -649,9 +616,9 @@ void processCompare(Digest digest, string[] entries)
 // Mode: Benchmark
 //
 
-void benchDigest(Hash hash, ubyte[] buffer)
+void benchDigest(Hash hash, ubyte[] buffer, uint seed, ubyte[] key)
 {
-    scope digest = newDigest(hash);
+    scope digest = newDigest(hash, seed, key);
     
     StopWatch sw;
     
@@ -673,12 +640,8 @@ void main(string[] args)
 {
     //TODO: Option for file basenames/fullnames? (printing)
     //TODO: -z|--zero for terminating line with null instead of newline
-    bool ohashes;
-    bool onofollow;
-    bool oautodetect;
-    bool obenchmark;
-    bool ohidestats;
-    int othreads = 1;
+    HasherOptions options;
+    bool ohashlist;
     Mode mode;
     GetoptResult gres = void;
     try
@@ -740,16 +703,16 @@ void main(string[] args)
                 }
             },
         "B|buffersize", "Set buffer size, affects file/mmfile/stdin (Default=1M)",
-            (string _, string usize) { options.bufferSize = cast(size_t)usize.toBinaryNumber(); },
-        "j|parallel",   "Spawn n threads for pattern entries, 0 for all (Default=1)", &othreads,
+            (string _, string usize) { options.buffersize = cast(size_t)usize.toBinaryNumber(); },
+        "j|parallel",   "Spawn n threads for pattern entries, 0 for all (Default=1)", &options.threads,
         // Check file options
         "c|check",      "List: Check hash list from file", { mode = Mode.list; },
-        "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; oautodetect = true; },
-        "hidestats",    "List: Hide end statistics", &ohidestats,
+        "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; options.autodetect = true; },
+        "hidestats",    "List: Hide end statistics", &options.hidestats,
         // Path options
         "r|depth",      "Depth: Traverse deepest sub-directories first", { options.span = SpanMode.depth; },
         "breath",       "Depth: Traverse immediate sub-directories first",     { options.span = SpanMode.breadth; },
-        "nofollow",     "Links: Do not follow symbolic links", &onofollow,
+        "nofollow",     "Links: Do not follow symbolic links", &options.nofollow,
         // Hash formatting
         "tag",          "Create BSD-style hashes", { options.style = Style.bsd; },
         "sri",          "Create SRI-style hashes", { options.style = Style.sri; },
@@ -761,9 +724,9 @@ void main(string[] args)
             (string _, string useed) { options.seed = cparse(useed); },
         // Special modes
         "C|compare",    "Compares all file entries", { mode = Mode.compare; },
-        "benchmark",    "Run benchmarks on all supported hashes", &obenchmark,
+        "benchmark",    "Run benchmarks on all supported hashes", &options.benchmark,
         // Pages
-        "H|hashes",     "List supported hashes", &ohashes,
+        "H|hashes",     "List supported hashes", &ohashlist,
         "version",      "Show version page and quit",   { writeln(PAGE_VERSION); exit(0); },
         "ver",          "Show version and quit",        { writeln(APPVERSION); exit(0); },
         "license",      "Show license page and quit",   { writeln(PAGE_LICENSE); exit(0); },
@@ -795,7 +758,7 @@ void main(string[] args)
     }
     
     // -H|--hashes: Show hash list
-    if (ohashes)
+    if (ohashlist)
     {
         writeln("Hashes available:");
         foreach (ref Option opt; gres.options[SECRETS..SECRETS+ALIASES])
@@ -807,12 +770,12 @@ void main(string[] args)
     
     // Benchmark mode requires no arguments
     // Having it here allows buffer arg to be set after this argument
-    if (obenchmark)
+    if (options.benchmark)
     {
-        ubyte[] buffer = new ubyte[options.bufferSize];
+        ubyte[] buffer = new ubyte[options.buffersize];
         writeln("* buffer size: ", buffer.length.toStringBinary());
         foreach (Hash ht; EnumMembers!Hash[1..$]) // Skip 'none'
-            benchDigest(ht, buffer);
+            benchDigest(ht, buffer, options.seed, options.key);
         exit(0);
     }
     
@@ -829,9 +792,16 @@ void main(string[] args)
     if (entries.length == 0)
     {
     Lstdin:
-        printHash(hashFile(newDigest(options.hash), stdin), "-");
+        printHash(
+            hashFile(
+                newDigest(options.hash, options.seed, options.key),
+            stdin, options.buffersize),
+        "-", options.hash, options.style);
         return;
     }
+    
+    // Temporary hack until MT implementations improve
+    temporary_hack = options;
     
     Digest digest;
     final switch (mode) {
@@ -854,8 +824,8 @@ void main(string[] args)
                     scope folder  = dirName(entry);  // Results to "." by default
                     scope pattern = baseName(entry); // Extract pattern
                     version (Trace) trace("folder=%s pattern=%s", folder, pattern);
-                    dirEntriesMT(folder, pattern, options.span, !onofollow,
-                        &initThreadDigest, &mtDirEntry, othreads);
+                    dirEntriesMT(folder, pattern, options.span, !options.nofollow,
+                        &initThreadDigest, &mtDirEntry, options.threads);
                 }
                 catch (Exception ex)
                 {
@@ -880,15 +850,16 @@ void main(string[] args)
             }
             
             // Here since pattern might be used
-            if (digest is null) digest = newDigest(options.hash);
+            if (digest is null) digest = newDigest(options.hash, options.seed, options.key);
             
-            printHash(hashFile(digest, entry), entry);
+            printHash(hashFile(digest, entry, options.buffersize), entry, options.hash, options.style);
         }
         return;
     case Mode.list:
         foreach (string entry; entries)
         {
-            cast(void)processList(entry, oautodetect, options.style, !ohidestats);
+            with (options)
+            cast(void)processList(entry, autodetect, style, !hidestats, hash, seed, key, buffersize);
         }
         return;
     case Mode.against:
@@ -927,10 +898,12 @@ version (LittleEndian)
             {
                 try
                 {
+                    temporary_hack = options;
+                    
                     scope pattern = baseName(entry); // Extract pattern
                     scope folder  = dirName(entry);  // Results to "." by default
-                    dirEntriesMT(folder, pattern, options.span, !onofollow,
-                        &initThreadDigest, &processAgainstEntry, othreads);
+                    dirEntriesMT(folder, pattern, options.span, !options.nofollow,
+                        &initThreadDigest, &processAgainstEntry, options.threads);
                 }
                 catch (Exception ex)
                 {
@@ -951,9 +924,9 @@ version (LittleEndian)
             }
             
             // Here since pattern might have been used
-            if (digest is null) digest = newDigest(options.hash);
+            if (digest is null) digest = newDigest(options.hash, options.seed, options.key);
             
-            ubyte[] hash2 = hashFile(digest, entry);
+            ubyte[] hash2 = hashFile(digest, entry, options.buffersize);
             if (secureEqual(options.against, hash2) == false)
             {
                 logWarn("Entry '%s' is different", entry);
@@ -965,18 +938,18 @@ version (LittleEndian)
         if (options.hash == Hash.none)
             logError(ENOHASH, "No hashes selected");
         
-        processCompare(newDigest(options.hash), entries);
+        processCompare(newDigest(options.hash, options.seed, options.key), entries, options.buffersize);
         return;
     case Mode.text:
         if (options.hash == Hash.none)
             logError(ENOHASH, "No hashes selected");
         
-        digest = newDigest(options.hash);
+        digest = newDigest(options.hash, options.seed, options.key);
         foreach (string entry; entries)
         {
             digest.put(cast(ubyte[])entry);
         }
-        printHash(digest.finish(), text(`"`, entries.join(), `"`));
+        printHash(digest.finish(), text(`"`, entries.join(), `"`), options.hash, options.style);
         return;
     }
 }

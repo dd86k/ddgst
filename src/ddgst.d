@@ -3,7 +3,7 @@
 /// Authors: dd86k <dd@dax.moe>
 /// Copyright: No rights reserved
 /// License: CC0
-module hasher;
+module ddgst;
 
 public import std.digest;
 public import std.digest.sha;
