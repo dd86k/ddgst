@@ -25,6 +25,7 @@ import printers;
 //       In the case where someone is using this utility on a server,
 //       it's simply better being safe than sorry.
 
+private:
 enum APPVERSION = "3.0.1";
 
 debug
@@ -59,13 +60,7 @@ enum // Error codes
 
 alias readAll = std.file.read;
 
-immutable string PAGE_VERSION =
-`ddgst ` ~ APPVERSION ~ BUILD_TYPE ~ ` (built: ` ~ __TIMESTAMP__ ~ `)
-Using sha3-d ` ~ SHA3D_VERSION_STRING ~ `, blake2-d ` ~ BLAKE2D_VERSION_STRING ~ `
-No rights reserved
-License: CC0
-Homepage: <https://github.com/dd86k/ddgst>
-Compiler: ` ~ __VENDOR__ ~ format(" v%u.%03u", __VERSION__ / 1000, __VERSION__ % 1000);
+immutable string D_COMPILER = format("%s v%u.%03u", __VENDOR__, __VERSION__/1000, __VERSION__%1000);
 
 immutable string PAGE_HELP =
 `USAGE
@@ -636,8 +631,17 @@ void benchDigest(Hash hash, ubyte[] buffer, uint seed, ubyte[] key)
 // Command-line interface
 //
 
+// print a line with spaces for field and value
+void printversion(string field, string line)
+{
+    writefln("%*s %s", -12, field ? field : "", line);
+}
+
 void main(string[] args)
 {
+    enum SECRETS = 2;   /// Program secret option switches
+    enum ALIASES = 26;  /// Hash aliases
+    
     //TODO: Option for file basenames/fullnames? (printing)
     //TODO: -z|--zero for terminating line with null instead of newline
     HasherOptions options;
@@ -689,7 +693,7 @@ void main(string[] args)
                 
                 // Try SRI format
                 string t, h;
-                if (readSRILine(value, t, h)) // Try hash-base64digest
+                if (readSRILine(value, t, h)) // Try HASH-B64DIGEST format
                 {
                     Hash hash = guessHash(t);
                     if (hash != Hash.none)   // otherwise, leave it at none
@@ -706,12 +710,16 @@ void main(string[] args)
             (string _, string usize) { options.buffersize = cast(size_t)usize.toBinaryNumber(); },
         "j|parallel",   "Spawn n threads for pattern entries, 0 for all (Default=1)", &options.threads,
         // Check file options
-        "c|check",      "List: Check hash list from file", { mode = Mode.list; },
-        "a|autocheck",  "List: Check hash list from file automatically", { mode = Mode.list; options.autodetect = true; },
+        "c|check",      "List: Check hash list from file",
+            { mode = Mode.list; },
+        "a|autocheck",  "List: Check hash list from file automatically",
+            { mode = Mode.list; options.autodetect = true; },
         "hidestats",    "List: Hide end statistics", &options.hidestats,
         // Path options
-        "r|depth",      "Depth: Traverse deepest sub-directories first", { options.span = SpanMode.depth; },
-        "breath",       "Depth: Traverse immediate sub-directories first",     { options.span = SpanMode.breadth; },
+        "r|depth",      "Depth: Traverse deepest sub-directories first",
+            { options.span = SpanMode.depth; },
+        "breath",       "Depth: Traverse immediate sub-directories first",
+            { options.span = SpanMode.breadth; },
         "nofollow",     "Links: Do not follow symbolic links", &options.nofollow,
         // Hash formatting
         "tag",          "Create BSD-style hashes", { options.style = Style.bsd; },
@@ -727,7 +735,18 @@ void main(string[] args)
         "benchmark",    "Run benchmarks on all supported hashes", &options.benchmark,
         // Pages
         "H|hashes",     "List supported hashes", &ohashlist,
-        "version",      "Show version page and quit",   { writeln(PAGE_VERSION); exit(0); },
+        "version",      "Show version page and quit",
+            {
+                printversion("ddgst", APPVERSION);
+                printversion(null, "Built: "~__TIMESTAMP__);
+                printversion("License", "CC0-1.0 Universal");
+                printversion(null, "No rights reserved");
+                printversion("Homepage", "<https://github.com/dd86k/ddgst>");
+                printversion("Compiler", D_COMPILER);
+                printversion("sha3-d", SHA3D_VERSION_STRING);
+                printversion("blake2-d", BLAKE2D_VERSION_STRING);
+                exit(0);
+            },
         "ver",          "Show version and quit",        { writeln(APPVERSION); exit(0); },
         "license",      "Show license page and quit",   { writeln(PAGE_LICENSE); exit(0); },
         );
@@ -736,9 +755,6 @@ void main(string[] args)
     {
         logError(ECLI, ex.msg);
     }
-
-    enum SECRETS = 2;
-    enum ALIASES = 26;
 
     // -h|--help: Show help page
     if (gres.helpWanted)
@@ -800,7 +816,7 @@ void main(string[] args)
         return;
     }
     
-    // Temporary hack until MT implementations improve
+    // Temporary hack until MT implementation improves
     temporary_hack = options;
     
     Digest digest;
@@ -811,6 +827,7 @@ void main(string[] args)
         
         foreach (string entry; entries)
         {
+            // TODO: Should return here to process entries after "-"
             if (entry == "-")
                 goto Lstdin;
             
