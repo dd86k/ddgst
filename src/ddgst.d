@@ -134,7 +134,9 @@ string getAliasName(Hash hash)
 }
 unittest
 {
-    
+    assert(getAliasName(Hash.crc32) == "crc32");
+    assert(getAliasName(Hash.blake2b512) == "blake2b512");
+    assert(getAliasName(Hash.none) == "alias?");
 }
 
 string getFullName(Hash hash)
@@ -145,7 +147,9 @@ string getFullName(Hash hash)
 }
 unittest
 {
-    
+    assert(getFullName(Hash.crc32) == "CRC-32");
+    assert(getFullName(Hash.blake2b512) == "BLAKE2b-512");
+    assert(getFullName(Hash.none) == "name?");
 }
 
 string getBSDName(Hash hash)
@@ -159,7 +163,9 @@ string getBSDName(Hash hash)
 }
 unittest
 {
-    
+    assert(getBSDName(Hash.crc32) == "CRC32");
+    assert(getBSDName(Hash.blake2b512) == "BLAKE2B-512");
+    assert(getBSDName(Hash.none) == "bsdtag?");
 }
 
 // Might be useless
@@ -174,7 +180,9 @@ string getGNUName(Hash hash)
 }
 unittest
 {
-    
+    assert(getGNUName(Hash.crc32) == "CRC-32");
+    assert(getGNUName(Hash.blake2b512) == "BLAKE2b");
+    assert(getGNUName(Hash.none) == "gnutag?");
 }
 
 /// Get hash type from its tag name.
@@ -196,7 +204,14 @@ Hash hashFromTag(string tag)
 }
 unittest
 {
-    
+    // by full name
+    assert(hashFromTag("RIPEMD-160") == Hash.ripemd160);
+    // by bsd tag
+    assert(hashFromTag("RIPEMD160") == Hash.ripemd160);
+    // by gnu tag
+    assert(hashFromTag("RMD160") == Hash.ripemd160);
+    // invalid
+    assert(hashFromTag("aaaaa") == Hash.none);
 }
 
 const(char)[] formatHex(Hash hash, ubyte[] result)
@@ -212,7 +227,7 @@ const(char)[] formatHex(Hash hash, ubyte[] result)
 }
 unittest
 {
-    //TODO: Endian-based tests for checksums
+    // TODO: Endian-based tests for checksums
 }
 
 const(char)[] formatBase64(Hash hash, ubyte[] result)
