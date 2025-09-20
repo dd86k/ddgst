@@ -35,8 +35,7 @@ bool readGNULine(string line, ref string hash, ref string file)
 unittest
 {
     string hash, file;
-    assert(readGNULine(
-	"f6067df486cbdbb0aac026b799b26261c92734a3  LICENSE", hash, file));
+    assert(readGNULine("f6067df486cbdbb0aac026b799b26261c92734a3  LICENSE", hash, file));
     assert(hash == "f6067df486cbdbb0aac026b799b26261c92734a3");
     assert(file == "LICENSE");
 }
@@ -61,9 +60,9 @@ unittest
 {
     string type, file, hash;
     assert(readBSDLine(
-	"SHA256 (Fedora-Workstation-Live-x86_64-36-1.5.iso) = " ~
+        "SHA256 (Fedora-Workstation-Live-x86_64-36-1.5.iso) = " ~
         "80169891cb10c679cdc31dc035dab9aae3e874395adc5229f0fe5cfcc111cc8c",
-	type, file, hash));
+        type, file, hash));
     assert(type == "SHA256");
     assert(file == "Fedora-Workstation-Live-x86_64-36-1.5.iso");
     assert(hash == "80169891cb10c679cdc31dc035dab9aae3e874395adc5229f0fe5cfcc111cc8c");

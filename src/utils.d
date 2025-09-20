@@ -46,13 +46,8 @@ private enum
     T = G * 1024L,
 }
 
-template KiB(uint k) {
-    enum KiB = k * K;
-}
-
-template MiB(uint m) {
-    enum MiB = m * M;
-}
+template KiB(uint k) { enum KiB = k * K; }
+template MiB(uint m) { enum MiB = m * M; }
 
 /// Unformat a string containing a binary size to bytes.
 /// Throws: Exception on error.
@@ -150,7 +145,7 @@ double toDoubleSeconds(Duration duration) pure
     // Example: 1,234,567,000 ns / 1,000,000,000 ns -> ~1.234 s
     // NOTE: Can't do Duration / dur!"seconds"(1) that easily.
     //       Due to integer division, since internal is ulong.
-	return cast(double)duration.total!"nsecs" / NSECS;
+    return cast(double)duration.total!"nsecs" / NSECS;
 }
 unittest
 {

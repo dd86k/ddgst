@@ -583,8 +583,6 @@ void processCompare(Digest digest, string[] entries, size_t buffersize)
     if (size < 2)
         logError(ENOCMP, "Comparison needs 2 or more files");
 
-    // TODO: Pre-allocate digest buffers
-
     // Hash all entries eagerly
     // TODO: Support multithreading
     //       Super easy with ThreadPool.parallel
@@ -595,17 +593,16 @@ void processCompare(Digest digest, string[] entries, size_t buffersize)
         ubyte[] fhash = hashFile(digest, entries[index], buffersize);
         if (fhash is null)
             continue;
-
         hashes[index] = fhash.idup;
     }
     
-    static bool cmp(immutable(ubyte)[] a, immutable(ubyte)[] b)
-    {
-        return secureEqual(a, b);
-    }
-
-    int mismatch = compareList(hashes, &cmp,
-        (immutable(ubyte)[][] items, size_t i1, size_t i2) {
+    int mismatch = compareList(hashes,
+        (immutable(ubyte)[] a, immutable(ubyte)[] b)
+        {
+            return secureEqual(a, b);
+        },
+        (immutable(ubyte)[][] items, size_t i1, size_t i2)
+        {
             writeln("DIFFERENT: '", entries[i1], "' and '", entries[i2], "'");
         });
 
@@ -751,6 +748,9 @@ void main(string[] args)
                 printversion(null, "No rights reserved");
                 printversion("Homepage", "<https://github.com/dd86k/ddgst>");
                 printversion("Compiler", D_COMPILER);
+                import std.parallelism : totalCPUs;
+                import std.conv : text;
+                printversion("Cores", text(totalCPUs));
                 printversion("sha3-d", SHA3D_VERSION_STRING);
                 printversion("blake2-d", BLAKE2D_VERSION_STRING);
                 exit(0);
