@@ -1,5 +1,6 @@
 /// Multithreaded-capable dirEntries.
 ///
+/// This adds multithreading capability to dirEntries by sending work to a thread pool.
 /// Authors: dd86k <dd@dax.moe>
 /// Copyright: No rights reserved
 /// License: CC0
@@ -10,121 +11,130 @@ import std.file;
 import std.path : globMatch, baseName;
 import std.parallelism : totalCPUs;
 import core.thread.osthread : Thread;
-import std.datetime : dur;
+import std.datetime : Duration, dur;
 
-//TODO: Find a way to construct dirEntries iterator.
-//      Can't access DirIterator.this, can't re-use FilterResults template,
-//      can't access DirIteratorImpl, etc.
-//      dirEntries with pattern doesn't check if pattern is valid...
-//      Kind of really silly, don't want to recreate dirEntries.
-//      Defined as: bool f(DirEntry de) { return globMatch(baseName(de.name), pattern); }
-//      So, if the implementation has a pattern, match it manually.
-//      It doesn't seem to exclude directories in matching, odd?
-//TODO: Consider returning statistics (e.g., files/folders processed)
+struct MTDirConfig
+{
+    /// Function called before thread processes entries.
+    ///
+    /// Accepts user object (must be on heap).
+    immutable(void)* function(immutable(void)*) fninit;
+    /// Function called when processing a directory entry.
+    /// 
+    void function(DirEntry, immutable(void)*, immutable(void)*) fnentry;
+    /// Spanning mode used in dirEntries.
+    SpanMode mode;
+    /// Follow symlinks, parameter used in dirEntries.
+    bool follow = true;
+    /// Size of mailbox for each thread.
+    int mailboxSize = 2;
+    /// Timeout when reaching end of thread pool.
+    Duration timeout = dur!"msecs"(500);
+}
+
+struct MTDirStats
+{
+    long entries;
+}
 
 /// Start a multithreaded dirEntries instance.
 /// Note: Setting threads to 1 chooses the simpler, non-threaded implementation.
 /// Params:
-///   path = Directory path,
-///   pattern = Glob pattern to match against file. Optional.
-///   mode = Span mode.
-///   follow = Follow symbolic links if set to true.
-///   fnspawn = Callback initiation function that will be called per-thread.
-///   fnentry = Callback function that will be called per-entry.
-///   threads = Size of thread pool. Defaults to totalCPUs minus one.
-///   mailboxSize = Size of mailbox for each thread. Defaults to five.
-void dirEntriesMT(string path, string pattern, SpanMode mode, bool follow,
-    immutable(void)* function() fnspawn,
-    void function(DirEntry, immutable(void)*) fnentry,
-    int threads = 0, int mailboxSize = 2)
+///     path = Directory path,
+///     pattern = Glob pattern to match against file. Optional.
+///     config = Configuration.
+///     data = User data, must be heap-allocated.
+///     threads = Amount of threads. 0 being automatic (total-1).
+MTDirStats mtdirEntries(string path, string pattern, MTDirConfig config, immutable(void) *data, int threads = 0)
 {
-    if (path == null)
-        throw new Exception("Path is not defined");
-    if (fnspawn == null)
-        throw new Exception("fnspawn is not defined");
-    if (fnentry == null)
-        throw new Exception("fnentry is not defined");
+    import std.exception : enforce;
     
+    enforce(path, "Path is undefined");
+    enforce(config.fninit, "config.fninit is undefined");
+    enforce(config.fnentry, "config.fnentry is undefined");
+    
+    // If no count specified, get total cores available.
+    if (threads == 0)
+        threads = totalCPUs;
+    
+    // If threads=0 or totalCPUs=0 (never), throw
+    enforce(threads > 0, "Thread count needs to be positive");
+    
+    long total; // total entry count
+    
+    // If there's only one thread specified or if system has one core, run normal loop
     if (threads == 1)
     {
-        dirEntriesSTImpl(path, pattern, mode, follow, fnspawn, fnentry);
-        return;
+        immutable(void)* uobj = config.fninit(data);
+        foreach (DirEntry entry; dirEntries(path, config.mode, config.follow))
+        {
+            if (pattern && globMatch(baseName(entry.name), pattern) == false)
+                continue;
+            ++total;
+            config.fnentry(entry, uobj, data);
+        }
+        return MTDirStats(total);
     }
     
-    dirEntriesMTImpl(path, pattern, mode, follow,
-        fnspawn, fnentry,
-        threads <= 0 ? totalCPUs-1 : threads,
-        mailboxSize);
-}
-
-private:
-
-// Single-threaded (threads == 1)
-void dirEntriesSTImpl(string path, string pattern, SpanMode mode, bool follow,
-    immutable(void)* function() fnspawn,
-    void function(DirEntry, immutable(void)*) fnentry)
-{
-    immutable(void)* uobj = fnspawn();
-    foreach (DirEntry entry; dirEntries(path, mode, follow))
-    {
-        if (pattern && globMatch(baseName(entry.name), pattern) == false)
-            continue;
-        fnentry(entry, uobj);
-    }
-}
-
-// Multi-threaded (threads != 1)
-void dirEntriesMTImpl(string path, string pattern, SpanMode mode, bool followLinks,
-    immutable(void)* function() fnspawn,
-    void function(DirEntry, immutable(void)*) fnentry,
-    int threads, int mailboxSize)
-{
+    // NOTE: Thread count & master thread
+    //       It's dishonest to decrease the thread count, even when worried of the caller
+    //       being saturated. That's just false, it's already detached from the workload.
+    
     // Spawn n threads and assign them their queue size.
-    scope threadPool = new Tid[threads];
+    scope pool = new Tid[threads];
     for (int i; i < threads; ++i)
     {
-        Tid tid = spawn(&dirEntriesMTWorker, thisTid, fnentry, fnspawn());
-        setMaxMailboxSize(tid, mailboxSize, OnCrowding.throwException);
-        threadPool[i] = tid;
+        Tid tid = spawn(&mtdirWorker, thisTid, config.fnentry, config.fninit(data), data);
+        setMaxMailboxSize(tid, config.mailboxSize, OnCrowding.throwException);
+        pool[i] = tid;
     }
     
     // Send every thread a message to work on.
-    int threadIndex; // Current thread index
-    foreach (DirEntry entry; dirEntries(path, mode, followLinks))
+    int tidx; // Current thread index
+    foreach (DirEntry entry; dirEntries(path, config.mode, config.follow))
     {
+        // Reimplement globbing
         if (pattern && globMatch(baseName(entry.name), pattern) == false)
             continue;
+        ++total;
     Lretry:
-        try send(threadPool[threadIndex], MsgEntry(entry));
-        catch (MailboxFull) // time to try another thread from pool
+        try send(pool[tidx], MsgEntry(entry));
+        catch (MailboxFull)
         {
-            if (++threadIndex >= threads)
+            // Mailbox full, try another try
+            if (++tidx >= threads)
             {
-                threadIndex = 0;
+                tidx = 0;
                 // Since this is the end of the list, wait for a little,
                 // maybe a thread will have some room again soon.
-                Thread.sleep(dur!"msecs"(500));
+                Thread.sleep(config.timeout);
             }
             goto Lretry;
         }
-        if (++threadIndex >= threads) threadIndex = 0;
+        // Select next thread, and wrap if out of bound
+        if (++tidx >= threads) tidx = 0;
     }
     
-    // NOTE: Done/Ack messages are required to avoid an exception
-    //       where the parent thread is terminated before the worker threads.
-    // Push cancel request at the end of the queue.
-    foreach (ref tid; threadPool)
+    // At this point, dirEntries is done sending entries and we need
+    // to tell each thread that our work is done.
+    // To do that, we change the strategy from Throw to Block,
+    // then send the Done message. If it's full, we'll just wait,
+    // we're already doing that.
+    //
+    // This work is required to avoid exceptions, when the program
+    // stops but the worker threads are still doing work.
+    foreach (ref tid; pool)
     {
-        setMaxMailboxSize(tid, mailboxSize, OnCrowding.block);
+        setMaxMailboxSize(tid, config.mailboxSize, OnCrowding.block);
         send(tid, MsgDone());
     }
-    // Wait for confirmation, this is to avoid this thread
-    // to finish before their children
-    foreach (ref tid; threadPool)
-    {
+    foreach (ref tid; pool)
         receiveOnly!MsgDoneAck;
-    }
+    
+    return MTDirStats(total);
 }
+
+private:
 
 struct MsgEntry
 {
@@ -133,17 +143,19 @@ struct MsgEntry
 struct MsgDone {}
 struct MsgDoneAck {}
 
-void dirEntriesMTWorker(Tid parentTid,
-    void function(DirEntry, immutable(void)*) fnuser,
-    immutable(void) *uobj)
+void mtdirWorker(Tid parentTid,
+    void function(DirEntry, immutable(void)*, immutable(void*)) fnuser,
+    immutable(void) *init,
+    immutable(void) *data)
 {
     bool working = true;
     while (working) receive(
         (MsgEntry msg) {
-            fnuser(msg.entry, uobj);
+            fnuser(msg.entry, init, data);
         },
         (MsgDone msg) {
             send(parentTid, MsgDoneAck());
+            // Forgot why I used a book and not a break, keep it
             working = false;
         }
     );

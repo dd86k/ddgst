@@ -25,6 +25,11 @@ import printers;
 //       In the case where someone is using this utility on a server,
 //       it's simply better being safe than sorry.
 
+// TODO: Redo functions
+//       CLI functions accept app config
+//       Implementation functions configures and runs stuff
+//       Allows unittests for implementation functions
+
 private:
 enum APPVERSION = "3.0.1";
 
@@ -314,14 +319,6 @@ Digest newDigest(Hash hash, uint seed, ubyte[] key)
     return digest;
 }
 
-__gshared HasherOptions temporary_hack;
-// This function is called per-thread to initiate hash
-immutable(void)* initThreadDigest()
-{
-    with (temporary_hack)
-    return cast(immutable(void)*)newDigest(hash, seed, key);
-}
-
 //
 // 
 //
@@ -362,8 +359,15 @@ ubyte[] hashFile(Digest digest, ref File file, size_t buffersize)
     }
 }
 
+// This function is called per-thread to initiate hash
+immutable(void)* initThreadDigest(immutable(void) *data)
+{
+    with (cast(HasherOptions*)data)
+    return cast(immutable(void)*)newDigest(hash, seed, key);
+}
+
 // NOTE: This is called from another thread
-void mtDirEntry(DirEntry entry, immutable(void)* uobj)//, size_t buffersize, Hash hash, Style style)
+void mtDirEntry(DirEntry entry, immutable(void) *tobj, immutable(void) *data)
 {
     string path = fixpath( entry.name );
     
@@ -373,14 +377,15 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)//, size_t buffersize, Has
         return;
     }
     
+    HasherOptions *opts = cast(HasherOptions*)data;
     version (Trace) trace("path=%s", path);
     
     try
     {
-        Digest digest = cast(Digest)uobj; // Get thread-assigned instance
+        Digest digest = cast(Digest)tobj; // Get thread-assigned instance
         digest.reset();
-        with (temporary_hack)
-        printHash(hashFile(digest, path, temporary_hack.buffersize), path, hash, style);
+        with (opts)
+        printHash(hashFile(digest, path, buffersize), path, hash, style);
     }
     catch (Exception ex)
     {
@@ -392,14 +397,13 @@ void mtDirEntry(DirEntry entry, immutable(void)* uobj)//, size_t buffersize, Has
 // Mode: Check list
 //
 
-//TODO: Could separate file read and line splitter to introduce tests?
+// TODO: Could separate file read and line splitter to introduce tests?
 int processList(string path, bool autodetect, Style style, bool showstats, Hash hash, uint seed, ubyte[] key, size_t buffersize)
 {
     version (Trace) trace("list=%s", path);
     
     final switch (style) with (Style) {
-    case gnu: break;
-    case bsd: break;
+    case gnu, bsd: break;
     case sri:
         logError(ENOSTYLE, "SRI hash format is not supported in file checks");
         break;
@@ -531,7 +535,7 @@ int processList(string path, bool autodetect, Style style, bool showstats, Hash 
 // Mode: against hash
 //
 
-void processAgainstEntry(DirEntry entry, immutable(void)* uobj)//, ubyte[] against, size_t buffersize)
+void processAgainstEntry(DirEntry entry, immutable(void)* tobj, immutable(void)* data)
 {
     string path = fixpath( entry.name );
     
@@ -541,14 +545,15 @@ void processAgainstEntry(DirEntry entry, immutable(void)* uobj)//, ubyte[] again
         return;
     }
     
+    HasherOptions *opts = cast(HasherOptions*)data;
     version (Trace) trace("path=%s", path);
     
     try
     {
-        Digest digest = cast(Digest)uobj; // Get thread-assigned instance
+        Digest digest = cast(Digest)tobj; // Get thread-assigned instance
         digest.reset();
-        ubyte[] hash2 = hashFile(digest, entry, temporary_hack.buffersize);
-        if (secureEqual(temporary_hack.against, hash2) == false)
+        ubyte[] hash2 = hashFile(digest, entry, opts.buffersize);
+        if (secureEqual(opts.against, hash2) == false)
         {
             logWarn("Entry '%s' is different", path);
         }
@@ -573,7 +578,7 @@ void processCompare(Digest digest, string[] entries, size_t buffersize)
 {
     const size_t size = entries.length;
     
-    //TODO: Support patterns
+    // TODO: Support patterns
 
     if (size < 2)
         logError(ENOCMP, "Comparison needs 2 or more files");
@@ -581,6 +586,9 @@ void processCompare(Digest digest, string[] entries, size_t buffersize)
     // TODO: Pre-allocate digest buffers
 
     // Hash all entries eagerly
+    // TODO: Support multithreading
+    //       Super easy with ThreadPool.parallel
+    //       Just might have to lock AA when updating
     immutable(ubyte)[][] hashes = new immutable(ubyte)[][size];
     foreach (index, entry; entries)
     {
@@ -623,8 +631,8 @@ void benchDigest(Hash hash, ubyte[] buffer, uint seed, ubyte[] key)
     sw.stop();
     
     writefln("%20s: %13.4f MiB/s",
-		hash.getFullName(),
-		getMiBPerSecond(buffer.length, sw.peek()));
+        hash.getFullName(),
+        getMiBPerSecond(buffer.length, sw.peek()));
 }
 
 //
@@ -644,7 +652,7 @@ void main(string[] args)
     
     //TODO: Option for file basenames/fullnames? (printing)
     //TODO: -z|--zero for terminating line with null instead of newline
-    HasherOptions options;
+    __gshared HasherOptions options; // ugly hack to make it thread safe
     bool ohashlist;
     Mode mode;
     GetoptResult gres = void;
@@ -816,9 +824,6 @@ void main(string[] args)
         return;
     }
     
-    // Temporary hack until MT implementation improves
-    temporary_hack = options;
-    
     Digest digest;
     final switch (mode) {
     case Mode.file: // Default
@@ -841,8 +846,15 @@ void main(string[] args)
                     scope folder  = dirName(entry);  // Results to "." by default
                     scope pattern = baseName(entry); // Extract pattern
                     version (Trace) trace("folder=%s pattern=%s", folder, pattern);
-                    dirEntriesMT(folder, pattern, options.span, !options.nofollow,
-                        &initThreadDigest, &mtDirEntry, options.threads);
+                    mtdirEntries(folder, pattern,
+                        MTDirConfig(
+                            &initThreadDigest,
+                            &mtDirEntry,
+                            options.span,
+                            !options.nofollow
+                        ),
+                        cast(immutable)&options,
+                        options.threads);
                 }
                 catch (Exception ex)
                 {
@@ -915,12 +927,17 @@ version (LittleEndian)
             {
                 try
                 {
-                    temporary_hack = options;
-                    
                     scope pattern = baseName(entry); // Extract pattern
                     scope folder  = dirName(entry);  // Results to "." by default
-                    dirEntriesMT(folder, pattern, options.span, !options.nofollow,
-                        &initThreadDigest, &processAgainstEntry, options.threads);
+                    mtdirEntries(folder, pattern,
+                        MTDirConfig(
+                            &initThreadDigest,
+                            &mtDirEntry,
+                            options.span,
+                            !options.nofollow
+                        ),
+                        cast(immutable)&options,
+                        options.threads);
                 }
                 catch (Exception ex)
                 {
