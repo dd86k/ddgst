@@ -10,7 +10,6 @@ import std.concurrency;
 import std.file;
 import std.path : globMatch, baseName;
 import std.parallelism : totalCPUs;
-import core.thread.osthread : Thread;
 import std.datetime : Duration, dur;
 
 struct MTDirConfig
@@ -85,10 +84,10 @@ MTDirStats mtdirEntries(string path, string pattern, MTDirConfig config, immutab
     for (int i; i < threads; ++i)
     {
         Tid tid = spawn(&mtdirWorker, thisTid, config.fnentry, config.fninit(data), data);
-        setMaxMailboxSize(tid, config.mailboxSize, OnCrowding.throwException);
+        setMaxMailboxSize(tid, config.mailboxSize, OnCrowding.block);
         pool[i] = tid;
     }
-    
+
     // Send every thread a message to work on.
     int tidx; // Current thread index
     foreach (DirEntry entry; dirEntries(path, config.mode, config.follow))
@@ -97,20 +96,8 @@ MTDirStats mtdirEntries(string path, string pattern, MTDirConfig config, immutab
         if (pattern && globMatch(baseName(entry.name), pattern) == false)
             continue;
         ++total;
-    Lretry:
-        try send(pool[tidx], MsgEntry(entry));
-        catch (MailboxFull)
-        {
-            // Mailbox full, try another try
-            if (++tidx >= threads)
-            {
-                tidx = 0;
-                // Since this is the end of the list, wait for a little,
-                // maybe a thread will have some room again soon.
-                Thread.sleep(config.timeout);
-            }
-            goto Lretry;
-        }
+        // Mailbox full? send() blocks until the worker makes room.
+        send(pool[tidx], MsgEntry(entry));
         // Select next thread, and wrap if out of bound
         if (++tidx >= threads) tidx = 0;
     }
