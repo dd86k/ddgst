@@ -3,8 +3,8 @@ description "dd's hashing utility"
 homepage "https://github.com/dd86k/ddgst"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
-dependency "sha3-d" version="~>1.2.4"
-dependency "blake2-d" version="~>0.3.0"
+dependency "sha3-d" version="~>1.2.6"
+dependency "blake2-d" version="~>0.5.0"
 
 buildType "trace" {
 	versions "Trace"
