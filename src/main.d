@@ -344,12 +344,29 @@ ubyte[] hashFile(Digest digest, string path, size_t buffersize)
 // NOTE: file can be a stream!
 ubyte[] hashFile(Digest digest, ref File file, size_t buffersize)
 {
+    // Reused per-thread. Cache-line aligned: the kernel copies read(2)
+    // data measurably slower into misaligned destinations (rep movsb),
+    // and GC allocations land at pool offset 16.
+    static ubyte[] buffer;
+    if (buffer.length != buffersize)
+    {
+        ubyte[] b = new ubyte[buffersize + 63];
+        size_t misalign = cast(size_t)b.ptr & 63;
+        size_t off = misalign ? 64 - misalign : 0;
+        buffer = b[off .. off + buffersize];
+    }
+
     try
     {
         digest.reset();
-        
-        foreach (ubyte[] chunk; file.byChunk(buffersize))
+
+        for (;;)
+        {
+            ubyte[] chunk = file.rawRead(buffer);
+            if (chunk.length == 0) // avoids needless .put() call
+                break;
             digest.put(chunk);
+        }
         return digest.finish();
     }
     catch (Exception ex)
