@@ -14,6 +14,7 @@ import std.digest : secureEqual;
 import std.file;
 import std.format : format;
 import std.getopt;
+import std.meta : AliasSeq;
 import std.path : baseName, dirName;
 import std.stdio;
 import std.string : lineSplitter;
@@ -667,21 +668,19 @@ void printversion(string field, string line)
 
 void main(string[] args)
 {
-    enum SECRETS = 2;   /// Program secret option switches
-    enum ALIASES = 26;  /// Hash aliases
-    
     //TODO: Option for file basenames/fullnames? (printing)
     //TODO: -z|--zero for terminating line with null instead of newline
     __gshared HasherOptions options; // ugly hack to make it thread safe
     bool ohashlist;
     Mode mode;
     GetoptResult gres = void;
-    try
-    {
-        gres = getopt(args, config.caseSensitive,
+    
+    alias SECRET_OPTS = AliasSeq!(
         "cofe",         "",             { writeln(PAGE_COFE); exit(0); },
         "coffee",       "",             { writeln(PAGE_COFE); exit(0); },
-        // Hash selection (delegate-based to avoid extra string comparisons)
+    );
+    // Delegate-based to avoid extra string comparisons
+    alias HASH_OPTS = AliasSeq!(
         "crc32",        "CRC-32",       { options.hash = Hash.crc32; },
         "crc64iso",     "CRC-64-ISO",   { options.hash = Hash.crc64iso; },
         "crc64ecma",    "CRC-64-ECMA",  { options.hash = Hash.crc64ecma; },
@@ -710,6 +709,15 @@ void main(string[] args)
         "b2",           "Alias for BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         "blake3",       "BLAKE3-256",   { options.hash = Hash.blake3_256; },
         "b3",           "Alias for blake3",       { options.hash = Hash.blake3_256; },
+    );
+    enum SECRETS = SECRET_OPTS.length / 3;
+    enum ALIASES = HASH_OPTS.length / 3;
+    
+    try
+    {
+        gres = getopt(args, config.caseSensitive,
+        SECRET_OPTS,
+        HASH_OPTS,
         // Input options
         "args",         "Use entries as input text data (UTF-8)", { mode = Mode.text; },
         "A|against",    "Compare hash against file/directory entries",
