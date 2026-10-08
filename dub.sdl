@@ -3,32 +3,29 @@ description "dd's hashing utility"
 homepage "https://github.com/dd86k/ddgst"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
+
 dependency "sha3-d" version="~>1.2.6"
 dependency "blake2-d" version="~>0.5.0"
+dependency "blake3dd" version="~>1.0.0"
 
+buildType "static" {
+	dflags "-static" platform="gdc"
+	dflags "--static" platform="ldc"
+	buildOptions "releaseMode" "noBoundsCheck" "optimize"
+}
 buildType "trace" {
 	versions "Trace"
 	buildOptions "debugMode" "debugInfo"
 }
-
-buildType "static" {
-	buildOptions "releaseMode" "noBoundsCheck" "optimize"
-	dflags "-static" platform="gdc"
-	dflags "--static" platform="ldc"
-}
-
-# Native build with fast-math option enabled
 buildType "native" {
-	buildOptions "releaseMode" "noBoundsCheck" "optimize"
-	dflags "-mcpu=native" platform="dmd"
 	dflags "-ffast-math" "-march=native" platform="gdc"
+	dflags "-mcpu=native" platform="dmd"
 	dflags "--ffast-math" "-mcpu=native" platform="ldc"
+	buildOptions "releaseMode" "noBoundsCheck" "optimize"
 }
-
-# Verbose on GC/TLS usage
 buildType "debugv" {
-	versions "PrintInfo"
-	buildOptions "debugMode"
 	dflags "-vgc" "-vtls" platform="dmd"
 	dflags "--vgc" "--vtls" platform="ldc"
+	versions "PrintInfo"
+	buildOptions "debugMode"
 }

@@ -27,7 +27,7 @@ and comes with more features than built-in OS utilities.
 | SHA-3/SHAKE | ✔️ | | ✔️ | ✔️ |
 | [BLAKE2b](https://www.blake2.net/) | ✔️ | ✔️ | ✔️[^9] | ✔️ |
 | [BLAKE2s](https://www.blake2.net/) | ✔️ | | | ✔️ |
-| [BLAKE3](https://github.com/BLAKE3-team/BLAKE3/) | | [^6] | ✔️[^9] | | [^8] |
+| [BLAKE3](https://github.com/BLAKE3-team/BLAKE3/) | ✔️ | [^6] | ✔️[^9] | | [^8] |
 
 ## Algorithm Security
 
@@ -46,6 +46,7 @@ and comes with more features than built-in OS utilities.
 | SHA-3/SHAKE | Hash | ✔️ |
 | [BLAKE2b](https://www.blake2.net/) | Hash | ✔️ |
 | [BLAKE2s](https://www.blake2.net/) | Hash | ✔️ |
+| [BLAKE3](https://github.com/BLAKE3-team/BLAKE3/) | Hash | ✔️ |
 
 # Usage
 
@@ -130,6 +131,9 @@ Some hashes may take optional parameters.
   - The `--key` option takes a binary file for keying the hash.
   - BLAKE2s: Key can be up to 64 Bytes in size.
   - BLAKE2b: Key can be up to 128 Bytes in size.
+- BLAKE3
+  - The `--key` option takes a binary file for keying the hash.
+  - Key must be exactly 32 Bytes in size.
 
 # File Pattern Globbing (`*` vs. `'*'`)
 

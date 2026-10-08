@@ -11,7 +11,7 @@ public import std.digest.md;
 public import std.digest.ripemd;
 public import std.digest.crc;
 public import std.digest.murmurhash;
-public import sha3d, blake2d;
+public import sha3d, blake2d, blake3dd;
 import std.base64;
 import std.string : indexOf;
 
@@ -54,6 +54,7 @@ enum Hash
     shake256,
     blake2s256,
     blake2b512,
+    blake3_256,
 }
 
 enum Style
@@ -89,6 +90,7 @@ shake128            "SHAKE-128"
 shake256            "SHAKE-256"
 blake2s256          "BLAKE2S-256"  "BLAKE2s"
 blake2b512          "BLAKE2B-512"  "BLAKE2b"
+blake3_256          "BLAKE3"
 */
 struct HashName
 {
@@ -124,6 +126,7 @@ immutable HashName[] hashNames = [
     { Hash.shake256,            "shake256",   "SHAKE-256" },
     { Hash.blake2s256,          "blake2s256", "BLAKE2s-256",        "BLAKE2S-256", "BLAKE2s" },
     { Hash.blake2b512,          "blake2b512", "BLAKE2b-512",        "BLAKE2B-512", "BLAKE2b" },
+    { Hash.blake3_256,          "blake3",     "BLAKE3-256",         "BLAKE3" },
 ];
 
 string getAliasName(Hash hash)
@@ -324,7 +327,8 @@ Hash guessHash(const(char)[] path) @safe
         Hash type;
     }
     static immutable Alias[] aliases = [
-        { "sha3", Hash.sha3_256 }
+        { "sha3", Hash.sha3_256 },
+        { "b3sum", Hash.blake3_256 }
     ];
     foreach (alias_; aliases)
     {
@@ -344,4 +348,5 @@ Hash guessHash(const(char)[] path) @safe
     assert(guessHash("test.sha256") == Hash.sha256);
     assert(guessHash("test.md5sum") == Hash.md5);
     assert(guessHash("test.sha3sums") == Hash.sha3_256);
+    assert(guessHash("B3SUMS") == Hash.blake3_256);
 }

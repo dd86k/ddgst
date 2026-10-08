@@ -289,6 +289,7 @@ Digest newDigest(Hash hash, uint seed, ubyte[] key)
     case shake256:              digest = new SHAKE256Digest(); break;
     case blake2s256:            digest = new BLAKE2s256Digest(); break;
     case blake2b512:            digest = new BLAKE2b512Digest(); break;
+    case blake3_256:            digest = new BLAKE3_256Digest(); break;
     case none:                  assert(false, "Not supposed to happen!");
     }
     if (seed)
@@ -312,6 +313,11 @@ Digest newDigest(Hash hash, uint seed, ubyte[] key)
         switch (hash) with (Hash) {
         case blake2s256: (cast(BLAKE2s256Digest)digest).key(key); break;
         case blake2b512: (cast(BLAKE2b512Digest)digest).key(key); break;
+        case blake3_256:
+            if (key.length != 32)
+                logError(ENOKEY, "BLAKE3 key must be 32 bytes, got %u.", key.length);
+            (cast(BLAKE3_256Digest)digest).key(key[0..32]);
+            break;
         default: 
             logError(ENOKEY, "Digest %s does not support keying.", hash);
         }
@@ -702,6 +708,8 @@ void main(string[] args)
         "blake2s256",   "BLAKE2s-256",  { options.hash = Hash.blake2s256; },
         "blake2b512",   "BLAKE2b-512",  { options.hash = Hash.blake2b512; },
         "b2",           "Alias for BLAKE2b-512",  { options.hash = Hash.blake2b512; },
+        "blake3",       "BLAKE3-256",   { options.hash = Hash.blake3_256; },
+        "b3",           "Alias for blake3",       { options.hash = Hash.blake3_256; },
         // Input options
         "args",         "Use entries as input text data (UTF-8)", { mode = Mode.text; },
         "A|against",    "Compare hash against file/directory entries",
@@ -748,7 +756,7 @@ void main(string[] args)
         "sri",          "Create SRI-style hashes", { options.style = Style.sri; },
         "plain",        "Create plain hashes",     { options.style = Style.plain; },
         // Hash parameters
-        "key",          "Binary key file for BLAKE2 hashes",
+        "key",          "Binary key file for BLAKE2 and BLAKE3 hashes",
             (string _, string upath) { options.key = cast(ubyte[])readAll(upath); },
         "seed",         "Seed literal argument for Murmurhash3 hashes",
             (string _, string useed) { options.seed = cparse(useed); },
@@ -770,6 +778,7 @@ void main(string[] args)
                 printversion("Cores", text(totalCPUs));
                 printversion("sha3-d", SHA3D_VERSION_STRING);
                 printversion("blake2-d", BLAKE2D_VERSION_STRING);
+                printversion("blake3dd", BLAKE3DD_VERSION_STRING);
                 exit(0);
             },
         "ver",          "Show version and quit",        { writeln(APPVERSION); exit(0); },
