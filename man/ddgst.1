@@ -4,7 +4,7 @@
 ." Please read man-pages(7) and groff_man(7) about the manual page format.
 ." If you're missing groff_man.7, install groff. Solid documentation.
 ."
-.TH ddgst 1 "March 2024" dd86k "User manual"
+.TH ddgst 1 "October 2026" dd86k "User manual"
 .SH NAME
 ddgst \- Hasher and file checker
 
@@ -113,11 +113,46 @@ Use SHA-256 to verify the integrity a list of files. This is similar to
 Automatically detect and select hashing algorithm from file extension and use it
 to process the list.
 
-.SH ALIASES
+.SH HASHES
 
-You can check the list of supported hashes, checksums, and aliases using the
+Supported checksums and hashes, also listed with the
 .B --hashes
 argument.
+
+.TS
+l	l	l.
+Option	Alias	Algorithm
+_
+--crc32		CRC-32
+--crc64iso		CRC-64-ISO
+--crc64ecma		CRC-64-ECMA
+--murmur3a		MurmurHash3-32
+--murmur3c		MurmurHash3-128/32
+--murmur3f		MurmurHash3-128/64
+--md5		MD5
+--ripemd160	--rmd160	RIPEMD-160
+--sha1		SHA-1
+--sha224		SHA-224
+--sha256		SHA-256
+--sha384		SHA-384
+--sha512		SHA-512
+--sha512-224		SHA-512/224
+--sha512-256		SHA-512/256
+--sha3-224		SHA-3-224
+--sha3-256	--sha3	SHA-3-256
+--sha3-384		SHA-3-384
+--sha3-512		SHA-3-512
+--shake128		SHAKE-128
+--shake256		SHAKE-256
+--blake2s256		BLAKE2s-256
+--blake2b512	--b2	BLAKE2b-512
+--blake3	--b3	BLAKE3-256
+.TE
+
+BLAKE2 and BLAKE3 accept a binary key file with
+.BR --key ;
+BLAKE3 requires exactly 32 bytes. MurmurHash3 accepts a seed with
+.BR --seed .
 
 .SH OPTIONS
 
@@ -194,7 +229,7 @@ Set real buffer size for reading. The default is 1 MiB.
 
 .SH ERRORS
 
-.fi t \{\
+.fi t
 .ft CW
 \}
 .TS
