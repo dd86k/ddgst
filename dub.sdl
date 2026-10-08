@@ -4,11 +4,11 @@ homepage "https://github.com/dd86k/ddgst"
 authors "dd86k <dd@dax.moe>"
 license "CC0"
 
-dependency "sha3-d" version="~>1.2.6"
-dependency "blake2-d" version="~>0.5.0"
-dependency "blake3dd" version="~>1.0.0"
+dependency "sha3-d" version="==1.2.6"
+dependency "blake2-d" version="==0.5.1"
+dependency "blake3dd" version="==1.0.0"
 
-buildType "static" {
+buildType "release-static" {
 	dflags "-static" platform="gdc"
 	dflags "--static" platform="ldc"
 	buildOptions "releaseMode" "noBoundsCheck" "optimize"
