@@ -772,7 +772,7 @@ void main(string[] args)
         "C|compare",    "Compares all file entries", { mode = Mode.compare; },
         "benchmark",    "Run benchmarks on all supported hashes", &options.benchmark,
         // Pages
-        "H|hashes",     "List supported hashes", &ohashlist,
+        "H|hashes|list", "List supported hashes (alias: --list)", &ohashlist,
         "version",      "Show version page and quit",
             {
                 printversion("ddgst", APPVERSION);
