@@ -31,7 +31,7 @@ import printers;
 //       Allows unittests for implementation functions
 
 private:
-enum APPVERSION = "3.0.1";
+enum APPVERSION = "3.1.0";
 
 debug
 {
